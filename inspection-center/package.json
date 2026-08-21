@@ -1,0 +1,40 @@
+{
+  "name": "inspection-center",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "import:excel": "tsx scripts/import-excel.ts",
+    "import:excel:list": "tsx scripts/import-excel.ts --list-only",
+    "import:master": "tsx scripts/import-master-workbook.ts",
+    "import:sidebar-findings": "tsx scripts/import-sidebar-findings.ts",
+    "import:document": "tsx scripts/import-document-inspection.ts",
+    "test:scoring": "tsx --test src/lib/scoring/scoring.test.ts",
+    "seed:remote": "tsx --tsconfig tsconfig.json scripts/seed-remote-store.ts"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.12.4",
+    "@supabase/supabase-js": "^2.112.3",
+    "lucide-react": "^1.31.0",
+    "next": "16.3.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "uuid": "^14.0.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/uuid": "^10.0.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.0",
+    "tailwindcss": "^4",
+    "tsx": "^4.23.12",
+    "typescript": "^5"
+  }
+}

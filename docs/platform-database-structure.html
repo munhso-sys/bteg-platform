@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="mn">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Platform database structure</title>
+  <style>
+    :root { color-scheme: light dark; --bg:#f3f6fa; --panel:#fff; --fg:#172033; --muted:#64748b; --line:#dbe3ed; --navy:#071a34; --orange:#f97316; --soft:#eef3f8; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.55 Inter,Segoe UI,Arial,sans-serif; }
+    header { background:var(--navy); color:white; padding:28px clamp(18px,4vw,52px); border-bottom:4px solid var(--orange); }
+    header h1 { margin:0 0 4px; font-size:clamp(22px,3vw,34px); }
+    header p { margin:0; color:#aebbd0; }
+    main { max-width:1500px; margin:auto; padding:24px clamp(14px,3vw,36px) 56px; }
+    .tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
+    .tab { border:1px solid var(--line); background:var(--panel); color:var(--fg); border-radius:8px; padding:9px 14px; cursor:pointer; font-weight:650; }
+    .tab.active { background:var(--navy); color:white; border-color:var(--navy); }
+    .section { display:none; }
+    .section.active { display:block; }
+    .stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:18px; }
+    .stat,.card { background:var(--panel); border:1px solid var(--line); border-radius:12px; }
+    .stat { padding:18px; }
+    .stat strong { display:block; font-size:28px; color:var(--orange); }
+    .stat span { color:var(--muted); }
+    .card { padding:18px; margin-bottom:16px; }
+    h2 { margin:0 0 12px; font-size:20px; }
+    .note { border-left:4px solid var(--orange); background:#fff7ed; color:#7c2d12; padding:12px 14px; margin-bottom:18px; border-radius:0 8px 8px 0; }
+    .flow { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:12px 0; }
+    .node { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px 12px; font-weight:700; }
+    .arrow { color:var(--orange); font-size:18px; font-weight:800; }
+    .table-wrap { overflow:auto; max-height:70vh; border:1px solid var(--line); border-radius:12px; background:var(--panel); }
+    table { width:100%; border-collapse:collapse; min-width:880px; }
+    th,td { padding:11px 13px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top; }
+    th { position:sticky; top:0; z-index:2; background:var(--navy); color:white; font-size:12px; letter-spacing:.02em; }
+    tr:nth-child(even) td { background:var(--soft); }
+    td:first-child { font:600 13px ui-monospace,SFMono-Regular,Consolas,monospace; color:#c2410c; white-space:nowrap; }
+    code { font:12px ui-monospace,SFMono-Regular,Consolas,monospace; background:var(--soft); padding:2px 5px; border-radius:4px; }
+    .views { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+    .views code { display:block; padding:9px; border:1px solid var(--line); }
+    footer { color:var(--muted); margin-top:18px; font-size:12px; }
+    @media (max-width:800px) { .stats { grid-template-columns:repeat(2,1fr); } .views { grid-template-columns:1fr; } header { padding:22px 18px; } main { padding:16px 10px 40px; } }
+    @media (prefers-color-scheme:dark) {
+      :root { --bg:#07111f; --panel:#0f1d2e; --fg:#e5edf7; --muted:#94a3b8; --line:#293a50; --navy:#030b16; --soft:#14253a; }
+      .note { background:#29170d; color:#fdba74; }
+      td:first-child { color:#fb923c; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Platform database structure</h1>
+    <p>Portal, RBAC, Policy Compliance болон module JSON storage-ийн нэгдсэн зураглал</p>
+  </header>
+  <main>
+    <nav class="tabs" aria-label="Schema sections">
+      <button class="tab active" data-tab="overview">Тойм</button>
+      <button class="tab" data-tab="portal">Portal / RBAC</button>
+      <button class="tab" data-tab="policy">Журмын relational schema</button>
+      <button class="tab" data-tab="json">JSON datasets</button>
+    </nav>
+
+    <section id="overview" class="section active">
+      <div class="stats">
+        <div class="stat"><strong>7</strong><span>Portal public table</span></div>
+        <div class="stat"><strong>16</strong><span>Policy relational table</span></div>
+        <div class="stat"><strong>6</strong><span>Policy reporting view</span></div>
+        <div class="stat"><strong>11</strong><span>Known JSON dataset key</span></div>
+      </div>
+      <div class="note"><b>Hybrid storage:</b> Portal access control relational table-уудаар, харин Inspection Center болон production Policy өгөгдлийн ихэнх нь <code>app_data_store.payload</code> JSON дотор хадгалагдаж байна.</div>
+      <div class="card">
+        <h2>Portal access холбоос</h2>
+        <div class="flow"><div class="node">auth.users</div><span class="arrow">→</span><div class="node">user_profiles</div><span class="arrow">→</span><div class="node">roles</div><span class="arrow">→</span><div class="node">role_permissions</div><span class="arrow">→</span><div class="node">permissions</div></div>
+      </div>
+      <div class="card">
+        <h2>Журам ба үнэлгээний холбоос</h2>
+        <div class="flow"><div class="node">policies</div><span class="arrow">→</span><div class="node">policy_sections</div><span class="arrow">→</span><div class="node">policy_clauses</div><span class="arrow">↔</span><div class="node">clause_position_responsibilities</div><span class="arrow">↔</span><div class="node">job_positions</div></div>
+        <div class="flow"><div class="node">compliance_evaluations</div><span class="arrow">→</span><div class="node">evaluation_evidence</div><span class="arrow">·</span><div class="node">corrective_actions</div><span class="arrow">·</span><div class="node">inspection links</div></div>
+      </div>
+      <div class="card">
+        <h2>Reporting views</h2>
+        <div class="views">
+          <code>v_policy_clause_responsibility_matrix</code><code>v_position_policy_obligations</code><code>v_clause_compliance_latest</code><code>v_policy_compliance_summary</code><code>v_position_compliance_summary</code><code>v_department_compliance_summary</code>
+        </div>
+      </div>
+    </section>
+
+    <section id="portal" class="section">
+      <h2>Portal authentication ба RBAC</h2>
+      <div class="table-wrap"><table><thead><tr><th>Table</th><th>Primary key</th><th>Гол баганууд</th><th>Үүрэг</th></tr></thead><tbody>
+        <tr><td>user_profiles</td><td>user_id (auth.users FK)</td><td>email, full_name, phone, heltes/alba, position, role_id, status, telegram_id</td><td>Хэрэглэгчийн байгууллагын profile</td></tr>
+        <tr><td>roles</td><td>id</td><td>label, description, sort_order</td><td>Role каталог</td></tr>
+        <tr><td>permissions</td><td>id</td><td>label, module, description</td><td>Module/action эрх</td></tr>
+        <tr><td>role_permissions</td><td>role_id + permission_id</td><td>role_id FK, permission_id FK</td><td>Role–permission matrix</td></tr>
+        <tr><td>access_requests</td><td>id</td><td>full_name, email, phone, org, position, note, status, assigned_role_id</td><td>Нэвтрэх эрхийн хүсэлт</td></tr>
+        <tr><td>temporary_edit_grants</td><td>id</td><td>user_id, permission_id, starts_at, ends_at, org scope, resource, granted_by, revoked_at</td><td>Хугацаатай засах эрх</td></tr>
+        <tr><td>app_data_store</td><td>key</td><td>payload jsonb, updated_at</td><td>Module JSON dataset хадгалалт</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section id="policy" class="section">
+      <h2>Журмын биелэлтийн normalized schema</h2>
+      <div class="table-wrap"><table><thead><tr><th>Table</th><th>PK</th><th>Гол баганууд / FK</th><th>Үүрэг</th></tr></thead><tbody>
+        <tr><td>users</td><td>id</td><td>email, display_name, is_active</td><td>Policy app хэрэглэгч</td></tr><tr><td>user_roles</td><td>id</td><td>user_id, role</td><td>Policy app role</td></tr><tr><td>org_units</td><td>id</td><td>bteg_id, name, unit_type, parent_id</td><td>Байгууллагын шатлал</td></tr><tr><td>policies</td><td>id</td><td>name, approved_date, reference_code, status, version</td><td>Журам</td></tr><tr><td>policy_sections</td><td>id</td><td>policy_id, text, reference_number, sort_order</td><td>Журмын бүлэг</td></tr><tr><td>policy_clauses</td><td>id</td><td>policy_id, section_id, parent_id, reference_number, text</td><td>Журмын заалт</td></tr><tr><td>job_positions</td><td>id</td><td>bteg_id, name, organization/gazar/heltes/alba, org_unit_id</td><td>Ажлын байр</td></tr><tr><td>job_descriptions</td><td>id</td><td>job_position_id, purpose, duties, skills, authority, responsibilities</td><td>Ажлын байрны тодорхойлолт</td></tr><tr><td>policy_scope_targets</td><td>id</td><td>policy_id, target_type, target_bteg_id, org_unit_id</td><td>Журмын хамрах хүрээ</td></tr><tr><td>clause_position_responsibilities</td><td>id</td><td>policy_clause_id, job_position_id, responsibility_type, weight</td><td>Заалт–ажлын байрны үүрэг</td></tr><tr><td>compliance_evaluations</td><td>id</td><td>clause, position, period, evaluator, score, status</td><td>Биелэлтийн үнэлгээ</td></tr><tr><td>evaluation_evidence</td><td>id</td><td>evaluation_id, type, title, content/url/file</td><td>Нотлох баримт</td></tr><tr><td>audit_log</td><td>id</td><td>actor, action, entity, before_data, after_data</td><td>Өөрчлөлтийн мөр</td></tr><tr><td>inspect_policy_clause_links</td><td>id</td><td>inspect_record_id, policy_clause_id</td><td>ХШ–заалтын холбоос</td></tr><tr><td>inspect_evidence_links</td><td>id</td><td>inspect_record_id, evaluation_id, evidence_payload</td><td>ХШ нотлох баримтын холбоос</td></tr><tr><td>corrective_actions</td><td>id</td><td>source, source_record_id, clause, position, title, status, due_date</td><td>Залруулах арга хэмжээ</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section id="json" class="section">
+      <h2><code>app_data_store</code> logical datasets</h2>
+      <div class="table-wrap"><table><thead><tr><th>Store key</th><th>Module</th><th>Payload бүтэц</th></tr></thead><tbody>
+        <tr><td>inspection_center_store</td><td>inspection-center</td><td>templates, sections, questions, plans, runs, answers, findings, actions, evidence, scoreSnapshots, riskThresholds</td></tr><tr><td>inspection_center_annual_plans</td><td>inspection-center</td><td>AnnualPlanRow[]</td></tr><tr><td>inspection_center_annual_plan_types</td><td>inspection-center</td><td>AnnualPlanTypeTarget[]</td></tr><tr><td>inspection_center_master</td><td>inspection-center</td><td>Master workbook dataset</td></tr><tr><td>inspection_center_org_template_allocations</td><td>inspection-center</td><td>Org/template allocation dataset</td></tr><tr><td>policy_compliance_db</td><td>bgs-policy-compliance</td><td>Журам, заалт, ажлын байр, үнэлгээний JSON DB; том үед gzip-base64</td></tr><tr><td>policy_compliance_position_org_overrides</td><td>bgs-policy-compliance</td><td>Ажлын байр–нэгжийн override</td></tr><tr><td>policy_compliance_policy_org_overrides</td><td>bgs-policy-compliance</td><td>Журам–нэгжийн override</td></tr><tr><td>employee_voice_db</td><td>inspect-mn</td><td>items, actions, notices, telegramUsers</td></tr><tr><td>telegram_bot_config</td><td>inspect-mn</td><td>Telegram bot configuration</td></tr><tr><td>platform_session_settings</td><td>inspect-mn</td><td>Session timeout/settings</td></tr>
+      </tbody></table></div>
+      <div class="note" style="margin-top:16px"><b>Архитектурын анхаарах зүйл:</b> JSON entity-үүд database foreign key, index болон row-level constraint-гүй. Өгөгдөл өсөхөд өндөр хэрэглээтэй entity-үүдийг тусдаа relational table болгох шаардлагатай.</div>
+    </section>
+    <footer>Эх сурвалж: local source code болон bgs-policy-compliance Supabase migration · 2026-08-15</footer>
+  </main>
+  <script>
+    const tabs = document.querySelectorAll('.tab');
+    const sections = document.querySelectorAll('.section');
+    tabs.forEach(tab => tab.addEventListener('click', () => {
+      tabs.forEach(x => x.classList.remove('active'));
+      sections.forEach(x => x.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById(tab.dataset.tab).classList.add('active');
+    }));
+  </script>
+</body>
+</html>

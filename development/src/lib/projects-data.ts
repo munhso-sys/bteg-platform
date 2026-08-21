@@ -1,0 +1,180 @@
+import type { ProjectPriority, ProjectStatus, ResearchProject } from "./types";
+
+export const PROJECTS_STORAGE_KEY = "rd-research-projects";
+
+export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
+  active: "Идэвхтэй",
+  completed: "Дууссан",
+  hold: "Түр зогссон",
+};
+
+export const PROJECT_PRIORITY_LABELS: Record<ProjectPriority, string> = {
+  low: "Бага",
+  medium: "Дунд",
+  high: "Өндөр",
+};
+
+export const seedProjects: ResearchProject[] = [
+  {
+    id: "rp-001",
+    title: "Ажилтны дуу хоолойн судалгааны маягт, асуулга",
+    description: "Санал, гомдол, асуулгын нэгдсэн маягт боловсруулж турших.",
+    category: "Судалгаа",
+    priority: "high",
+    status: "active",
+    owner: "Судалгаа хөгжүүлэлт",
+    result_summary: "Маягтын эхний хувилбар бэлэн, 86 санал бүртгэсэн.",
+    next_step: "Хэлтэс бүрт тарааж, хариу өгөх процессыг стандартчилах.",
+    start_date: "2026-03-01",
+    end_date: "2026-09-30",
+    extended_end_date: "",
+    progress: 82,
+    issue: "",
+    pending_decision: "",
+    is_urgent: false,
+    file_name: "",
+    file_url: "",
+  },
+  {
+    id: "rp-002",
+    title: "Журам, процессын давхардал ба сул цэгийн зураглал",
+    description: "Хяналт шалгалт, журмын биелэлтийн давхардлыг илрүүлэх.",
+    category: "Дүн шинжилгээ",
+    priority: "high",
+    status: "active",
+    owner: "Дотоод хяналт",
+    result_summary: "Гол процессуудын зураглал 70% хийгдсэн.",
+    next_step: "Сул цэгийг эрсдэлийн модультай холбох.",
+    start_date: "2026-04-01",
+    end_date: "2026-10-31",
+    extended_end_date: "",
+    progress: 76,
+    issue: "Зарим нэгжийн процесс баримтжуулаагүй.",
+    pending_decision: "",
+    is_urgent: false,
+    file_name: "",
+    file_url: "",
+  },
+  {
+    id: "rp-003",
+    title: "Эрсдэлийн бүртгэл, corrective action dashboard",
+    description: "Эрсдэл болон засах арга хэмжээг нэг самбарт харуулах.",
+    category: "Хөгжүүлэлт",
+    priority: "medium",
+    status: "active",
+    owner: "Эрсдэлийн удирдлага",
+    result_summary: "",
+    next_step: "KPI тодорхойлолт баталгаажуулах.",
+    start_date: "2026-07-01",
+    end_date: "2026-12-15",
+    extended_end_date: "",
+    progress: 64,
+    issue: "",
+    pending_decision: "Мэдээллийн эх үүсвэрийн зөвшөөрөл",
+    is_urgent: false,
+    file_name: "",
+    file_url: "",
+  },
+  {
+    id: "rp-004",
+    title: "ХШ болон журмын биелэлтийн тайлан шинжилгээний загвар",
+    description: "Удирдлагын тайлангийн нэгдсэн загвар.",
+    category: "Тайлан",
+    priority: "medium",
+    status: "hold",
+    owner: "Тайлан шинжилгээ",
+    result_summary: "",
+    next_step: "Загварын баталгаажуулалт.",
+    start_date: "2026-05-01",
+    end_date: "2026-11-30",
+    extended_end_date: "2026-12-20",
+    progress: 58,
+    issue: "Хэлтэс хоорондын өгөгдөл хоцорч байна.",
+    pending_decision: "Тайлангийн бүтцийг удирдлага батлах",
+    is_urgent: true,
+    file_name: "",
+    file_url: "",
+  },
+  {
+    id: "rp-005",
+    title: "AI туслахын мэдлэгийн сан, зөвлөмжийн эхний хувилбар",
+    description: "Дотоод журам, шалгалтын мэдлэг дээр суурилсан AI туслах.",
+    category: "Цахим шилжилт",
+    priority: "high",
+    status: "active",
+    owner: "AI туслах",
+    result_summary: "18 workflow туршигдсан.",
+    next_step: "Нэмэлт мэдлэгийн сан оруулах.",
+    start_date: "2026-02-15",
+    end_date: "2026-09-01",
+    extended_end_date: "",
+    progress: 71,
+    issue: "",
+    pending_decision: "",
+    is_urgent: false,
+    file_name: "",
+    file_url: "",
+  },
+  {
+    id: "rp-006",
+    title: "Ажилтны сургалт, тохиргоо, удирдлагын төвийн шаардлага",
+    description: "Сургалт, эрх, тохиргооны шаардлагын багц.",
+    category: "Сургалт",
+    priority: "low",
+    status: "completed",
+    owner: "Удирдлагын төв",
+    result_summary: "Шаардлагын баримт батлагдсан.",
+    next_step: "Хэрэгжилтийг хянах.",
+    start_date: "2026-01-10",
+    end_date: "2026-06-30",
+    extended_end_date: "",
+    progress: 100,
+    issue: "",
+    pending_decision: "",
+    is_urgent: false,
+    file_name: "",
+    file_url: "",
+  },
+];
+
+export function emptyProject(): ResearchProject {
+  return {
+    id: "",
+    title: "",
+    description: "",
+    category: "",
+    priority: "medium",
+    status: "active",
+    owner: "",
+    result_summary: "",
+    next_step: "",
+    start_date: "",
+    end_date: "",
+    extended_end_date: "",
+    progress: 0,
+    issue: "",
+    pending_decision: "",
+    is_urgent: false,
+    file_name: "",
+    file_url: "",
+  };
+}
+
+export function projectKpis(projects: ResearchProject[]) {
+  const active = projects.filter((x) => x.status === "active");
+  const completed = projects.filter((x) => x.status === "completed");
+  const high = projects.filter((x) => x.priority === "high");
+  const stalled = projects.filter(
+    (x) => x.status === "hold" || Boolean(x.issue) || Boolean(x.pending_decision),
+  );
+  const urgent = projects.filter((x) => x.is_urgent);
+
+  return {
+    total: projects,
+    active,
+    completed,
+    high,
+    stalled,
+    urgent,
+  };
+}

@@ -17,6 +17,7 @@ export type PositionListRow = {
   id: string;
   name: string;
   bteg_id: string | null;
+  official_code: string | null;
   organization_name: string;
   heltesId: string;
   albaId: string;

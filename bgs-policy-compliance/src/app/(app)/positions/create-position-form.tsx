@@ -31,6 +31,7 @@ export function CreatePositionForm({ tree }: { tree: OrgAssignTree }) {
         body: JSON.stringify({
           name: fd.get("name"),
           bteg_id: fd.get("bteg_id") || null,
+          official_code: fd.get("official_code") || null,
           organization_name: fd.get("organization_name") || null,
           heltes_id: heltesId,
           alba_id: albaId,
@@ -100,6 +101,11 @@ export function CreatePositionForm({ tree }: { tree: OrgAssignTree }) {
       <input
         name="bteg_id"
         placeholder="BTEG id (заавал биш)"
+        className="w-full rounded border border-slate-300 px-2 py-1.5"
+      />
+      <input
+        name="official_code"
+        placeholder="Албан тушаалын код"
         className="w-full rounded border border-slate-300 px-2 py-1.5"
       />
       <textarea

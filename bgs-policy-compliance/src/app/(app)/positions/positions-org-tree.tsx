@@ -152,6 +152,7 @@ function PositionRow({
   const [orgName, setOrgName] = useState(row.organization_name);
   const [heltesId, setHeltesId] = useState(row.heltesId);
   const [albaId, setAlbaId] = useState(row.albaId);
+  const [officialCode, setOfficialCode] = useState(row.official_code ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [deleting, setDeleting] = useState(false);
@@ -161,9 +162,10 @@ function PositionRow({
       setOrgName(row.organization_name);
       setHeltesId(row.heltesId);
       setAlbaId(row.albaId);
+      setOfficialCode(row.official_code ?? "");
     }, 0);
     return () => window.clearTimeout(id);
-  }, [row.organization_name, row.heltesId, row.albaId, row.id]);
+  }, [row.organization_name, row.heltesId, row.albaId, row.official_code, row.id]);
 
   const albaOptions = useMemo(() => {
     if (heltesId === OTHER_HELTES_ID || heltesId === tree.other.id) {
@@ -204,6 +206,30 @@ function PositionRow({
         alba: labels.alba,
       };
       startTransition(() => onSaved(updated));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Хадгалж чадсангүй");
+    }
+  }
+
+  async function saveOfficialCode() {
+    const next = officialCode.trim() || null;
+    if ((next ?? "") === (row.official_code ?? "").trim()) return;
+    setError(null);
+    try {
+      const res = await fetch(withBasePath(`/api/positions/${row.id}`), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ official_code: next }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(data?.error || `Алдаа (${res.status})`);
+      }
+      startTransition(() =>
+        onSaved({ ...row, official_code: next }),
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Хадгалж чадсангүй");
     }
@@ -299,6 +325,22 @@ function PositionRow({
       </td>
       <td className="py-1.5 pr-2 align-top font-mono text-xs">
         {row.bteg_id || "—"}
+      </td>
+      <td className="py-1.5 pr-2 align-top">
+        <input
+          value={officialCode}
+          disabled={pending}
+          onChange={(e) => setOfficialCode(e.target.value)}
+          onBlur={() => {
+            void saveOfficialCode();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          }}
+          placeholder="Код…"
+          title="Албан тушаалын код — одоогийн холбоос өөрчлөгдөхгүй"
+          className="w-full min-w-[90px] rounded border border-slate-300 px-1.5 py-1 font-mono text-xs"
+        />
       </td>
       <td className="py-1.5 pr-2 align-top">
         {row.has_job_description ? (
@@ -414,7 +456,7 @@ export function PositionsOrgTree({ rows: initialRows, tree }: Props) {
     const orgOpen = open.has(org.key);
     flatRows.push(
       <tr key={`org-${org.key}`}>
-        <td colSpan={9} className="p-0">
+        <td colSpan={10} className="p-0">
           <FolderHeader
             open={orgOpen}
             onToggle={() => toggle(org.key)}
@@ -432,7 +474,7 @@ export function PositionsOrgTree({ rows: initialRows, tree }: Props) {
       const hOpen = open.has(heltes.key);
       flatRows.push(
         <tr key={`h-${heltes.key}`}>
-          <td colSpan={9} className="p-0">
+          <td colSpan={10} className="p-0">
             <FolderHeader
               open={hOpen}
               onToggle={() => toggle(heltes.key)}
@@ -449,7 +491,7 @@ export function PositionsOrgTree({ rows: initialRows, tree }: Props) {
         const aOpen = open.has(alba.key);
         flatRows.push(
           <tr key={`a-${alba.key}`}>
-            <td colSpan={9} className="p-0">
+            <td colSpan={10} className="p-0">
               <FolderHeader
                 open={aOpen}
                 onToggle={() => toggle(alba.key)}
@@ -501,7 +543,7 @@ export function PositionsOrgTree({ rows: initialRows, tree }: Props) {
       </div>
 
       <div className="overflow-x-auto rounded border border-slate-200">
-        <table className="w-full min-w-[1100px] text-left text-sm">
+        <table className="w-full min-w-[1220px] text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
             <tr>
               <th className="px-2 py-1.5">#</th>
@@ -510,6 +552,7 @@ export function PositionsOrgTree({ rows: initialRows, tree }: Props) {
               <th className="py-1.5 pr-2">Алба</th>
               <th className="py-1.5 pr-2">Ажлын байр</th>
               <th className="py-1.5 pr-2">BTEG</th>
+              <th className="py-1.5 pr-2">Албан тушаалын код</th>
               <th className="py-1.5 pr-2">Тодорхойлолт</th>
               <th className="py-1.5 pr-2">Холбоос</th>
               <th className="py-1.5 pr-2 text-right">Устгах</th>

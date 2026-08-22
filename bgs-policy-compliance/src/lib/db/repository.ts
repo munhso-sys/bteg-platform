@@ -306,6 +306,7 @@ export async function listPositions(q?: string) {
       (p) =>
         p.name.toLowerCase().includes(s) ||
         (p.bteg_id ?? "").includes(s) ||
+        (p.official_code ?? "").toLowerCase().includes(s) ||
         (p.heltes_id ?? "").includes(s) ||
         (p.alba_id ?? "").includes(s) ||
         (p.heltes_name ?? "").toLowerCase().includes(s) ||
@@ -818,9 +819,90 @@ export async function deactivateResponsibility(linkId: string) {
   return found;
 }
 
+function normalizeOfficialCode(value: string | null | undefined) {
+  const trimmed = (value ?? "").trim();
+  return trimmed || null;
+}
+
+function positionOfficialCode(
+  position: JobPosition,
+  aCode?: string | null,
+): string | null {
+  return (
+    normalizeOfficialCode(position.official_code) ??
+    normalizeOfficialCode(aCode)
+  );
+}
+
+/** Copy active clause links from other jobs that share the same official code. */
+export async function copyResponsibilitiesByOfficialCode(
+  positionId: string,
+  officialCode: string | null | undefined,
+) {
+  const needle = normalizeOfficialCode(officialCode);
+  if (!needle) return 0;
+  let copied = 0;
+  await updateDb((db) => {
+    const aCodeByPosition = new Map(
+      db.job_descriptions.map((d) => [d.job_position_id, d.a_code]),
+    );
+    const sourceIds = new Set(
+      db.job_positions
+        .filter((p) => p.is_active && p.id !== positionId)
+        .filter(
+          (p) =>
+            positionOfficialCode(p, aCodeByPosition.get(p.id)) === needle,
+        )
+        .map((p) => p.id),
+    );
+    if (!sourceIds.size) return;
+
+    const seen = new Set(
+      db.clause_position_responsibilities
+        .filter((r) => r.job_position_id === positionId)
+        .map((r) => `${r.policy_clause_id}:${r.responsibility_type}`),
+    );
+    for (const link of db.clause_position_responsibilities) {
+      if (!link.is_active || !sourceIds.has(link.job_position_id)) continue;
+      const key = `${link.policy_clause_id}:${link.responsibility_type}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      db.clause_position_responsibilities.push({
+        id: newId(),
+        policy_clause_id: link.policy_clause_id,
+        job_position_id: positionId,
+        responsibility_type: link.responsibility_type,
+        is_checked: true,
+        is_active: true,
+        weight: link.weight,
+        required_evidence: link.required_evidence,
+        notes: link.notes,
+      });
+      copied += 1;
+    }
+  });
+  return copied;
+}
+
+export async function updatePositionOfficialCode(
+  id: string,
+  officialCode: string | null,
+) {
+  let found = false;
+  await updateDb((db) => {
+    const position = db.job_positions.find((p) => p.id === id);
+    if (!position) return;
+    position.official_code = normalizeOfficialCode(officialCode);
+    position.updated_at = new Date().toISOString();
+    found = true;
+  });
+  return found;
+}
+
 export async function createPosition(input: {
   name: string;
   bteg_id?: string | null;
+  official_code?: string | null;
   organization_id?: string | null;
   organization_name?: string | null;
   gazar_id?: string | null;
@@ -837,6 +919,7 @@ export async function createPosition(input: {
       id: newId(),
       name: input.name,
       bteg_id: input.bteg_id ?? null,
+      official_code: normalizeOfficialCode(input.official_code),
       organization_id: input.organization_id ?? null,
       organization_name: input.organization_name?.trim() || null,
       gazar_id: input.gazar_id ?? null,

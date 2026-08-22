@@ -646,6 +646,7 @@ function canonicalizeAlbaPositions(
     job_positions: Array<{
       id: string;
       bteg_id: string | null;
+      official_code?: string | null;
       name: string;
       is_active: boolean;
       heltes_id: string | null;
@@ -728,6 +729,7 @@ function canonicalizeAlbaPositions(
           db.job_positions.push({
             id,
             bteg_id: jdCode,
+            official_code: null,
             name: display,
             organization_id: null,
             gazar_id: null,
@@ -902,6 +904,7 @@ async function main() {
     job_positions: Array<{
       id: string;
       bteg_id: string | null;
+      official_code?: string | null;
       name: string;
       is_active: boolean;
       heltes_id: string | null;

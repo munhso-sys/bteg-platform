@@ -68,6 +68,8 @@ export interface PolicyClause {
 export interface JobPosition {
   id: string;
   bteg_id: string | null;
+  /** Official position code used to copy clause links onto newly created jobs. */
+  official_code: string | null;
   name: string;
   organization_id: string | null;
   /** Free-text organization label (UI grouping). */

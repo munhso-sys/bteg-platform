@@ -1451,6 +1451,9 @@ export async function listPositionsForOrgTree(q?: string): Promise<PositionListR
   }
 
   const jd = new Set(db.job_descriptions.map((d) => d.job_position_id));
+  const aCodeByPosition = new Map(
+    db.job_descriptions.map((d) => [d.job_position_id, d.a_code]),
+  );
   const linkCount = new Map<string, number>();
   for (const l of db.clause_position_responsibilities) {
     if (!l.is_active) continue;
@@ -1466,6 +1469,8 @@ export async function listPositionsForOrgTree(q?: string): Promise<PositionListR
       return (
         p.name.toLowerCase().includes(s) ||
         (p.bteg_id ?? "").includes(s) ||
+        (p.official_code ?? "").toLowerCase().includes(s) ||
+        (aCodeByPosition.get(p.id) ?? "").toLowerCase().includes(s) ||
         orgName.toLowerCase().includes(s) ||
         (p.heltes_name ?? "").toLowerCase().includes(s) ||
         (p.alba_name ?? "").toLowerCase().includes(s)
@@ -1492,6 +1497,10 @@ export async function listPositionsForOrgTree(q?: string): Promise<PositionListR
         id: p.id,
         name: p.name,
         bteg_id: p.bteg_id,
+        official_code:
+          (p.official_code ?? "").trim() ||
+          (aCodeByPosition.get(p.id) ?? "").trim() ||
+          null,
         organization_name,
         heltesId: OTHER_HELTES_ID,
         albaId: OTHER_ALBA_ID,
@@ -1506,6 +1515,10 @@ export async function listPositionsForOrgTree(q?: string): Promise<PositionListR
       id: p.id,
       name: p.name,
       bteg_id: p.bteg_id,
+      official_code:
+        (p.official_code ?? "").trim() ||
+        (aCodeByPosition.get(p.id) ?? "").trim() ||
+        null,
       organization_name,
       heltesId: meta!.heltesId,
       albaId: mappedAlba!,

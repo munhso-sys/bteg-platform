@@ -2,10 +2,10 @@ import { requirePolicyMutation } from "@/lib/access/scope";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
-  listPositionsForOrgTree,
-  setPositionOrgAssignment,
-} from "@/lib/db/org";
-import { createPosition } from "@/lib/db/repository";
+  copyResponsibilitiesByOfficialCode,
+  createPosition,
+} from "@/lib/db/repository";
+import { listPositionsForOrgTree, setPositionOrgAssignment } from "@/lib/db/org";
 import { OTHER_ALBA_ID, OTHER_HELTES_ID } from "@/lib/org-assign";
 
 export async function GET(req: Request) {
@@ -28,6 +28,7 @@ export async function GET(req: Request) {
 const schema = z.object({
   name: z.string().min(1),
   bteg_id: z.string().nullable().optional(),
+  official_code: z.string().nullable().optional(),
   organization_id: z.string().nullable().optional(),
   organization_name: z.string().nullable().optional(),
   gazar_id: z.string().nullable().optional(),
@@ -46,6 +47,7 @@ export async function POST(req: Request) {
     const position = await createPosition({
       name: body.name,
       bteg_id: body.bteg_id,
+      official_code: body.official_code,
       organization_id: body.organization_id,
       organization_name: body.organization_name,
       gazar_id: body.gazar_id,
@@ -57,6 +59,7 @@ export async function POST(req: Request) {
       heltes_id: heltesId,
       alba_id: albaId,
     });
+    await copyResponsibilitiesByOfficialCode(position.id, body.official_code);
     return NextResponse.json(position, { status: 201 });
   } catch (err) {
     if (err instanceof z.ZodError) {

@@ -321,6 +321,7 @@ async function importFromSource(sourceRoot: string): Promise<{ db: LocalDatabase
     return {
       id: String(p.id),
       bteg_id: p.bteg_id != null ? String(p.bteg_id) : null,
+      official_code: p.official_code != null ? String(p.official_code) : null,
       name: String(p.name ?? ""),
       organization_id: p.organization_id != null ? String(p.organization_id) : null,
       organization_name: p.organization_name != null ? String(p.organization_name) : null,

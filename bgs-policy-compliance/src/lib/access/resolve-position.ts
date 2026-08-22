@@ -28,6 +28,11 @@ function matchPosition(
   );
   if (byName) return byName;
 
+  const byOfficial = positions.find(
+    (p) => (p.official_code ?? "") === code,
+  );
+  if (byOfficial) return byOfficial;
+
   const byBteg = positions.find((p) => (p.bteg_id ?? "") === code);
   if (byBteg) return byBteg;
 

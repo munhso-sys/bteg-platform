@@ -37,6 +37,8 @@ export async function GET(
       })),
       sections: detail.trees.map(({ section, tree }) => ({
         id: section.id,
+        reference_number: section.reference_number,
+        text: section.text,
         title: `Хэсэг ${section.reference_number || ""} ${section.text || ""}`.trim(),
         clauses: flattenClauses(tree),
       })),

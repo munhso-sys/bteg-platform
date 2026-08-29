@@ -8,6 +8,7 @@ export const REMOTE_KEYS = {
   db: "policy_compliance_db",
   positionOrgOverrides: "policy_compliance_position_org_overrides",
   policyOrgOverrides: "policy_compliance_policy_org_overrides",
+  orgCatalogOverrides: "policy_compliance_org_catalog_overrides",
 } as const;
 
 export type RemoteKey = (typeof REMOTE_KEYS)[keyof typeof REMOTE_KEYS];

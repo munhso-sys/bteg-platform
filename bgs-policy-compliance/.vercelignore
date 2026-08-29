@@ -1,0 +1,3 @@
+# Keep local runtime data out of Vercel uploads (production uses Supabase)
+data/local/
+*.tmp

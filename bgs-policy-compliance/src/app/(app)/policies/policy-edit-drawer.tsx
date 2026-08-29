@@ -24,6 +24,8 @@ type ClauseRow = {
 type SectionBlock = {
   id: string;
   title: string;
+  reference_number?: string | null;
+  text?: string | null;
   clauses: ClauseRow[];
 };
 
@@ -90,6 +92,10 @@ function PolicyEditDrawer({
   const [editRef, setEditRef] = useState("");
   const [editText, setEditText] = useState("");
   const [clauseBusy, setClauseBusy] = useState(false);
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+  const [editSecRef, setEditSecRef] = useState("");
+  const [editSecText, setEditSecText] = useState("");
+  const [sectionBusy, setSectionBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -217,6 +223,81 @@ function PolicyEditDrawer({
     }
   }
 
+  function startEditSection(sec: SectionBlock) {
+    if (sec.id === "orphan") return;
+    setEditingSectionId(sec.id);
+    setEditSecRef(sec.reference_number ?? "");
+    setEditSecText(sec.text ?? "");
+  }
+
+  function cancelEditSection() {
+    setEditingSectionId(null);
+    setEditSecRef("");
+    setEditSecText("");
+  }
+
+  async function saveSection() {
+    if (!editingSectionId) return;
+    if (!editSecText.trim()) {
+      setError("Хэсгийн гарчиг заавал");
+      return;
+    }
+    setSectionBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(withBasePath(`/api/sections/${editingSectionId}`), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: editSecText.trim(),
+          reference_number: editSecRef.trim() || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setError(data.error || "Хэсэг хадгалж чадсангүй");
+        return;
+      }
+      cancelEditSection();
+      await load();
+      router.refresh();
+    } catch {
+      setError("Хэсэг хадгалж чадсангүй");
+    } finally {
+      setSectionBusy(false);
+    }
+  }
+
+  async function removeSection(sectionId: string, label: string) {
+    if (sectionId === "orphan") return;
+    if (
+      !window.confirm(
+        `"${label}" хэсгийг устгах уу? Доторх зүйлүүд хэсэггүй болно.`,
+      )
+    ) {
+      return;
+    }
+    setSectionBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(withBasePath(`/api/sections/${sectionId}`), {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setError(data.error || "Хэсэг устгаж чадсангүй");
+        return;
+      }
+      if (editingSectionId === sectionId) cancelEditSection();
+      await load();
+      router.refresh();
+    } catch {
+      setError("Хэсэг устгаж чадсангүй");
+    } finally {
+      setSectionBusy(false);
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <button
@@ -306,9 +387,73 @@ function PolicyEditDrawer({
                 ) : (
                   sections.map((sec) => (
                     <div key={sec.id} className="space-y-1">
-                      <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                        {sec.title}
-                      </div>
+                      {editingSectionId === sec.id ? (
+                        <div className="space-y-2 rounded border border-slate-200 bg-slate-50 p-2">
+                          <input
+                            value={editSecRef}
+                            onChange={(e) => setEditSecRef(e.target.value)}
+                            placeholder="Хэсгийн дугаар (жишээ: 1)"
+                            className="w-full rounded border border-slate-300 px-2 py-1 font-mono text-sm"
+                          />
+                          <input
+                            value={editSecText}
+                            onChange={(e) => setEditSecText(e.target.value)}
+                            placeholder="Хэсгийн нэр"
+                            required
+                            className="w-full rounded border border-slate-300 px-2 py-1 text-sm"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              disabled={sectionBusy || !editSecText.trim()}
+                              onClick={() => void saveSection()}
+                              className="rounded bg-slate-900 px-2.5 py-1 text-xs text-white disabled:opacity-50"
+                            >
+                              Хадгалах
+                            </button>
+                            <button
+                              type="button"
+                              disabled={sectionBusy}
+                              onClick={cancelEditSection}
+                              className="rounded border border-slate-300 px-2.5 py-1 text-xs hover:bg-slate-50"
+                            >
+                              Болих
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                            {sec.title}
+                          </div>
+                          {sec.id !== "orphan" ? (
+                            <div className="flex shrink-0 gap-1">
+                              <button
+                                type="button"
+                                disabled={sectionBusy}
+                                onClick={() => startEditSection(sec)}
+                                className="rounded border border-slate-300 p-1 text-slate-600 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700 disabled:opacity-50"
+                                title="Хэсэг засах"
+                                aria-label="Хэсэг засах"
+                              >
+                                <Pencil size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={sectionBusy}
+                                onClick={() =>
+                                  void removeSection(sec.id, sec.title)
+                                }
+                                className="rounded border border-slate-300 p-1 text-slate-600 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"
+                                title="Хэсэг устгах"
+                                aria-label="Хэсэг устгах"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
+                      )}
                       <ul className="divide-y divide-slate-100 rounded border border-slate-200">
                         {sec.clauses.map((c) => {
                           const editing = editingClauseId === c.id;

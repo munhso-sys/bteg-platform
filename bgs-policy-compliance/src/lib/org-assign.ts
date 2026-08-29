@@ -3,6 +3,11 @@
 export const DIRECT_ALBA_ID = "_direct";
 export const OTHER_HELTES_ID = "other";
 export const OTHER_ALBA_ID = "alba:other";
+/** Байгууллагын бүх ажилтан / бүх ажлын байр */
+export const COMPANY_HELTES_ID = "company";
+export const COMPANY_ALBA_ID = "company:all";
+export const COMPANY_SCOPE_LABEL = "Бүх ажилчид (байгууллага)";
+export const HELTES_COMMON_LABEL = "Хэлтэсийн бүх албан тушаал";
 
 export type OrgAssignTree = {
   heltes: Array<{

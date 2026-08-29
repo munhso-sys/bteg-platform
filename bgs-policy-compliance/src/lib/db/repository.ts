@@ -358,6 +358,7 @@ export async function listPositions(q?: string) {
 
 export async function getPositionDetail(id: string) {
   const { resolveJobPositionRef } = await import("@/lib/access/resolve-position");
+  const { listOrgVisiblePolicyIdsForPosition } = await import("@/lib/db/org");
   const resolved = await resolveJobPositionRef(id);
   const positionId = resolved?.id ?? id;
   const db = await readDb();
@@ -369,9 +370,27 @@ export async function getPositionDetail(id: string) {
     (r) => r.job_position_id === positionId && r.is_active,
   );
   const clauseIds = new Set(links.map((l) => l.policy_clause_id));
-  const clauses = db.policy_clauses.filter((c) => clauseIds.has(c.id));
+  let clauses = db.policy_clauses.filter((c) => clauseIds.has(c.id) && !c.is_deleted);
   const policyIds = new Set(clauses.map((c) => c.policy_id));
-  const policies = db.policies.filter((p) => policyIds.has(p.id));
+
+  // Org-wide / heltes / alba assigned policies → all clauses visible
+  const orgVisible = await listOrgVisiblePolicyIdsForPosition(positionId);
+  for (const pid of orgVisible) {
+    policyIds.add(pid);
+  }
+  const orgOnlyClauseIds = new Set<string>();
+  if (orgVisible.size) {
+    for (const c of db.policy_clauses) {
+      if (c.is_deleted || !orgVisible.has(c.policy_id)) continue;
+      if (!clauseIds.has(c.id)) {
+        clauseIds.add(c.id);
+        orgOnlyClauseIds.add(c.id);
+        clauses.push(c);
+      }
+    }
+  }
+
+  const policies = db.policies.filter((p) => policyIds.has(p.id) && !p.is_deleted);
   const activeKeys = activeResponsibilityKeys(links);
   const evals = db.compliance_evaluations
     .filter(
@@ -392,6 +411,29 @@ export async function getPositionDetail(id: string) {
     );
     return { link, clause, policy, evaluation };
   });
+
+  // Synthetic read-only obligations for org-scoped clauses without personal links
+  for (const clauseId of orgOnlyClauseIds) {
+    const clause = clauses.find((c) => c.id === clauseId);
+    if (!clause) continue;
+    const policy = policies.find((p) => p.id === clause.policy_id);
+    obligations.push({
+      link: {
+        id: `org-scope:${clauseId}`,
+        policy_clause_id: clauseId,
+        job_position_id: positionId,
+        responsibility_type: "IMPLEMENTATION",
+        is_checked: true,
+        is_active: true,
+        weight: 1,
+        required_evidence: null,
+        notes: "Байгууллагын/нэгжийн нийтлэг хамрах хүрээ",
+      },
+      clause,
+      policy,
+      evaluation: undefined,
+    });
+  }
 
   return {
     position,
@@ -823,6 +865,43 @@ export async function addSection(input: {
     db.policy_sections.push(created);
   });
   return created!;
+}
+
+export async function updateSection(
+  id: string,
+  input: {
+    text?: string;
+    reference_number?: string | null;
+  },
+) {
+  let updated: PolicySection | null = null;
+  await updateDb((db) => {
+    const s = db.policy_sections.find((x) => x.id === id && !x.is_deleted);
+    if (!s) return;
+    if (input.text !== undefined) s.text = input.text.trim();
+    if (input.reference_number !== undefined) {
+      s.reference_number = input.reference_number?.trim() || null;
+    }
+    updated = s;
+  });
+  return updated;
+}
+
+/** Soft-delete section; orphan clauses keep section_id but disappear from trees. */
+export async function deleteSection(id: string) {
+  let found = false;
+  await updateDb((db) => {
+    const s = db.policy_sections.find((x) => x.id === id);
+    if (!s || s.is_deleted) return;
+    s.is_deleted = true;
+    for (const c of db.policy_clauses) {
+      if (c.section_id === id) {
+        c.section_id = null;
+      }
+    }
+    found = true;
+  });
+  return found;
 }
 
 export async function upsertResponsibility(input: {

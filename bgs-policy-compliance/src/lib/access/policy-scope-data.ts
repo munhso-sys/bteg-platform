@@ -3,6 +3,7 @@ import type {
   ClauseTreeNode,
   PolicyClause,
 } from "@/lib/types";
+import { isPolicyOrgVisibleToPosition } from "@/lib/db/org";
 import { buildClauseTree, getPolicyDetail } from "@/lib/db/repository";
 
 function collectAncestors(
@@ -39,6 +40,11 @@ export async function getPolicyDetailForPosition(
 ) {
   const detail = await getPolicyDetail(policyId);
   if (!detail) return null;
+
+  // Company / heltes / alba org assignment → full policy visible to matching users
+  if (await isPolicyOrgVisibleToPosition(policyId, positionId)) {
+    return detail;
+  }
 
   const links = detail.responsibilities.filter(
     (r) => r.job_position_id === positionId && r.is_active,
@@ -98,7 +104,7 @@ export async function getPolicyDetailForPosition(
       latestEvaluations.length === 0
         ? null
         : Math.round(
-            (latestEvaluations.reduce((s, e) => s + e.score, 0) /
+            (latestEvaluations.reduce((s, e) => e.score + s, 0) /
               latestEvaluations.length) *
               10,
           ) / 10,

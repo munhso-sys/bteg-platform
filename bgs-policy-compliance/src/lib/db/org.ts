@@ -17,6 +17,10 @@ import {
 import type { JobDescription, JobPosition, Policy } from "@/lib/types";
 import {
   DIRECT_ALBA_ID,
+  COMPANY_ALBA_ID,
+  COMPANY_HELTES_ID,
+  COMPANY_SCOPE_LABEL,
+  HELTES_COMMON_LABEL,
   OTHER_ALBA_ID,
   OTHER_HELTES_ID,
   type OrgAssignTree,
@@ -26,6 +30,10 @@ import {
 
 export {
   DIRECT_ALBA_ID,
+  COMPANY_ALBA_ID,
+  COMPANY_HELTES_ID,
+  COMPANY_SCOPE_LABEL,
+  HELTES_COMMON_LABEL,
   OTHER_ALBA_ID,
   OTHER_HELTES_ID,
   orgPath,
@@ -56,10 +64,12 @@ type OrgCatalog = {
   other: { id: string; name: string };
 };
 
+type OrgRef = { type: "heltes" | "alba" | "company"; id: string };
+
 type ReferenceMap = {
   built_at?: string;
   position_to_alba: Record<string, string>;
-  policy_to_org: Record<string, Array<{ type: "heltes" | "alba"; id: string }>>;
+  policy_to_org: Record<string, OrgRef[]>;
   unmatched_positions: Array<{ id: string; name: string }>;
   unmatched_policies: Array<{ id: string; name: string }>;
   stats?: Record<string, number>;
@@ -67,8 +77,8 @@ type ReferenceMap = {
 
 function policyOrgs(
   map: ReferenceMap,
-): Array<{ pid: string; type: "heltes" | "alba"; id: string }> {
-  const out: Array<{ pid: string; type: "heltes" | "alba"; id: string }> = [];
+): Array<{ pid: string; type: "heltes" | "alba" | "company"; id: string }> {
+  const out: Array<{ pid: string; type: "heltes" | "alba" | "company"; id: string }> = [];
   for (const [pid, orgs] of Object.entries(map.policy_to_org)) {
     const list = Array.isArray(orgs) ? orgs : [orgs];
     for (const org of list) out.push({ pid, type: org.type, id: org.id });
@@ -98,6 +108,95 @@ export type OrgAlbaSummary = {
   is_direct: boolean;
 };
 
+type OrgCatalogOverridesFile = {
+  heltes?: RefHeltes[];
+  removed_heltes_ids?: string[];
+  removed_alba_ids?: string[];
+};
+
+async function loadCatalogOverrides(): Promise<OrgCatalogOverridesFile> {
+  if (preferRemoteStore()) {
+    const remote = await loadRemotePayload<OrgCatalogOverridesFile>(
+      REMOTE_KEYS.orgCatalogOverrides,
+    );
+    if (remote) return remote;
+  }
+  try {
+    const p = path.join(getLocalDataDir(), "org-catalog-overrides.json");
+    return JSON.parse(await fs.readFile(p, "utf8")) as OrgCatalogOverridesFile;
+  } catch {
+    return {};
+  }
+}
+
+async function saveCatalogOverrides(overrides: OrgCatalogOverridesFile) {
+  if (preferRemoteStore()) {
+    const ok = await saveRemotePayload(
+      REMOTE_KEYS.orgCatalogOverrides,
+      overrides,
+    );
+    if (!ok) throw new Error("Org catalog override хадгалж чадсангүй");
+    return;
+  }
+  await ensureDataDir();
+  const p = path.join(getLocalDataDir(), "org-catalog-overrides.json");
+  const tmp = `${p}.${process.pid}.tmp`;
+  try {
+    await fs.writeFile(tmp, JSON.stringify(overrides, null, 2), "utf8");
+    await fs.copyFile(tmp, p);
+  } finally {
+    await fs.unlink(tmp).catch(() => undefined);
+  }
+}
+
+function applyCatalogOverrides(
+  base: OrgCatalog,
+  ov: OrgCatalogOverridesFile,
+): OrgCatalog {
+  const removedH = new Set(ov.removed_heltes_ids ?? []);
+  const removedA = new Set(ov.removed_alba_ids ?? []);
+  const byId = new Map(
+    base.heltes
+      .filter((h) => !removedH.has(h.id))
+      .map((h) => [
+        h.id,
+        {
+          ...h,
+          albas: h.albas.filter((a) => !removedA.has(a.id)),
+        },
+      ]),
+  );
+  for (const h of ov.heltes ?? []) {
+    if (removedH.has(h.id)) continue;
+    const existing = byId.get(h.id);
+    if (!existing) {
+      byId.set(h.id, {
+        ...h,
+        albas: (h.albas ?? []).filter((a) => !removedA.has(a.id)),
+      });
+      continue;
+    }
+    const albaById = new Map(existing.albas.map((a) => [a.id, a]));
+    for (const a of h.albas ?? []) {
+      if (removedA.has(a.id)) continue;
+      albaById.set(a.id, a);
+    }
+    byId.set(h.id, {
+      ...existing,
+      name: h.name || existing.name,
+      code: h.code || existing.code,
+      policy_titles: h.policy_titles ?? existing.policy_titles,
+      albas: [...albaById.values()],
+    });
+  }
+  return {
+    other: base.other,
+    heltes: [...byId.values()].sort((a, b) =>
+      a.name.localeCompare(b.name, "mn"),
+    ),
+  };
+}
+
 async function loadCatalog(): Promise<OrgCatalog> {
   const p = path.join(process.cwd(), "data", "reference", "org-catalog.json");
   const raw = JSON.parse(await fs.readFile(p, "utf8")) as OrgCatalog;
@@ -113,22 +212,49 @@ async function loadCatalog(): Promise<OrgCatalog> {
       }
     }
   }
-  return raw;
+  const overrides = await loadCatalogOverrides();
+  return applyCatalogOverrides(raw, overrides);
 }
 
 async function saveCatalog(catalog: OrgCatalog) {
-  // Bundled reference tree is read-only on Vercel.
-  if (process.env.VERCEL) return;
-  const p = path.join(process.cwd(), "data", "reference", "org-catalog.json");
-  const tmp = `${p}.${process.pid}.tmp`;
-  try {
-    await fs.writeFile(tmp, JSON.stringify(catalog, null, 2), "utf8");
-    await fs.copyFile(tmp, p);
-  } catch (err) {
-    if (isReadOnlyFsError(err)) return;
-    throw err;
-  } finally {
-    await fs.unlink(tmp).catch(() => undefined);
+  // Persist additive/rename state via overrides (works on Vercel + local).
+  const basePath = path.join(
+    process.cwd(),
+    "data",
+    "reference",
+    "org-catalog.json",
+  );
+  const base = JSON.parse(await fs.readFile(basePath, "utf8")) as OrgCatalog;
+  const baseHeltesIds = new Set(base.heltes.map((h) => h.id));
+  const baseAlbaIds = new Set(
+    base.heltes.flatMap((h) => h.albas.map((a) => a.id)),
+  );
+  const nextHeltesIds = new Set(catalog.heltes.map((h) => h.id));
+  const nextAlbaIds = new Set(
+    catalog.heltes.flatMap((h) => h.albas.map((a) => a.id)),
+  );
+
+  const overrides: OrgCatalogOverridesFile = {
+    heltes: catalog.heltes.map((h) => ({
+      ...h,
+      albas: h.albas.map((a) => ({ ...a, heltes_id: h.id })),
+    })),
+    removed_heltes_ids: [...baseHeltesIds].filter((id) => !nextHeltesIds.has(id)),
+    removed_alba_ids: [...baseAlbaIds].filter((id) => !nextAlbaIds.has(id)),
+  };
+  await saveCatalogOverrides(overrides);
+
+  // Best-effort local seed update when FS is writable
+  if (!process.env.VERCEL) {
+    const tmp = `${basePath}.${process.pid}.tmp`;
+    try {
+      await fs.writeFile(tmp, JSON.stringify(catalog, null, 2), "utf8");
+      await fs.copyFile(tmp, basePath);
+    } catch (err) {
+      if (!isReadOnlyFsError(err)) throw err;
+    } finally {
+      await fs.unlink(tmp).catch(() => undefined);
+    }
   }
 }
 
@@ -155,7 +281,7 @@ function positionOverridesPath() {
 }
 
 type PolicyOrgOverride = {
-  orgs: Array<{ type: "heltes" | "alba"; id: string }> | null;
+  orgs: Array<OrgRef> | null;
   policy_name?: string;
 };
 
@@ -776,8 +902,8 @@ export async function updateOrgUnitRegistry(input: {
 }) {
   const name = input.name.trim();
   if (!name) throw new Error("Нэр хоосон байна");
-  if (input.id === OTHER_HELTES_ID) {
-    throw new Error("«Бусад» нэгжийн нэрийг засах боломжгүй");
+  if (input.id === OTHER_HELTES_ID || input.id === COMPANY_HELTES_ID) {
+    throw new Error("Энэ нэгжийн нэрийг засах боломжгүй");
   }
 
   const catalog = await loadCatalog();
@@ -820,6 +946,76 @@ export async function updateOrgUnitRegistry(input: {
     });
   }
   return { id: input.id, name, kind: input.kind };
+}
+
+function slugifyUnitId(name: string, prefix: string) {
+  const base = name
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9а-яөүё\-]+/gi, "")
+    .slice(0, 48);
+  return `${prefix}-${base || "unit"}-${Date.now().toString(36)}`;
+}
+
+/** Create a new хэлтэс (and optional first алба). */
+export async function createHeltesUnit(input: {
+  name: string;
+  alba_name?: string | null;
+}) {
+  const name = input.name.trim();
+  if (!name) throw new Error("Хэлтэсийн нэр хоосон");
+  const catalog = await loadCatalog();
+  if (catalog.heltes.some((h) => h.name.toLocaleLowerCase("mn") === name.toLocaleLowerCase("mn"))) {
+    throw new Error("Ижил нэртэй хэлтэс байна");
+  }
+  const heltesId = slugifyUnitId(name, "heltes");
+  const albaName = (input.alba_name ?? name).trim() || name;
+  const albaId = slugifyUnitId(albaName, "alba");
+  catalog.heltes.push({
+    id: heltesId,
+    name,
+    code: name.replace(/\s+/g, "_"),
+    albas: [
+      {
+        id: albaId,
+        name: albaName,
+        code: albaName.replace(/\s+/g, "_"),
+        heltes_id: heltesId,
+        position_codes: [],
+        policy_titles: [],
+      },
+    ],
+    policy_titles: [],
+  });
+  await saveCatalog(catalog);
+  return { heltesId, albaId, heltesName: name, albaName };
+}
+
+/** Create a new алба under an existing хэлтэс. */
+export async function createAlbaUnit(input: {
+  heltes_id: string;
+  name: string;
+}) {
+  const name = input.name.trim();
+  if (!name) throw new Error("Албаны нэр хоосон");
+  const catalog = await loadCatalog();
+  const heltes = catalog.heltes.find((h) => h.id === input.heltes_id);
+  if (!heltes) throw new Error("Хэлтэс олдсонгүй");
+  if (heltes.albas.some((a) => a.name.toLocaleLowerCase("mn") === name.toLocaleLowerCase("mn"))) {
+    throw new Error("Ижил нэртэй алба байна");
+  }
+  const albaId = slugifyUnitId(name, "alba");
+  heltes.albas.push({
+    id: albaId,
+    name,
+    code: name.replace(/\s+/g, "_"),
+    heltes_id: heltes.id,
+    position_codes: [],
+    policy_titles: [],
+  });
+  await saveCatalog(catalog);
+  return { heltesId: heltes.id, albaId, heltesName: heltes.name, albaName: name };
 }
 
 export async function getHeltes(heltesIdOrKey: string) {
@@ -1192,16 +1388,21 @@ export async function getOrgPositionDetail(positionId: string) {
 export async function listOrgAssignTree(): Promise<OrgAssignTree> {
   const catalog = await loadCatalog();
   return {
-    heltes: catalog.heltes.map((h) => {
-      const albas = h.albas.map((a) => ({ id: a.id, name: a.name }));
-      if (h.albas.length > 1) {
+    heltes: [
+      {
+        id: COMPANY_HELTES_ID,
+        name: COMPANY_SCOPE_LABEL,
+        albas: [{ id: COMPANY_ALBA_ID, name: COMPANY_SCOPE_LABEL }],
+      },
+      ...catalog.heltes.map((h) => {
+        const albas = h.albas.map((a) => ({ id: a.id, name: a.name }));
         albas.push({
           id: `${h.id}::heltes-common`,
-          name: "Хэлтэсийн нийтлэг журам",
+          name: HELTES_COMMON_LABEL,
         });
-      }
-      return { id: h.id, name: h.name, albas };
-    }),
+        return { id: h.id, name: h.name, albas };
+      }),
+    ],
     other: { id: OTHER_HELTES_ID, name: catalog.other.name },
   };
 }
@@ -1231,6 +1432,15 @@ export async function getPolicyOrgAssignments(): Promise<
   for (const [policyId, orgs] of Object.entries(map.policy_to_org)) {
     const primary = (orgs ?? [])[0];
     if (!primary) continue;
+    if (primary.type === "company") {
+      out.set(policyId, {
+        heltesId: COMPANY_HELTES_ID,
+        albaId: COMPANY_ALBA_ID,
+        heltes: COMPANY_SCOPE_LABEL,
+        alba: COMPANY_SCOPE_LABEL,
+      });
+      continue;
+    }
     if (primary.type === "alba") {
       const meta = albaMeta.get(primary.id);
       if (!meta) continue;
@@ -1256,7 +1466,7 @@ export async function getPolicyOrgAssignments(): Promise<
           heltesId: primary.id,
           albaId: `${primary.id}::heltes-common`,
           heltes: hName,
-          alba: "Хэлтэсийн нийтлэг журам",
+          alba: HELTES_COMMON_LABEL,
         });
       }
     }
@@ -1299,10 +1509,15 @@ export async function setPolicyOrgAssignment(input: {
   const catalog = await loadCatalog();
   const overrides = await loadOverrides();
 
-  let orgs: Array<{ type: "heltes" | "alba"; id: string }> | null;
+  let orgs: Array<OrgRef> | null;
 
   if (input.heltes_id === OTHER_HELTES_ID || input.alba_id === OTHER_ALBA_ID) {
     orgs = null;
+  } else if (
+    input.heltes_id === COMPANY_HELTES_ID ||
+    input.alba_id === COMPANY_ALBA_ID
+  ) {
+    orgs = [{ type: "company", id: "all" }];
   } else if (input.alba_id.endsWith("::heltes-common")) {
     const heltesId = input.alba_id.replace(/::heltes-common$/, "");
     if (!catalog.heltes.some((h) => h.id === heltesId)) {
@@ -1615,6 +1830,65 @@ export async function setPositionOrgAssignment(input: {
   } catch {
     // overrides alone still apply
   }
+}
+
+/** Resolve which org unit a job position belongs to (map + catalog). */
+export async function resolvePositionOrg(positionId: string): Promise<{
+  heltesId: string | null;
+  albaId: string | null;
+} | null> {
+  const [map, catalog] = await Promise.all([loadMap(), loadCatalog()]);
+  const albaId = map.position_to_alba[positionId] ?? null;
+  if (!albaId) return { heltesId: null, albaId: null };
+  for (const h of catalog.heltes) {
+    if (h.albas.some((a) => a.id === albaId)) {
+      return { heltesId: h.id, albaId };
+    }
+  }
+  return { heltesId: null, albaId };
+}
+
+/**
+ * Org-scoped policies (company / heltes-common / alba) are visible to matching
+ * positions without per-clause responsibility links.
+ */
+export async function listOrgVisiblePolicyIdsForPosition(
+  positionId: string,
+): Promise<Set<string>> {
+  const [map, posOrg] = await Promise.all([
+    loadMap(),
+    resolvePositionOrg(positionId),
+  ]);
+  const visible = new Set<string>();
+  for (const [pid, orgs] of Object.entries(map.policy_to_org)) {
+    const primary = (orgs ?? [])[0];
+    if (!primary) continue;
+    if (primary.type === "company") {
+      visible.add(pid);
+      continue;
+    }
+    if (!posOrg?.heltesId) continue;
+    if (primary.type === "heltes" && primary.id === posOrg.heltesId) {
+      visible.add(pid);
+      continue;
+    }
+    if (
+      primary.type === "alba" &&
+      posOrg.albaId &&
+      primary.id === posOrg.albaId
+    ) {
+      visible.add(pid);
+    }
+  }
+  return visible;
+}
+
+export async function isPolicyOrgVisibleToPosition(
+  policyId: string,
+  positionId: string,
+): Promise<boolean> {
+  const set = await listOrgVisiblePolicyIdsForPosition(positionId);
+  return set.has(policyId);
 }
 
 function positionCodeLabel(code: string) {

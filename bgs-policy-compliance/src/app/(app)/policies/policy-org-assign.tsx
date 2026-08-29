@@ -2,7 +2,12 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { OTHER_ALBA_ID, type OrgAssignTree } from "@/lib/org-assign";
+import {
+  COMPANY_ALBA_ID,
+  COMPANY_HELTES_ID,
+  OTHER_ALBA_ID,
+  type OrgAssignTree,
+} from "@/lib/org-assign";
 import { withBasePath } from "@/lib/paths";
 
 export function PolicyOrgAssignControls({
@@ -25,6 +30,9 @@ export function PolicyOrgAssignControls({
   const albaOptions = useMemo(() => {
     if (heltesId === tree.other.id) {
       return [{ id: OTHER_ALBA_ID, name: "—" }];
+    }
+    if (heltesId === COMPANY_HELTES_ID) {
+      return [{ id: COMPANY_ALBA_ID, name: "Бүх ажилчид (байгууллага)" }];
     }
     return tree.heltes.find((h) => h.id === heltesId)?.albas ?? [];
   }, [heltesId, tree]);
@@ -52,6 +60,8 @@ export function PolicyOrgAssignControls({
     let nextAlba = albaId;
     if (next === tree.other.id) {
       nextAlba = OTHER_ALBA_ID;
+    } else if (next === COMPANY_HELTES_ID) {
+      nextAlba = COMPANY_ALBA_ID;
     } else {
       const albas = tree.heltes.find((h) => h.id === next)?.albas ?? [];
       nextAlba = albas[0]?.id ?? "";
@@ -72,7 +82,7 @@ export function PolicyOrgAssignControls({
         disabled={pending}
         onChange={(e) => onHeltesChange(e.target.value)}
         className="w-full max-w-[220px] rounded border border-slate-300 bg-white px-1.5 py-1 text-xs"
-        title="Хэлтэс"
+        title="Хэлтэс / хамрах хүрээ"
       >
         {tree.heltes.map((h) => (
           <option key={h.id} value={h.id}>
@@ -83,10 +93,14 @@ export function PolicyOrgAssignControls({
       </select>
       <select
         value={albaId}
-        disabled={pending || heltesId === tree.other.id}
+        disabled={
+          pending ||
+          heltesId === tree.other.id ||
+          heltesId === COMPANY_HELTES_ID
+        }
         onChange={(e) => onAlbaChange(e.target.value)}
         className="w-full max-w-[220px] rounded border border-slate-300 bg-white px-1.5 py-1 text-xs"
-        title="Алба"
+        title="Алба / хамрах хүрээ"
       >
         {albaOptions.map((a) => (
           <option key={a.id} value={a.id}>
@@ -94,6 +108,11 @@ export function PolicyOrgAssignControls({
           </option>
         ))}
       </select>
+      {heltesId === COMPANY_HELTES_ID ? (
+        <span className="text-[10px] text-slate-500">
+          Бүх хэрэглэгчид журам/хэсэг/зүйл харна
+        </span>
+      ) : null}
       {error ? <span className="text-[10px] text-rose-600">{error}</span> : null}
     </div>
   );

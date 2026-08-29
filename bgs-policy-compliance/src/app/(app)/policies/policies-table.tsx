@@ -13,6 +13,7 @@ import { useMemo, useState, useTransition } from "react";
 import { Panel } from "@/components/ui/primitives";
 import { POLICY_STATUS_LABELS } from "@/lib/constants";
 import {
+  COMPANY_HELTES_ID,
   OTHER_ALBA_ID,
   OTHER_HELTES_ID,
   type OrgAssignTree,
@@ -97,6 +98,19 @@ function buildOrgTree(
   const hMap = new Map<string, Map<string, PolicyTableRow[]>>();
   const labels = new Map<string, { heltes: string; alba: string }>();
 
+  // Seed folders from catalog so newly created empty хэлтэс/алба still appear
+  for (const h of tree.heltes) {
+    if (h.id === COMPANY_HELTES_ID) continue;
+    if (!hMap.has(h.id)) hMap.set(h.id, new Map());
+    const aMap = hMap.get(h.id)!;
+    for (const a of h.albas) {
+      // «нийтлэг» / synthetic rows only show when they have policies
+      if (a.id.endsWith("::heltes-common")) continue;
+      if (!aMap.has(a.id)) aMap.set(a.id, []);
+      labels.set(`${h.id}::${a.id}`, { heltes: h.name, alba: a.name });
+    }
+  }
+
   for (const row of rows) {
     const meta = resolveLabels(tree, row.org);
     labels.set(`${meta.heltesId}::${meta.albaId}`, {
@@ -123,7 +137,9 @@ function buildOrgTree(
       });
     }
     albas.sort((a, b) => a.label.localeCompare(b.label, "mn"));
-    const firstLab = labels.get(albas[0]?.key ?? "");
+    const firstLab =
+      labels.get(albas[0]?.key ?? "") ||
+      [...labels.entries()].find(([k]) => k.startsWith(`${hKey}::`))?.[1];
     heltes.push({
       key: hKey,
       label: firstLab?.heltes || hKey,
@@ -134,6 +150,8 @@ function buildOrgTree(
   heltes.sort((a, b) => {
     if (a.key === OTHER_HELTES_ID) return 1;
     if (b.key === OTHER_HELTES_ID) return -1;
+    if (a.key === COMPANY_HELTES_ID) return -1;
+    if (b.key === COMPANY_HELTES_ID) return 1;
     return a.label.localeCompare(b.label, "mn");
   });
   return heltes;

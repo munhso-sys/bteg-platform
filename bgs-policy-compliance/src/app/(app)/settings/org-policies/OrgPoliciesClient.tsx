@@ -1,8 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, RefreshCw, Save, Trash2 } from "lucide-react";
+import { Loader2, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
 import { Panel } from "@/components/ui/primitives";
+import {
+  COMPANY_ALBA_ID,
+  COMPANY_HELTES_ID,
+  COMPANY_SCOPE_LABEL,
+} from "@/lib/org-assign";
 
 type PolicyItem = {
   id: string;
@@ -31,26 +36,35 @@ export function OrgPoliciesClient() {
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [okMsg, setOkMsg] = useState<string | null>(null);
+  const [newHeltesName, setNewHeltesName] = useState("");
+  const [newHeltesAlbaName, setNewHeltesAlbaName] = useState("");
+  const [newAlbaName, setNewAlbaName] = useState("");
+  const [newAlbaHeltesId, setNewAlbaHeltesId] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [orgRes, allocRes] = await Promise.all([
-        fetch("/api/org/access-options", { cache: "no-store" }),
+      const [unitsRes, allocRes] = await Promise.all([
+        fetch("/api/org/units", { cache: "no-store" }),
         fetch("/api/org/policy-allocations", { cache: "no-store" }),
       ]);
-      const org = await orgRes.json();
+      const units = await unitsRes.json();
       const alloc = await allocRes.json();
-      if (!orgRes.ok || !org.ok) {
-        throw new Error(org.error || "Нэгжийн жагсаалт уншигдсангүй");
+      if (!unitsRes.ok || !units.ok) {
+        throw new Error(units.error || "Нэгжийн жагсаалт уншигдсангүй");
       }
       if (!allocRes.ok || !alloc.ok) {
         throw new Error(alloc.error || "Холболт уншигдсангүй");
       }
-      setHeltes(org.heltes ?? []);
+      const tree = units.tree as {
+        heltes: Heltes[];
+        other: { id: string; name: string };
+      };
+      setHeltes(tree.heltes ?? []);
       setPolicies(alloc.policies ?? []);
       setAllocations(alloc.allocations ?? []);
     } catch (err) {
@@ -66,6 +80,11 @@ export function OrgPoliciesClient() {
     }, 0);
     return () => window.clearTimeout(id);
   }, [load]);
+
+  const realHeltes = useMemo(
+    () => heltes.filter((h) => h.id !== COMPANY_HELTES_ID),
+    [heltes],
+  );
 
   const albas = useMemo(() => {
     return heltes.find((h) => h.id === heltesId)?.albas ?? [];
@@ -164,6 +183,73 @@ export function OrgPoliciesClient() {
     await load();
   }
 
+  async function createHeltes() {
+    if (!newHeltesName.trim()) {
+      setError("Хэлтэсийн нэр оруулна уу");
+      return;
+    }
+    setCreating(true);
+    setError(null);
+    setOkMsg(null);
+    try {
+      const res = await fetch("/api/org/units", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "heltes",
+          name: newHeltesName.trim(),
+          alba_name: newHeltesAlbaName.trim() || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "Үүсгэж чадсангүй");
+      setOkMsg(`Хэлтэс үүсгэлээ: ${data.heltesName}`);
+      setNewHeltesName("");
+      setNewHeltesAlbaName("");
+      await load();
+      if (data.heltesId) {
+        setHeltesId(data.heltesId);
+        setAlbaId(data.albaId ?? "");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Алдаа");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function createAlba() {
+    if (!newAlbaHeltesId || !newAlbaName.trim()) {
+      setError("Хэлтэс сонгоод албаны нэр оруулна уу");
+      return;
+    }
+    setCreating(true);
+    setError(null);
+    setOkMsg(null);
+    try {
+      const res = await fetch("/api/org/units", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "alba",
+          heltes_id: newAlbaHeltesId,
+          name: newAlbaName.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "Үүсгэж чадсангүй");
+      setOkMsg(`Алба үүсгэлээ: ${data.albaName}`);
+      setNewAlbaName("");
+      await load();
+      setHeltesId(data.heltesId);
+      setAlbaId(data.albaId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Алдаа");
+    } finally {
+      setCreating(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 text-sm text-slate-500">
@@ -182,16 +268,78 @@ export function OrgPoliciesClient() {
         {error ? <span className="text-sm text-rose-600">{error}</span> : null}
       </div>
 
+      <Panel title="Нэгж үүсгэх">
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2 rounded border border-slate-200 p-3">
+            <div className="text-sm font-medium">Шинэ хэлтэс</div>
+            <input
+              className="input w-full"
+              placeholder="Хэлтэсийн нэр"
+              value={newHeltesName}
+              onChange={(e) => setNewHeltesName(e.target.value)}
+            />
+            <input
+              className="input w-full"
+              placeholder="Эхний албаны нэр (заавал биш)"
+              value={newHeltesAlbaName}
+              onChange={(e) => setNewHeltesAlbaName(e.target.value)}
+            />
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={creating}
+              onClick={() => void createHeltes()}
+            >
+              <Plus size={14} /> Хэлтэс нэмэх
+            </button>
+          </div>
+          <div className="space-y-2 rounded border border-slate-200 p-3">
+            <div className="text-sm font-medium">Хэлтэст алба нэмэх</div>
+            <select
+              className="input w-full"
+              value={newAlbaHeltesId}
+              onChange={(e) => setNewAlbaHeltesId(e.target.value)}
+            >
+              <option value="">— хэлтэс сонгох —</option>
+              {realHeltes.map((h) => (
+                <option key={h.id} value={h.id}>
+                  {h.name}
+                </option>
+              ))}
+            </select>
+            <input
+              className="input w-full"
+              placeholder="Албаны нэр"
+              value={newAlbaName}
+              onChange={(e) => setNewAlbaName(e.target.value)}
+            />
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={creating}
+              onClick={() => void createAlba()}
+            >
+              <Plus size={14} /> Алба нэмэх
+            </button>
+          </div>
+        </div>
+      </Panel>
+
       <div className="grid gap-4 xl:grid-cols-[280px_1fr]">
         <Panel title="Нэгж сонгох">
           <label className="mb-3 block text-sm">
-            <span className="mb-1 block font-medium">Хэлтэс</span>
+            <span className="mb-1 block font-medium">Хэлтэс / хамрах хүрээ</span>
             <select
               className="input w-full"
               value={heltesId}
               onChange={(e) => {
-                setHeltesId(e.target.value);
-                setAlbaId("");
+                const next = e.target.value;
+                setHeltesId(next);
+                if (next === COMPANY_HELTES_ID) {
+                  setAlbaId(COMPANY_ALBA_ID);
+                } else {
+                  setAlbaId("");
+                }
               }}
             >
               <option value="">— сонгох —</option>
@@ -203,11 +351,11 @@ export function OrgPoliciesClient() {
             </select>
           </label>
           <label className="block text-sm">
-            <span className="mb-1 block font-medium">Алба</span>
+            <span className="mb-1 block font-medium">Алба / хамрах хүрээ</span>
             <select
               className="input w-full"
               value={albaId}
-              disabled={!heltesId}
+              disabled={!heltesId || heltesId === COMPANY_HELTES_ID}
               onChange={(e) => setAlbaId(e.target.value)}
             >
               <option value="">— сонгох —</option>
@@ -219,9 +367,8 @@ export function OrgPoliciesClient() {
             </select>
           </label>
           <p className="mt-3 text-xs text-slate-500">
-            Сонгосон албанд холбох журмуудыг баруун талаас тэмдэглээд хадгална.
-            Нэгжийн дарга / Ахлах мэргэжилтэн зөвхөн холбогдсон журмын хүрээнд
-            мэдээлэл харна (засах эрхгүй).
+            «{COMPANY_SCOPE_LABEL}» — бүх хэрэглэгч журам/хэсэг/зүйлийг харна.
+            «Хэлтэсийн бүх албан тушаал» — тухайн хэлтэсийн бүх ажлын байр.
           </p>
           {heltesName && albaName ? (
             <p className="mt-2 text-xs font-medium text-slate-700">

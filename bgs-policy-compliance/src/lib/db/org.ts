@@ -9,7 +9,11 @@ import {
   REMOTE_KEYS,
   saveRemotePayload,
 } from "@/lib/db/remote-store";
-import { getDb, latestEvaluations } from "@/lib/db/repository";
+import {
+  evaluationsWithActiveLinks,
+  getDb,
+  latestEvaluations,
+} from "@/lib/db/repository";
 import type { JobDescription, JobPosition, Policy } from "@/lib/types";
 import {
   DIRECT_ALBA_ID,
@@ -361,7 +365,14 @@ async function saveMap(map: ReferenceMap) {
 }
 
 function scoreMaps(db: Awaited<ReturnType<typeof getDb>>) {
-  const latest = latestEvaluations(db.compliance_evaluations);
+  // Soft-unlinked responsibilities keep historical evaluations; scores must
+  // only reflect currently active clause↔position links.
+  const latest = latestEvaluations(
+    evaluationsWithActiveLinks(
+      db.compliance_evaluations,
+      db.clause_position_responsibilities,
+    ),
+  );
   const clauseToPolicy = new Map(
     db.policy_clauses.map((c) => [c.id, c.policy_id] as const),
   );

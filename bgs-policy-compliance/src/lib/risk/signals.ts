@@ -1,4 +1,8 @@
-import { getDb, latestEvaluations } from "@/lib/db/repository";
+import {
+  evaluationsWithActiveLinks,
+  getDb,
+  latestEvaluations,
+} from "@/lib/db/repository";
 
 export type PolicyRiskSignal = {
   id: string;
@@ -40,7 +44,12 @@ function isAtRisk(status: string, score: number) {
 
 export async function policyRiskSignals(): Promise<PolicyRiskSignal[]> {
   const db = await getDb();
-  const latest = latestEvaluations(db.compliance_evaluations);
+  const latest = latestEvaluations(
+    evaluationsWithActiveLinks(
+      db.compliance_evaluations,
+      db.clause_position_responsibilities,
+    ),
+  );
   const clauseById = new Map(db.policy_clauses.map((c) => [c.id, c]));
   const policyById = new Map(db.policies.map((p) => [p.id, p]));
   const positionById = new Map(db.job_positions.map((p) => [p.id, p]));

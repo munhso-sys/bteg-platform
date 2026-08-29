@@ -78,7 +78,10 @@ export async function getDashboardStats() {
   const clauses = db.policy_clauses.filter((c) => !c.is_deleted);
   const positions = db.job_positions.filter((p) => p.is_active);
   const links = db.clause_position_responsibilities.filter((l) => l.is_active);
-  const evals = db.compliance_evaluations;
+  const evals = evaluationsWithActiveLinks(
+    db.compliance_evaluations,
+    db.clause_position_responsibilities,
+  );
   const latest = latestEvaluations(evals);
 
   const byType: Record<ResponsibilityType, number[]> = {
@@ -218,12 +221,43 @@ export async function getDashboardStats() {
   };
 }
 
+export function evaluationLinkKey(
+  e: Pick<
+    ComplianceEvaluation,
+    "policy_clause_id" | "job_position_id" | "responsibility_type"
+  >,
+) {
+  return `${e.policy_clause_id}:${e.job_position_id}:${e.responsibility_type}`;
+}
+
+export function activeResponsibilityKeys(
+  links: ClausePositionResponsibility[],
+): Set<string> {
+  return new Set(
+    links
+      .filter((l) => l.is_active)
+      .map(
+        (l) =>
+          `${l.policy_clause_id}:${l.job_position_id}:${l.responsibility_type}`,
+      ),
+  );
+}
+
+/** Drop scores whose responsibility link was soft-unlinked (is_active=false). */
+export function evaluationsWithActiveLinks(
+  evals: ComplianceEvaluation[],
+  links: ClausePositionResponsibility[],
+): ComplianceEvaluation[] {
+  const keys = activeResponsibilityKeys(links);
+  return evals.filter((e) => keys.has(evaluationLinkKey(e)));
+}
+
 export function latestEvaluations(evals: ComplianceEvaluation[]): ComplianceEvaluation[] {
   const map = new Map<string, ComplianceEvaluation>();
   for (const e of [...evals].sort(
     (a, b) => new Date(b.evaluated_at).getTime() - new Date(a.evaluated_at).getTime(),
   )) {
-    const key = `${e.policy_clause_id}:${e.job_position_id}:${e.responsibility_type}`;
+    const key = evaluationLinkKey(e);
     if (!map.has(key)) map.set(key, e);
   }
   return [...map.values()];
@@ -258,8 +292,13 @@ export async function getPolicyDetail(id: string) {
   const positionIds = new Set(responsibilities.map((r) => r.job_position_id));
   const positions = db.job_positions.filter((p) => positionIds.has(p.id));
   const scope = db.policy_scope_targets.filter((s) => s.policy_id === id);
+  const activeKeys = activeResponsibilityKeys(responsibilities);
   const latest = latestEvaluations(
-    db.compliance_evaluations.filter((e) => clauseIds.has(e.policy_clause_id)),
+    db.compliance_evaluations.filter(
+      (e) =>
+        clauseIds.has(e.policy_clause_id) &&
+        activeKeys.has(evaluationLinkKey(e)),
+    ),
   );
 
   const trees = sections.map((section) => ({
@@ -333,8 +372,13 @@ export async function getPositionDetail(id: string) {
   const clauses = db.policy_clauses.filter((c) => clauseIds.has(c.id));
   const policyIds = new Set(clauses.map((c) => c.policy_id));
   const policies = db.policies.filter((p) => policyIds.has(p.id));
+  const activeKeys = activeResponsibilityKeys(links);
   const evals = db.compliance_evaluations
-    .filter((e) => e.job_position_id === positionId)
+    .filter(
+      (e) =>
+        e.job_position_id === positionId &&
+        activeKeys.has(evaluationLinkKey(e)),
+    )
     .sort((a, b) => new Date(b.evaluated_at).getTime() - new Date(a.evaluated_at).getTime());
   const latest = latestEvaluations(evals);
 
@@ -377,12 +421,14 @@ export async function getMatrixRows(filters?: {
   const clauseMap = new Map(db.policy_clauses.map((c) => [c.id, c]));
   const policyMap = new Map(db.policies.map((p) => [p.id, p]));
   const positionMap = new Map(db.job_positions.map((p) => [p.id, p]));
-  const latest = latestEvaluations(db.compliance_evaluations);
+  const latest = latestEvaluations(
+    evaluationsWithActiveLinks(
+      db.compliance_evaluations,
+      db.clause_position_responsibilities,
+    ),
+  );
   const latestMap = new Map(
-    latest.map((e) => [
-      `${e.policy_clause_id}:${e.job_position_id}:${e.responsibility_type}`,
-      e,
-    ]),
+    latest.map((e) => [evaluationLinkKey(e), e]),
   );
 
   let links = db.clause_position_responsibilities.filter((l) => l.is_active);
@@ -443,7 +489,12 @@ export async function listEvaluatedPoliciesByScoreAsc() {
   const db = await readDb();
   const clauseMap = new Map(db.policy_clauses.map((c) => [c.id, c]));
   const policyMap = new Map(db.policies.map((p) => [p.id, p]));
-  const latest = latestEvaluations(db.compliance_evaluations);
+  const latest = latestEvaluations(
+    evaluationsWithActiveLinks(
+      db.compliance_evaluations,
+      db.clause_position_responsibilities,
+    ),
+  );
 
   const byPolicy = new Map<
     string,
@@ -486,7 +537,12 @@ export async function listEvaluatedPoliciesByScoreAsc() {
 export async function listPositionEvaluationSummaries() {
   const db = await readDb();
   const positionMap = new Map(db.job_positions.map((p) => [p.id, p]));
-  const latest = latestEvaluations(db.compliance_evaluations);
+  const latest = latestEvaluations(
+    evaluationsWithActiveLinks(
+      db.compliance_evaluations,
+      db.clause_position_responsibilities,
+    ),
+  );
 
   const byPosition = new Map<
     string,

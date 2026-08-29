@@ -1,3 +1,10 @@
-# Keep local runtime data out of Vercel uploads (production uses Supabase)
-data/local/
+# Do not upload runtime DB / local overrides (production uses Supabase).
+# Keep reference-map.json — required for heltes/alba policy & position allocation.
+data/local/db.json
+data/local/db.json.bak
+data/local/db.json.tmp
+data/local/*overrides.json
+data/local/*.log
+data/local/*.txt
+data/local/import-report.json
 *.tmp

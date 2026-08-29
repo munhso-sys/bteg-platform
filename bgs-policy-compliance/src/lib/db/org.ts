@@ -217,7 +217,8 @@ async function loadCatalog(): Promise<OrgCatalog> {
 }
 
 async function saveCatalog(catalog: OrgCatalog) {
-  // Persist additive/rename state via overrides (works on Vercel + local).
+  // Persist additive/rename state via overrides only (works on Vercel + local).
+  // Never rewrite the bundled org-catalog.json seed — that caused allocation drift.
   const basePath = path.join(
     process.cwd(),
     "data",
@@ -234,8 +235,29 @@ async function saveCatalog(catalog: OrgCatalog) {
     catalog.heltes.flatMap((h) => h.albas.map((a) => a.id)),
   );
 
+  // Store only newly added units + renames relative to the immutable seed.
+  const additiveHeltes = catalog.heltes.filter((h) => !baseHeltesIds.has(h.id));
+  const renamedOrExtended: RefHeltes[] = [];
+  for (const h of catalog.heltes) {
+    if (!baseHeltesIds.has(h.id)) continue;
+    const baseH = base.heltes.find((x) => x.id === h.id)!;
+    const newAlbas = h.albas.filter((a) => !baseAlbaIds.has(a.id));
+    const renamed =
+      h.name !== baseH.name ||
+      h.albas.some((a) => {
+        const b = baseH.albas.find((x) => x.id === a.id);
+        return b && b.name !== a.name;
+      });
+    if (newAlbas.length || renamed) {
+      renamedOrExtended.push({
+        ...h,
+        albas: h.albas.map((a) => ({ ...a, heltes_id: h.id })),
+      });
+    }
+  }
+
   const overrides: OrgCatalogOverridesFile = {
-    heltes: catalog.heltes.map((h) => ({
+    heltes: [...renamedOrExtended, ...additiveHeltes].map((h) => ({
       ...h,
       albas: h.albas.map((a) => ({ ...a, heltes_id: h.id })),
     })),
@@ -243,19 +265,6 @@ async function saveCatalog(catalog: OrgCatalog) {
     removed_alba_ids: [...baseAlbaIds].filter((id) => !nextAlbaIds.has(id)),
   };
   await saveCatalogOverrides(overrides);
-
-  // Best-effort local seed update when FS is writable
-  if (!process.env.VERCEL) {
-    const tmp = `${basePath}.${process.pid}.tmp`;
-    try {
-      await fs.writeFile(tmp, JSON.stringify(catalog, null, 2), "utf8");
-      await fs.copyFile(tmp, basePath);
-    } catch (err) {
-      if (!isReadOnlyFsError(err)) throw err;
-    } finally {
-      await fs.unlink(tmp).catch(() => undefined);
-    }
-  }
 }
 
 /** Sole alba that is really the хэлтэс itself (not a separate office). */

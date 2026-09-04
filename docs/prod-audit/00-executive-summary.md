@@ -15,7 +15,8 @@
 | Next.js (inspect-mn) | 16.3.0 |
 | @supabase/ssr | ^0.12.4 |
 | @supabase/supabase-js | ^2.112.3 |
-| Vercel CLI (via npx) | 59.x |
+| Vercel CLI (via npx) | 59.11.2 |
+| Supabase CLI (via npx) | 2.116.0 |
 | Supabase project (portal) | `inspect-bteg` / ref `umswlpkjiwjohkolsyct` / region `ap-southeast-2` |
 
 ## Phase A safe checks (`inspect-mn`)
@@ -73,6 +74,11 @@ Auth uses `src/middleware.ts` → `lib/supabase/middleware.ts`. **There is no `s
 | **P1-04** | Middleware auth timeout (8s) / swallowed errors treat failure as logged-out → intermittent production login loops. |
 | **P1-05** | Migration inventory drift: Git has `inspect-mn/supabase/migrations/20260817_add_smartmine_permission.sql` not listed among remote migration versions. |
 | **P1-06** | Admin mutations require `SUPABASE_SERVICE_ROLE_KEY`; missing on Vercel → approve/invite/settings writes fail while local may appear fine. |
+| **P1-08** | Admin bootstrap: if no active admin profiles, first authenticated caller of admin gate can be auto-elevated (`require-admin` / `/api/me/access`). Risky if left enabled with open signup. |
+| **P1-09** | `development` module has no middleware; data is `localStorage`-only — Preview/Production multi-device data will not match portal auth expectations. |
+| **P2-07** | Portal module stores use `globalThis` TTL caches (10–15s) — stale reads across serverless invocations on the same isolate. |
+
+Explore cross-checks: [Explore portal auth/env](c3bfe20e-5c5b-4914-9780-b7548295bf43), [Explore inspection DB schema](049bdafa-f5ca-4339-a7c4-857fd4df9cbc).
 
 ## Safest first fix batch (do not implement yet)
 

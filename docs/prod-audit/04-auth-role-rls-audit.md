@@ -82,6 +82,10 @@ Impact: forged `mode: "full"` claims can over-privilege embedded modules if they
 
 Many API routes set `export const dynamic = "force-dynamic"`. Middleware runs on most paths. Residual risk: CDN caching of authenticated HTML if misconfigured — not evidenced in `vercel.json`. Avoid sharing cache tags without `user_id`.
 
+## Admin bootstrap (P1-08)
+
+Evidence from portal RBAC helpers (`require-admin` / `/api/me/access`): when **zero** active admin profiles exist, the first authenticated caller can be upserted as `admin`. Intentional for greenfield setup; **unsafe** if production ever has zero admins (deleted last admin) or open signup.
+
 ## Advisors (security)
 
 - Anon can execute SECURITY DEFINER `is_portal_admin`, `update_own_profile_contact`
@@ -93,3 +97,4 @@ Many API routes set `export const dynamic = "force-dynamic"`. Middleware runs on
 2. Require strong embed secrets; remove hardcoded fallback; rotate.
 3. Replace auth timeout logout with fail-open retry or sticky session + metrics.
 4. Revoke anon EXECUTE on definer RPCs unless intentionally public.
+5. Gate or disable admin auto-bootstrap in production (`NODE_ENV` / feature flag).

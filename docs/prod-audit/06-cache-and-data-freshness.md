@@ -11,6 +11,10 @@
 
 Middleware runs on nearly all routes and refreshes cookies. Risk of caching authenticated HTML at CDN is low if `force-dynamic` / no-store defaults hold — still validate per route for Server Components without dynamic markers.
 
+## In-process TTL caches (P2-07)
+
+Portal guidance / voice / telegram / AI-scope stores keep `globalThis.__*` caches with ~10–15s TTL. On warm serverless isolates this can serve stale module JSON after another instance wrote `app_data_store`. Not a CDN issue — process-local.
+
 ## Mutation → freshness flows
 
 ### Pattern A — RBAC / access requests (portal)

@@ -7,6 +7,11 @@ import {
   verifyInspectionEmbedToken,
   type InspectionEmbedClaims,
 } from "@/lib/access/embed";
+import {
+  decideInspectionAdminAccess,
+  decideInspectionWriteAccess,
+  isInspectionAdminScope,
+} from "@/lib/access/write-access";
 import { allocationsForUnit } from "@/lib/org-template/store";
 import type { OrgTemplateAllocation } from "@/lib/org-template/types";
 import { readStore } from "@/lib/store";
@@ -207,42 +212,37 @@ export async function resolveUnitTemplateIds(
   return ids;
 }
 
-/** Block write APIs for unit-scoped sessions. */
+/** Block write APIs unless signed non-unit embed (IC-D05 fail-closed). */
 export async function requireInspectionWriteAccess() {
   const scope = await getInspectionScope();
-  if (isUnitScopedInspection(scope)) {
+  const decision = decideInspectionWriteAccess(scope);
+  if (!decision.allow) {
     return {
       error: Response.json(
-        {
-          ok: false,
-          error:
-            "Нэгжийн удирдлага / Ахлах мэргэжилтэн зөвхөн харах эрхтэй. Засах боломжгүй.",
-        },
-        { status: 403 },
+        { ok: false, error: decision.message },
+        { status: decision.status },
       ),
     };
   }
   return { scope };
 }
 
-/** For server actions — throws if unit-scoped (read-only). */
+/** For server actions — throws if write not allowed (IC-D05). */
 export async function assertInspectionWriteAccess() {
   const scope = await getInspectionScope();
-  if (isUnitScopedInspection(scope)) {
-    throw new Error(
-      "Нэгжийн удирдлага / Ахлах мэргэжилтэн зөвхөн харах эрхтэй. Засах боломжгүй.",
-    );
+  const decision = decideInspectionWriteAccess(scope);
+  if (!decision.allow) {
+    throw new Error(decision.message);
   }
   return scope;
 }
 
-/** Destructive store ops — Admin role only (or local/dev with no embed scope). */
+/** Destructive store ops — Admin role only (fail-closed without scope). */
 export async function assertInspectionAdminAccess() {
-  const scope = await assertInspectionWriteAccess();
-  if (scope && scope.role !== "admin") {
-    throw new Error(
-      "Зөвхөн Admin эрхтэй хэрэглэгч өгөгдлийн цэвэрлэгээ хийх боломжтой.",
-    );
+  const scope = await getInspectionScope();
+  const decision = decideInspectionAdminAccess(scope);
+  if (!decision.allow) {
+    throw new Error(decision.message);
   }
   return scope;
 }
@@ -250,9 +250,7 @@ export async function assertInspectionAdminAccess() {
 export function isInspectionAdmin(
   scope: InspectionEmbedClaims | null | undefined,
 ) {
-  if (isUnitScopedInspection(scope)) return false;
-  if (!scope) return true;
-  return scope.role === "admin";
+  return isInspectionAdminScope(scope);
 }
 
 export function isInspectionReadOnly(

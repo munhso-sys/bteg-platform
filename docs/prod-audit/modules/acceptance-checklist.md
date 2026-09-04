@@ -16,10 +16,12 @@ Use on Preview (not production apply) after fixes.
 - [ ] Action status transition open→resolved → filtered lists update
 - [ ] Unit-scoped embed cannot open `/runs/new` or settings
 - [ ] **Negative:** `?scope=unit&heltes_id=...` **without** portal embed is rejected (IC-D01)
-- [ ] **Negative:** remote save failure returns error to UI (not silent success)
+- [ ] **Negative:** no embed token → mutating APIs 403 (IC-D05)
+- [ ] **Negative:** unit embed cannot open foreign `/runs/[id]` (IC-D06)
+- [ ] **Negative:** remote save failure returns error to UI (not silent success) (IC-D02/IC-D07)
 - [ ] Unauthorized role cannot POST findings
 - [ ] Double-click create finding does not duplicate unchecked
-
+- [ ] `/settings/data` either works for admin or is removed from nav (IC-D08)
 ## Compliance
 
 - [ ] Create policy → add section/clause → assign responsibility → evaluate

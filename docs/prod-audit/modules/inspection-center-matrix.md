@@ -93,3 +93,39 @@ App: `inspection-center` · Portal embed: `/inspection` · Store key: `inspectio
 
 ### IC-D04 — No automated lifecycle tests (P3)
 - Only `test:scoring`. Add Playwright create→finding→action→reload.
+
+### IC-D05 — Fail-open writes without embed (P0)
+- **Repro:** Open inspection-center with no `embed` cookie/header; `PATCH /api/runs/:id/answers`.  
+- **Expected:** 401/403 in production.  
+- **Actual:** `requireInspectionWriteAccess` only blocks `mode === "unit"`; null scope = full write. Portal timeout can iframe without token.  
+- **Evidence:** `lib/access/scope.ts` (~211–226, `isInspectionAdmin` ~250–255); portal embed fallback empty query.  
+- **Minimal fix:** Require signed `mode: "full"` (or explicit role) for mutations; deny null scope when `VERCEL`/prod.  
+- **Regression test:** No scope → 403; unit → 403; full → 200.
+
+### IC-D06 — Unit IDOR on run detail / evidence (P1)
+- **Repro:** Unit embed; open `/runs/{foreignId}` or `/evidence`.  
+- **Expected:** 404 / filtered.  
+- **Actual:** List filtered; detail uses unscoped `readStore()` by id.  
+- **Evidence:** `runs/[id]/page.tsx`; `evidence/page.tsx` vs scoped list on `runs/page.tsx`.  
+- **Minimal fix:** Apply `readScopedStore` / template allowlist; `notFound()` if out of scope.  
+- **Test:** Unit token + foreign run id → 404.
+
+### IC-D07 — Flush timeout still returns success (P1)
+- **Evidence:** `flushPendingStoreWrites` clears pending on timeout; scoring UI treats HTTP OK as persisted.  
+- **Minimal fix:** Return `persisted:false` / 503 if remote not confirmed when remote preferred.  
+- **Test:** Mock slow `saveRemotePayload` → non-success contract.
+
+### IC-D08 — `/settings/data` nav 404 (P2)
+- **Evidence:** `settings/nav.ts` links to `/settings/data`; `DataResetClient` exists; no `app/settings/data/page.tsx`.  
+- **Minimal fix:** Wire page + admin gate, or remove nav item.  
+- **Test:** GET `/settings/data` → 200 or nav absent.
+
+### IC-D09 — Settings thresholds skip `runStoreMutation` (P2)
+- **Evidence:** `settings/page.tsx` → `setRiskThresholds` / `writeStore` without await flush wrapper.  
+- **Minimal fix:** Wrap in `runStoreMutation`.  
+- **Test:** Save thresholds awaits remote when configured.
+
+### IC-D10 — Embed query dropped on plain Links (P3)
+- **Evidence:** Some `Link` targets omit `EmbedLink`/`withEmbed` (run detail, settings subnav).  
+- **Minimal fix:** Prefer `EmbedLink` everywhere for iframe navigations.  
+- **Test:** Cookies blocked; embed query preserved across nav.

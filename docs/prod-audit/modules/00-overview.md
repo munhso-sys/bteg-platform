@@ -1,0 +1,50 @@
+# Module E2E & data-contract audit
+
+**Modules:** Inspection Center · Compliance (Журмын биелэлт) · Research & Development  
+**Date:** 2026-09-04  
+**Branch context:** `fix/prod-batch-1-security` / platform-clean  
+**Mode:** Read-only (no production changes)
+
+Shared dependencies in scope only: portal auth embed tokens, `app_data_store`, layout/theme.
+
+## Canonical storage (all three)
+
+| Module | SQL tables for domain | Actual persistence |
+|--------|----------------------|-------------------|
+| Inspection Center | none | JSON `InspectionCenterData` in FS and/or `app_data_store.inspection_center_*` |
+| Compliance | BGS SQL migration exists in Git but **not** used at runtime on `inspect-bteg` | `LocalDatabase` JSON / `policy_compliance_db` |
+| R&D | none | Browser `localStorage` only |
+
+There is **no** Postgres `organization_id` FK on these domain records. Scope is embed claims (`heltes`/`alba`/`position`) or absent.
+
+## Documents in this folder
+
+| File | Content |
+|------|---------|
+| `inspection-center-matrix.md` | Action matrix + defects |
+| `compliance-center-matrix.md` | Action matrix + defects |
+| `research-development-matrix.md` | Action matrix + defects |
+| `acceptance-checklist.md` | Cross-module QA checklist |
+| `issue-register-modules.csv` | Defect register |
+
+## Top cross-cutting defects
+
+| ID | Sev | Module | Summary |
+|----|-----|--------|---------|
+| IC-D01 | P0 | Inspection | Middleware mints signed `unit` embed from **unsigned query params** (`scope=unit&heltes_*`) — bypasses portal HMAC trust |
+| IC-D02 | P1 | Inspection | Remote `saveRemotePayload` failure only `console.warn`; local mutation already succeeded → silent prod loss |
+| CC-D01 | P1 | Compliance | `writeQueue = run.catch(() => undefined)` can swallow write failures after caller believes success |
+| RD-D01 | P0 | R&D | No middleware/auth; all data in `localStorage`; logout/login/other device = empty or seed data |
+| SHARED-D01 | P1 | All embeds | After Batch 1, missing `*_EMBED_SECRET` → null tokens → open or soft-scoped module access |
+
+## Test coverage today
+
+| Module | Automated tests |
+|--------|-----------------|
+| Inspection | `test:scoring` only; no E2E lifecycle |
+| Compliance | Batch 1 `test:supabase` (service role); no action E2E |
+| R&D | none |
+
+## Stop
+
+No deploy. No production schema apply. Implement fixes only on explicit instruction (prefer IC-D01 + RD-D01 after Batch 1 secrets rollout).

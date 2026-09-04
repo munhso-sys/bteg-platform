@@ -33,9 +33,13 @@ There is **no** Postgres `organization_id` FK on these domain records. Scope is 
 |----|-----|--------|---------|
 | IC-D01 | P0 | Inspection | Middleware mints signed `unit` embed from **unsigned query params** (`scope=unit&heltes_*`) — bypasses portal HMAC trust |
 | IC-D02 | P1 | Inspection | Remote `saveRemotePayload` failure only `console.warn`; local mutation already succeeded → silent prod loss |
+| IC-D05 | P0 | Inspection | Missing/invalid embed scope treated as **full write** (fail-open) |
+| IC-D06 | P1 | Inspection | Unit lists scoped but run detail/evidence allow foreign IDs (IDOR) |
 | CC-D01 | P1 | Compliance | `writeQueue = run.catch(() => undefined)` can swallow write failures after caller believes success |
 | RD-D01 | P0 | R&D | No middleware/auth; all data in `localStorage`; logout/login/other device = empty or seed data |
 | SHARED-D01 | P1 | All embeds | After Batch 1, missing `*_EMBED_SECRET` → null tokens → open or soft-scoped module access |
+
+Cross-check: [Audit inspection-center flows](8a983875-d3a0-4dcc-8ffc-dace81e708fc).
 
 ## Test coverage today
 
@@ -47,4 +51,4 @@ There is **no** Postgres `organization_id` FK on these domain records. Scope is 
 
 ## Stop
 
-No deploy. No production schema apply. Implement fixes only on explicit instruction (prefer IC-D01 + RD-D01 after Batch 1 secrets rollout).
+No deploy. No production schema apply. Implement fixes only on explicit instruction (prefer **IC-D01 + IC-D05**, then RD-D01/D02, then IC-D02/IC-D07 after Batch 1 secrets rollout).

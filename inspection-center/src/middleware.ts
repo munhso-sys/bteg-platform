@@ -3,10 +3,9 @@ import type { NextRequest } from "next/server";
 import {
   INSPECTION_SCOPE_COOKIE,
   INSPECTION_EMBED_HEADER,
-  signInspectionEmbedToken,
-  verifyInspectionEmbedToken,
   type InspectionEmbedClaims,
 } from "@/lib/access/embed";
+import { resolveInspectionEmbedFromParts } from "@/lib/access/embed-resolve";
 
 function scopeCookieOptions(maxAge = 12 * 60 * 60) {
   return {
@@ -30,24 +29,6 @@ function allowedForUnit(pathname: string) {
   return false;
 }
 
-/** Soft query params — only used to mint a signed token once (never trusted raw). */
-async function mintSoftUnitToken(
-  request: NextRequest,
-): Promise<string | null> {
-  if (request.nextUrl.searchParams.get("scope") !== "unit") return null;
-  const soft: Omit<InspectionEmbedClaims, "v"> = {
-    uid: "soft",
-    role: null,
-    heltesId: request.nextUrl.searchParams.get("heltes_id"),
-    albaId: request.nextUrl.searchParams.get("alba_id"),
-    heltesName: request.nextUrl.searchParams.get("heltes_name"),
-    albaName: request.nextUrl.searchParams.get("alba_name"),
-    mode: "unit",
-    exp: Date.now() + 12 * 60 * 60 * 1000,
-  };
-  return signInspectionEmbedToken(soft);
-}
-
 function withEmbedHeader(request: NextRequest, token: string) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(INSPECTION_EMBED_HEADER, token);
@@ -61,32 +42,19 @@ function withEmbedHeader(request: NextRequest, token: string) {
 export async function middleware(request: NextRequest) {
   const url = request.nextUrl.clone();
   const embedParam = url.searchParams.get("embed");
-  let token: string | null = null;
-  let claims: InspectionEmbedClaims | null = null;
+  const cookieToken = request.cookies.get(INSPECTION_SCOPE_COOKIE)?.value ?? null;
 
-  if (embedParam) {
-    claims = await verifyInspectionEmbedToken(embedParam);
-    if (claims) token = embedParam;
-  }
+  // IC-D01: do not mint signed tokens from unsigned scope=unit query params.
+  const resolved = await resolveInspectionEmbedFromParts({
+    embedParam,
+    cookieToken,
+  });
 
-  if (!token) {
-    const minted = await mintSoftUnitToken(request);
-    if (minted) {
-      claims = await verifyInspectionEmbedToken(minted);
-      if (claims) token = minted;
-    }
-  }
-
-  if (!token) {
-    const cookieToken = request.cookies.get(INSPECTION_SCOPE_COOKIE)?.value;
-    if (cookieToken) {
-      claims = await verifyInspectionEmbedToken(cookieToken);
-      if (claims) token = cookieToken;
-    }
-  }
+  const token = resolved?.token ?? null;
+  const claims: InspectionEmbedClaims | null = resolved?.claims ?? null;
 
   // Keep signed embed in the URL for iframe navigations (3P cookies often blocked).
-  // Soft scope params can be stripped after minting a signed token into `embed`.
+  // Strip leftover soft scope params only when a real signed embed/cookie already exists.
   if (token && url.searchParams.get("scope") === "unit" && !embedParam) {
     for (const k of [
       "scope",
@@ -112,10 +80,6 @@ export async function middleware(request: NextRequest) {
       return res;
     }
     return withEmbedHeader(request, token);
-  }
-
-  if (claims?.mode === "unit" && !allowedForUnit(url.pathname)) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   return NextResponse.next();

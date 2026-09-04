@@ -18,6 +18,15 @@
 | Vercel CLI (via npx) | 59.x |
 | Supabase project (portal) | `inspect-bteg` / ref `umswlpkjiwjohkolsyct` / region `ap-southeast-2` |
 
+## Phase A safe checks (`inspect-mn`)
+
+| Check | Result |
+|-------|--------|
+| `npx tsc --noEmit` | Completed with exit 0 (no TS errors printed) |
+| `npm run lint` | Exit 0 — **5 warnings** (react-hooks on risk work page; `window.location.assign` on logout/idle) |
+| `next build` + `next start` | Not completed in this pass (time-boxed); recommend on Batch A kickoff |
+| Unit/integration tests | No `test` script in package.json |
+
 ## Architecture reality (critical)
 
 The prompt’s expected relational model (`organizations`, `inspections`, `findings`, `corrective_actions`, …) **does not exist** in production PostgreSQL for `inspect-bteg`.

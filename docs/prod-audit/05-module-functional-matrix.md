@@ -38,6 +38,8 @@ Legend: **OK** works when env+data present · **DEGRADED** partial · **BROKEN**
 | Function | Local | Production | Notes |
 |----------|-------|------------|-------|
 | Iframe | :3003 | development Vercel app | separate deploy lifecycle |
+| Auth middleware | none found | none | P1-09 |
+| Persistence | `localStorage` (`rd-program-initiatives-v1`) | browser-local only | not shared across users/devices; Supabase client unused |
 
 ## Ажилтны дуу хоолой / AI / Risk / Reports / SmartMine / Guidance
 

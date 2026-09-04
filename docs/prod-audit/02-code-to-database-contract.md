@@ -105,6 +105,8 @@ Evidence: `inspection-center/src/lib/store/remote.ts`, `bgs-policy-compliance/sr
 |-------|--------|
 | Portal | `/development` iframe |
 | Module | `development` app on separate Vercel project |
+| Persistence | **Client `localStorage` only** (not `app_data_store`); no module `middleware.ts` |
+| Risk | Multi-user / multi-device inconsistency in production (P1-09) |
 
 ### Role-based access (portal)
 

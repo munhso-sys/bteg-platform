@@ -13,6 +13,9 @@
     "import:sidebar-findings": "tsx scripts/import-sidebar-findings.ts",
     "import:document": "tsx scripts/import-document-inspection.ts",
     "test:scoring": "tsx --test src/lib/scoring/scoring.test.ts",
+    "test:access": "tsx --test src/lib/access/embed-resolve.test.ts src/lib/access/write-access.test.ts",
+    "test:security": "npm run test:access",
+    "test:e2e:security": "tsx --test scripts/e2e-security.test.ts",
     "seed:remote": "tsx --tsconfig tsconfig.json scripts/seed-remote-store.ts"
   },
   "dependencies": {

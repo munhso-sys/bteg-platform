@@ -35,8 +35,12 @@ Unsigned query parameters were treated as authority to mint HMAC-signed claims.
 N/A — auth boundary change only; no store mutation introduced.
 
 ## Remaining risk
-- Pre-existing soft-minted cookies remain valid until expiry if they were signed with a key the server still trusts.
-- Portal timeout that loads iframe without `embed` no longer gets forged unit scope (good); writes denied by IC-D05.
+- Pre-existing soft-minted cookies remain valid until expiry if signed with a key the server still trusts.
+- Master lineage still contains hardcoded embed signing fallback (Batch1 `123c17f` / P0-02 excluded) — unsigned soft mint remains removed, but env-less signing may still work via hardcoded secret until Track C.
+- Portal timeout that loads iframe without `embed` no longer gets forged unit scope; writes denied by IC-D05.
+
+## Additional regression coverage (this pass)
+Forged/modified/expired/malformed tokens; cookie vs embed precedence; orphan-key verify deny; middleware source ban on `mintSoftUnitToken`.
 
 ## Required Preview test
 - Load module from portal with real signed `embed` (unit + full).

@@ -54,3 +54,7 @@ data/
 *.pem
 *.sst
 *.node
+
+# Never commit plaintext Vercel / API token dumps
+bgs-policy-compliance/vercel token.txt
+**/vercel token.txt

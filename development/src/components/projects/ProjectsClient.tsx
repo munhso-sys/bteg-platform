@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PrototypePersistenceBanner } from "@/components/PrototypePersistenceBanner";
 import { ProgressBar } from "@/components/ProgressBar";
 import { KpiDetailModal } from "@/components/projects/KpiDetailModal";
 import { ProjectModal } from "@/components/projects/ProjectModal";
@@ -9,10 +10,16 @@ import { MetricCard, Panel, TableScroll } from "@/components/ui/primitives";
 import {
   PROJECT_PRIORITY_LABELS,
   PROJECT_STATUS_LABELS,
-  PROJECTS_STORAGE_KEY,
   projectKpis,
   seedProjects,
 } from "@/lib/projects-data";
+import {
+  RD_PROJECTS_BASE_KEY,
+  clearLegacyRdSharedKeys,
+  readRdJsonArray,
+  writeRdJsonArray,
+} from "@/lib/rd-storage";
+import { useRdUserId } from "@/lib/use-rd-user-id";
 import type { ResearchProject } from "@/lib/types";
 
 const KPI_META = [
@@ -33,20 +40,19 @@ const KPI_TITLES: Record<string, string> = {
   urgent: "Нэн яаралтай төслүүд",
 };
 
-function loadProjects(): ResearchProject[] {
-  try {
-    const raw = localStorage.getItem(PROJECTS_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as ResearchProject[];
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch {
-    // ignore
-  }
+function loadProjects(userId: string | null): ResearchProject[] {
+  const namespaced = readRdJsonArray<ResearchProject>(
+    window.localStorage,
+    RD_PROJECTS_BASE_KEY,
+    userId,
+  );
+  if (namespaced && namespaced.length > 0) return namespaced;
+  // Do not fall back to legacy shared key once namespacing is active.
   return seedProjects;
 }
 
 export function ProjectsClient() {
+  const { userId, ready } = useRdUserId();
   const [projects, setProjects] = useState<ResearchProject[]>(seedProjects);
   const [hydrated, setHydrated] = useState(false);
   const [selected, setSelected] = useState<ResearchProject | null>(null);
@@ -54,17 +60,24 @@ export function ProjectsClient() {
   const [selectedKpi, setSelectedKpi] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!ready) return;
     const timer = window.setTimeout(() => {
-      setProjects(loadProjects());
+      clearLegacyRdSharedKeys(window.localStorage);
+      setProjects(loadProjects(userId));
       setHydrated(true);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [ready, userId]);
 
   useEffect(() => {
-    if (!hydrated) return;
-    localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(projects));
-  }, [hydrated, projects]);
+    if (!hydrated || !ready) return;
+    writeRdJsonArray(
+      window.localStorage,
+      RD_PROJECTS_BASE_KEY,
+      userId,
+      projects,
+    );
+  }, [hydrated, ready, userId, projects]);
 
   const groups = useMemo(() => projectKpis(projects), [projects]);
 
@@ -85,6 +98,7 @@ export function ProjectsClient() {
 
   return (
     <div>
+      <PrototypePersistenceBanner />
       <PageHeader
         title="Судалгааны төслүүд"
         subtitle="Судалгаа, инноваци, хөгжүүлэлтийн төслүүд — явц, төлөв, хариуцагч"

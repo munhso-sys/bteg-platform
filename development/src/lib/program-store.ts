@@ -3,6 +3,13 @@
 import { useEffect, useState } from "react";
 import { initiatives as seedInitiatives } from "./program-data";
 import { emptyQuarters, nextQuarterMark } from "./quarters";
+import {
+  RD_PROGRAM_BASE_KEY,
+  clearLegacyRdSharedKeys,
+  readRdJsonArray,
+  writeRdJsonArray,
+} from "./rd-storage";
+import { useRdUserId } from "./use-rd-user-id";
 import type {
   ProgramInitiative,
   ProgramPillarId,
@@ -33,38 +40,39 @@ export function emptyInitiative(
   };
 }
 
-function loadInitiatives(): ProgramInitiative[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return seedInitiatives;
-    const parsed = JSON.parse(raw) as ProgramInitiative[];
-    if (!Array.isArray(parsed) || parsed.length === 0) return seedInitiatives;
-    return parsed.map((item) => ({
-      ...emptyInitiative(),
-      ...item,
-      quarters: { ...emptyQuarters(), ...item.quarters },
-    }));
-  } catch {
-    return seedInitiatives;
-  }
+function loadInitiatives(userId: string | null): ProgramInitiative[] {
+  const namespaced = readRdJsonArray<ProgramInitiative>(
+    window.localStorage,
+    RD_PROGRAM_BASE_KEY,
+    userId,
+  );
+  if (!namespaced || namespaced.length === 0) return seedInitiatives;
+  return namespaced.map((item) => ({
+    ...emptyInitiative(),
+    ...item,
+    quarters: { ...emptyQuarters(), ...item.quarters },
+  }));
 }
 
 export function useProgramInitiatives() {
+  const { userId, ready } = useRdUserId();
   const [items, setItems] = useState<ProgramInitiative[]>(seedInitiatives);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
+    if (!ready) return;
     const timer = window.setTimeout(() => {
-      setItems(loadInitiatives());
+      clearLegacyRdSharedKeys(window.localStorage);
+      setItems(loadInitiatives(userId));
       setHydrated(true);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [ready, userId]);
 
   useEffect(() => {
-    if (!hydrated) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  }, [hydrated, items]);
+    if (!hydrated || !ready) return;
+    writeRdJsonArray(window.localStorage, RD_PROGRAM_BASE_KEY, userId, items);
+  }, [hydrated, ready, userId, items]);
 
   function save(next: ProgramInitiative) {
     setItems((prev) => {

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { DutyModuleApp } from "@/lib/module-apps";
 import { embedSrc } from "@/lib/module-apps";
 import { applyTheme, readStoredTheme, type ThemeMode } from "@/lib/theme";
+import { INSPECT_LOGOUT_EVENT } from "@/lib/portal-logout-broadcast";
 
 /**
  * Embed duty module. Theme is passed once via URL, then synced with postMessage
@@ -55,12 +56,25 @@ export function ModuleEmbed({
       setTheme(data.theme);
     }
 
+    function onPortalLogout() {
+      try {
+        iframeRef.current?.contentWindow?.postMessage(
+          { type: "inspect-logout" },
+          app.origin,
+        );
+      } catch {
+        // ignore
+      }
+    }
+
     window.addEventListener("inspect-theme-change", onTheme);
     window.addEventListener("message", onMessage);
+    window.addEventListener(INSPECT_LOGOUT_EVENT, onPortalLogout);
     return () => {
       window.clearTimeout(bootId);
       window.removeEventListener("inspect-theme-change", onTheme);
       window.removeEventListener("message", onMessage);
+      window.removeEventListener(INSPECT_LOGOUT_EVENT, onPortalLogout);
     };
   }, [app.origin]);
 

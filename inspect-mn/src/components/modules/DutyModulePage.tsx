@@ -2,6 +2,7 @@ import { ModuleEmbed } from "@/components/modules/ModuleEmbed";
 import { getDutyModuleApps, type DutyModuleId } from "@/lib/module-apps";
 import { buildPolicyEmbedOptions } from "@/lib/policy-embed-server";
 import { buildInspectionEmbedOptions } from "@/lib/inspection-embed-server";
+import { buildDevelopmentEmbedOptions } from "@/lib/development-embed-server";
 
 export async function DutyModulePage({ id }: { id: DutyModuleId }) {
   const app = getDutyModuleApps()[id];
@@ -18,6 +19,10 @@ export async function DutyModulePage({ id }: { id: DutyModuleId }) {
       const inspectionEmbed = await buildInspectionEmbedOptions();
       entryPath = inspectionEmbed?.entryPath;
       query = inspectionEmbed?.query;
+    } else if (id === "development") {
+      const developmentEmbed = await buildDevelopmentEmbedOptions();
+      entryPath = developmentEmbed?.entryPath;
+      query = developmentEmbed?.query;
     }
   } catch (error) {
     console.error(`[duty-module] embed options failed for ${id}`, error);

@@ -51,4 +51,4 @@ Cross-check: [Audit inspection-center flows](8a983875-d3a0-4dcc-8ffc-dace81e708f
 
 ## Stop
 
-No deploy. No production schema apply. IC-D01 and IC-D05 are **Verified** locally on `fix/prod-stabilization-p0` (see docs 13–16). Remaining Open P0: RD-D01/D02; Batch 1 P0-01/P0-02 remain on separate track.
+No deploy. No production schema apply. IC-D01/D05 and RD-D01/D02 are **Verified locally** on `fix/prod-stabilization-p0` (docs 13–14, 21–22, 25). Remaining Open P0: platform P0-01/P0-02/P0-03 (Batch 1 track). Preview readiness remains **NOT READY** (docs 16, 19, 25).

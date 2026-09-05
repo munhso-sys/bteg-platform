@@ -46,8 +46,11 @@ Absence of authenticated embed claims was interpreted as “full access / admin,
 No new elevated keys. Write gate is embed-claims only. Client bundle scan: no `SUPABASE_SERVICE_ROLE_KEY` / embed secret literals in `.next/static/chunks`.
 
 ## Remaining risk
-- Local standalone editing requires `INSPECTION_ALLOW_UNSCOPED_WRITES=1` (document; never set in Preview/Production).
 - Positive “full embed allows PATCH and mutates store” not fully exercised against a seeded run id in E2E (denied paths verified).
+- Unscoped bypass **removed** (see doc 20); legacy env flags cannot grant access.
+
+## Additional coverage (this pass)
+Production/VERCEL/preview env + legacy flag deny; admin/manager/unknown role; zero-rows helper; scope resolution error deny.
 
 ## Required Preview test
 - Portal full-mode embed: score save succeeds.

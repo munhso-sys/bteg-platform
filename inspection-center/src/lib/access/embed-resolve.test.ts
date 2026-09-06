@@ -166,20 +166,18 @@ describe("IC-D01 soft unit mint disabled", () => {
     });
   });
 
-  it("absent dedicated env secrets: orphan-key forged tokens do not verify", async () => {
+  it("absent dedicated env secrets: cannot sign; orphan-key tokens do not verify", async () => {
     const prev = process.env.INSPECTION_EMBED_SECRET;
     const prevPolicy = process.env.POLICY_EMBED_SECRET;
     delete process.env.INSPECTION_EMBED_SECRET;
     delete process.env.POLICY_EMBED_SECRET;
     try {
+      assert.equal(await signInspectionEmbedToken(baseClaims()), null);
       const body = b64url(JSON.stringify({ v: 1, ...baseClaims() }));
       const sig = createHmac("sha256", "orphan-key")
         .update(body)
         .digest("base64url");
       assert.equal(await verifyInspectionEmbedToken(`${body}.${sig}`), null);
-      // Note: master lineage may still sign via hardcoded fallback (P0-02 /
-      // Batch1 123c17f — excluded from this branch). Signing without env is
-      // tracked separately; this assertion only covers verify fail-closed.
     } finally {
       if (prev === undefined) delete process.env.INSPECTION_EMBED_SECRET;
       else process.env.INSPECTION_EMBED_SECRET = prev;

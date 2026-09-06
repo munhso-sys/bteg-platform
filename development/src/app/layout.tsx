@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
+import { PortalSessionBridge } from "@/components/PortalSessionBridge";
 import { ShellFrame } from "@/components/layout/ShellFrame";
 import { ThemeFromPortal } from "@/components/theme-from-portal";
 import "./globals.css";
@@ -36,6 +37,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full font-sans">
         <ThemeFromPortal />
+        <PortalSessionBridge />
         <Suspense
           fallback={
             <div className="flex min-h-[100dvh]">

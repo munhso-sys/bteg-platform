@@ -60,6 +60,7 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/auth/");
   const isPublicApi =
     pathname === "/api/supabase/health" ||
+    pathname === "/api/runtime-info" ||
     pathname === "/api/org/options" ||
     pathname === "/api/access-requests" ||
     pathname === "/api/auth/forgot-password" ||

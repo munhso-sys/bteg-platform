@@ -2,33 +2,25 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 let cached: SupabaseClient | null = null;
 
-/** Inspect-BTEG project — used when Vercel env vars are not set yet. */
-const FALLBACK_SUPABASE_URL = "https://umswlpkjiwjohkolsyct.supabase.co";
-const FALLBACK_SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVtc3dscGtqaXdqb2hrb2xzeWN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1NjY5MDQsImV4cCI6MjEwMjE0MjkwNH0.4wN_3W7P7xRVcsGqi7eccxuJiExyvOKM0WuysovFN-c";
+/**
+ * P0-01 app compatibility: remote app_data_store writers require service role.
+ * Anon/publishable/hardcoded fallbacks removed before restrictive RLS activation.
+ */
+export function getRemoteStoreSupabaseUrl() {
+  return process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || "";
+}
+
+export function getRemoteStoreServiceRoleKey() {
+  return process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || "";
+}
 
 export function isSupabaseConfigured() {
-  return Boolean(getSupabaseUrl() && getSupabaseKey());
-}
-
-function getSupabaseUrl() {
-  return (
-    process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || FALLBACK_SUPABASE_URL
-  );
-}
-
-function getSupabaseKey() {
-  return (
-    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
-    FALLBACK_SUPABASE_ANON_KEY
-  );
+  return Boolean(getRemoteStoreSupabaseUrl() && getRemoteStoreServiceRoleKey());
 }
 
 export function createServerSupabaseClient() {
-  const url = getSupabaseUrl();
-  const key = getSupabaseKey();
+  const url = getRemoteStoreSupabaseUrl();
+  const key = getRemoteStoreServiceRoleKey();
   if (!url || !key) return null;
   if (!cached) {
     cached = createClient(url, key, {

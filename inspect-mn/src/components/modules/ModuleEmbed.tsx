@@ -5,6 +5,7 @@ import type { DutyModuleApp } from "@/lib/module-apps";
 import { embedSrc } from "@/lib/module-apps";
 import { applyTheme, readStoredTheme, type ThemeMode } from "@/lib/theme";
 import { INSPECT_LOGOUT_EVENT } from "@/lib/portal-logout-broadcast";
+import { createClient } from "@/lib/supabase/client";
 
 /**
  * Embed duty module. Theme is passed once via URL, then synced with postMessage
@@ -89,6 +90,26 @@ export function ModuleEmbed({
     }
   }, [app.origin, theme]);
 
+  const postSession = useCallback(async () => {
+    if (app.id !== "development") return;
+    try {
+      const supabase = createClient();
+      const { data } = await supabase.auth.getSession();
+      const session = data.session;
+      if (!session?.access_token || !session.refresh_token) return;
+      iframeRef.current?.contentWindow?.postMessage(
+        {
+          type: "inspect-session",
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+        },
+        app.origin,
+      );
+    } catch {
+      // ignore
+    }
+  }, [app.id, app.origin]);
+
   if (!bootTheme) {
     return (
       <div className="flex h-full min-h-[70vh] items-center justify-center text-sm text-[var(--muted)]">
@@ -106,7 +127,10 @@ export function ModuleEmbed({
       src={src}
       className="h-full w-full flex-1 border-0 bg-[var(--card)]"
       allow="clipboard-read; clipboard-write"
-      onLoad={postTheme}
+      onLoad={() => {
+        postTheme();
+        void postSession();
+      }}
     />
   );
 }

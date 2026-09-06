@@ -5,7 +5,6 @@ import type { ElementType } from "react";
 import { Bot, Megaphone, ShieldAlert } from "lucide-react";
 import { InitiativeModal } from "@/components/program/InitiativeModal";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { PrototypePersistenceBanner } from "@/components/PrototypePersistenceBanner";
 import { ProgressBar } from "@/components/ProgressBar";
 import {
   QuarterCells,
@@ -55,7 +54,6 @@ export function ProgramBoard() {
 
   return (
     <div>
-      <PrototypePersistenceBanner />
       <PageHeader
         title="Хөтөлбөрийн ажил"
         subtitle="Судалгаа, бүтээмж, цахим шилжилтийн ажлын явц, улирлын гүйцэтгэл"

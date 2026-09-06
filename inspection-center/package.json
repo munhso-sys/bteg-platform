@@ -15,6 +15,7 @@
     "test:scoring": "tsx --test src/lib/scoring/scoring.test.ts",
     "test:access": "tsx --test src/lib/access/embed-resolve.test.ts src/lib/access/write-access.test.ts",
     "test:security": "npm run test:access",
+    "test:supabase": "tsx --test src/lib/supabase/server.test.ts",
     "test:e2e:security": "tsx --test scripts/e2e-security.test.ts",
     "seed:remote": "tsx --tsconfig tsconfig.json scripts/seed-remote-store.ts"
   },

@@ -46,6 +46,13 @@ yarn-error.log*
 # test coverage
 coverage/
 
+# Playwright / local gate artifacts
+test-results/
+playwright-report/
+docs/prod-audit/*.log
+docs/prod-audit/e2e-server-*.log
+docs/prod-audit/e2e-last-run.json
+
 # local runtime data
 data/
 *.tmp

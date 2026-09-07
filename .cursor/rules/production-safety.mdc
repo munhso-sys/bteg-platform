@@ -1,0 +1,60 @@
+---
+description: Production safety, Supabase migration, testing and release rules
+alwaysApply: true
+---
+
+# Production Safety Rules
+
+## Protected resources
+- main branch, Vercel Production and the production Supabase project are protected.
+- Never deploy, merge, push, or alter production unless explicitly instructed.
+- Never run destructive or state-changing database commands against production.
+
+## Database changes
+- Every schema, function, trigger, view, grant and RLS change must be a migration.
+- Do not make untracked changes in the remote Supabase Dashboard.
+- Use expand -> migrate/backfill -> contract for breaking schema changes.
+- Add new fields before changing application reads/writes.
+- Drop or rename old fields only in a later release.
+- Regenerate database TypeScript types after every schema change.
+- Include foreign keys, indexes, nullability, defaults and deletion behavior explicitly.
+- Add database/RLS tests for every policy change.
+
+## Authentication and authorization
+- Use browser clients only in client-side code.
+- Use request-scoped server clients in Server Components, Server Actions and Route Handlers.
+- Never expose secret/service-role keys to the browser.
+- Never disable RLS to make application code work.
+- Every business query must enforce organization scope.
+- Test ADMIN, INSPECTOR, MANAGER and unauthorized roles separately.
+
+## Data correctness
+- Do not fetch all rows and filter them in JavaScript when the database can filter.
+- Do not use select('*') without a documented reason.
+- Do not swallow Supabase errors.
+- A mutation is successful only when the expected row was returned or affected.
+- Every mutation must define cache invalidation and UI refresh behavior.
+- User-specific or organization-specific data must not use a shared cache key.
+
+## Testing
+Before marking work complete, run:
+- typecheck
+- lint
+- unit tests
+- database/RLS tests
+- production build
+- relevant Playwright E2E tests
+
+Test critical flows against a production build, not only next dev.
+
+## Change scope
+- One root cause per logical commit.
+- Do not mix schema migration, broad refactor and UI redesign in one change.
+- Every fix must include reproduction, evidence, regression test and rollback note.
+- Do not remove existing functionality unless explicitly required.
+
+## Release
+- Feature branch -> Pull Request -> staging/preview -> tests -> approval -> production.
+- Preview must not write to the production database.
+- Production promotion requires passing smoke tests.
+- Breaking database changes require backward compatibility with both old and new app versions.

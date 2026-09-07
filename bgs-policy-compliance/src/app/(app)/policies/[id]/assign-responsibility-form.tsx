@@ -25,6 +25,14 @@ async function readApiError(res: Response) {
   return `Алдаа (${res.status})`;
 }
 
+function albasForHeltes(tree: OrgAssignTree, heltesId: string) {
+  if (!heltesId) return [] as Array<{ id: string; name: string }>;
+  if (heltesId === tree.other.id || heltesId === OTHER_HELTES_ID) {
+    return [{ id: OTHER_ALBA_ID, name: "—" }];
+  }
+  return tree.heltes.find((h) => h.id === heltesId)?.albas ?? [];
+}
+
 export function AssignResponsibilityForm({
   clauses,
   tree,
@@ -43,76 +51,73 @@ export function AssignResponsibilityForm({
   const [positions, setPositions] = useState<PositionOption[]>([]);
   const [loadingPositions, setLoadingPositions] = useState(false);
 
-  const albaOptions = useMemo(() => {
-    if (!heltesId) return [];
-    if (heltesId === tree.other.id || heltesId === OTHER_HELTES_ID) {
-      return [{ id: OTHER_ALBA_ID, name: "—" }];
-    }
-    return tree.heltes.find((h) => h.id === heltesId)?.albas ?? [];
-  }, [heltesId, tree]);
+  const albaOptions = useMemo(
+    () => albasForHeltes(tree, heltesId),
+    [heltesId, tree],
+  );
+
+  // Keep select value consistent without syncing via useEffect (eslint react-hooks).
+  const selectedAlbaId =
+    albaOptions.length === 0
+      ? ""
+      : albaOptions.length === 1
+        ? albaOptions[0].id
+        : albaOptions.some((a) => a.id === albaId)
+          ? albaId
+          : "";
+
+  const activeAlbaId = selectedAlbaId;
 
   useEffect(() => {
-    setAlbaId((prev) => {
-      if (albaOptions.length === 0) return "";
-      if (albaOptions.length === 1) return albaOptions[0].id;
-      if (prev && albaOptions.some((a) => a.id === prev)) return prev;
-      return "";
-    });
-  }, [albaOptions]);
-
-  useEffect(() => {
-    if (!heltesId || !albaId) {
-      setPositions([]);
-      setPositionId("");
+    if (!heltesId || !activeAlbaId) {
       return;
     }
 
     let cancelled = false;
-    setLoadingPositions(true);
     const qs = new URLSearchParams({
       heltesId,
-      albaId,
+      albaId: activeAlbaId,
       tab: "positions",
     });
-    fetch(withBasePath(`/api/org/alba-content?${qs}`))
-      .then(async (res) => {
+
+    void (async () => {
+      setLoadingPositions(true);
+      setPositions([]);
+      setPositionId("");
+      try {
+        const res = await fetch(withBasePath(`/api/org/alba-content?${qs}`));
         if (!res.ok) throw new Error(await readApiError(res));
-        return res.json() as Promise<{
+        const data = (await res.json()) as {
           ok?: boolean;
           positions?: PositionOption[];
-        }>;
-      })
-      .then((data) => {
+        };
         if (cancelled) return;
         const rows = Array.isArray(data.positions) ? data.positions : [];
         setPositions(
           [...rows].sort((a, b) => a.name.localeCompare(b.name, "mn")),
         );
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) setPositions([]);
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoadingPositions(false);
-      });
+      }
+    })();
 
     return () => {
       cancelled = true;
     };
-  }, [heltesId, albaId]);
+  }, [heltesId, activeAlbaId]);
 
   const filteredPositions = useMemo(() => {
+    if (!heltesId || !activeAlbaId) return [];
     const s = q.trim().toLowerCase();
     if (!s) return positions;
     return positions.filter((p) => p.name.toLowerCase().includes(s));
-  }, [positions, q]);
+  }, [positions, q, heltesId, activeAlbaId]);
 
-  useEffect(() => {
-    if (!positionId) return;
-    if (!filteredPositions.some((p) => p.id === positionId)) {
-      setPositionId("");
-    }
-  }, [filteredPositions, positionId]);
+  const selectedPositionId = filteredPositions.some((p) => p.id === positionId)
+    ? positionId
+    : "";
 
   const clauseOptions = useMemo(() => clauses.slice(0, 500), [clauses]);
 
@@ -128,7 +133,7 @@ export function AssignResponsibilityForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           policy_clause_id: fd.get("policy_clause_id"),
-          job_position_id: fd.get("job_position_id"),
+          job_position_id: selectedPositionId || fd.get("job_position_id"),
           responsibility_type: fd.get("responsibility_type"),
           weight: Number(fd.get("weight") || 1),
           required_evidence: fd.get("required_evidence") || null,
@@ -161,9 +166,12 @@ export function AssignResponsibilityForm({
       <select
         value={heltesId}
         onChange={(e) => {
-          setHeltesId(e.target.value);
-          setAlbaId("");
+          const next = e.target.value;
+          setHeltesId(next);
+          const nextAlbas = albasForHeltes(tree, next);
+          setAlbaId(nextAlbas.length === 1 ? nextAlbas[0].id : "");
           setPositionId("");
+          setPositions([]);
         }}
         className="w-full rounded border border-slate-300 bg-white px-2 py-1.5"
       >
@@ -176,11 +184,12 @@ export function AssignResponsibilityForm({
         <option value={tree.other.id}>{tree.other.name}</option>
       </select>
       <select
-        value={albaId}
+        value={activeAlbaId}
         disabled={!heltesId}
         onChange={(e) => {
           setAlbaId(e.target.value);
           setPositionId("");
+          setPositions([]);
         }}
         className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 disabled:bg-slate-50"
       >
@@ -194,22 +203,22 @@ export function AssignResponsibilityForm({
       <input
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        disabled={!albaId}
+        disabled={!activeAlbaId}
         placeholder="Ажлын байр хайх…"
         className="w-full rounded border border-slate-300 px-2 py-1.5 disabled:bg-slate-50"
       />
       <select
         name="job_position_id"
         required
-        value={positionId}
-        disabled={!albaId || loadingPositions}
+        value={selectedPositionId}
+        disabled={!activeAlbaId || loadingPositions}
         onChange={(e) => setPositionId(e.target.value)}
         className="w-full rounded border border-slate-300 px-2 py-1.5 disabled:bg-slate-50"
       >
         <option value="">
           {loadingPositions
             ? "Ачаалж байна…"
-            : !albaId
+            : !activeAlbaId
               ? "Эхлээд алба сонгоно уу"
               : "Ажлын байр сонгох"}
         </option>

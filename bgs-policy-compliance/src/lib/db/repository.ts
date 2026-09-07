@@ -370,7 +370,7 @@ export async function getPositionDetail(id: string) {
     (r) => r.job_position_id === positionId && r.is_active,
   );
   const clauseIds = new Set(links.map((l) => l.policy_clause_id));
-  let clauses = db.policy_clauses.filter((c) => clauseIds.has(c.id) && !c.is_deleted);
+  const clauses = db.policy_clauses.filter((c) => clauseIds.has(c.id) && !c.is_deleted);
   const policyIds = new Set(clauses.map((c) => c.policy_id));
 
   // Org-wide / heltes / alba assigned policies → all clauses visible

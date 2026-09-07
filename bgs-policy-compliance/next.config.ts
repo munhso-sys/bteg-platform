@@ -17,6 +17,9 @@ const frameAncestors = [
  * Client API calls still prefix via `withBasePath()` (see src/lib/paths.ts).
  */
 const nextConfig: NextConfig = {
+  turbopack: {
+    root: __dirname,
+  },
   async headers() {
     return [
       {

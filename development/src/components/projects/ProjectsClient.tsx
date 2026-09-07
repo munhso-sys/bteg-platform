@@ -65,7 +65,9 @@ export function ProjectsClient() {
   }, []);
 
   useEffect(() => {
-    void reload();
+    queueMicrotask(() => {
+      void reload();
+    });
   }, [reload]);
 
   const groups = useMemo(() => projectKpis(projects), [projects]);

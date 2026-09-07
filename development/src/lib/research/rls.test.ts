@@ -32,7 +32,7 @@ async function ensureUser(
     }
     user = created.data.user;
   }
-  const { error } = await (admin as any).from("user_profiles").upsert({
+  const { error } = await (admin as { from: (t: string) => { upsert: (row: Record<string, unknown>) => Promise<{ error: { message: string } | null }> } }).from("user_profiles").upsert({
     user_id: user.id,
     email,
     full_name: email,

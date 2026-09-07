@@ -38,8 +38,10 @@ export function useRdUserId(): {
         // ignore
       }
     }
-    setUserId(next);
-    setReady(true);
+    queueMicrotask(() => {
+      setUserId(next);
+      setReady(true);
+    });
 
     function onMessage(event: MessageEvent) {
       if (!isInspectLogoutMessage(event.data)) return;

@@ -26,8 +26,8 @@ Isolated **Supabase Preview/QA project or branch** — never production ref `ums
 
 | Migration | Additive | Rollback note |
 |-----------|----------|---------------|
-| `..._org_app_data_store_p0_03.sql` | YES | Drop table `org_app_data_store` only after app no longer reads it; keep legacy `app_data_store` read fallback until cutover complete |
-| `..._user_profiles_select_own.sql` | YES | `DROP POLICY user_profiles_select_own` — Research auth will fail closed again |
+| `..._org_app_data_store_p0_03.sql` | YES | **Emergency:** revert application code only; leave `org_app_data_store` in place. **Do not** drop the table for emergency rollback. Remove via a later reviewed cleanup migration only after apps no longer depend on it. Keep legacy `app_data_store` read fallback until cutover is complete. |
+| `..._user_profiles_select_own.sql` | YES | Emergency: revert app if needed; `DROP POLICY user_profiles_select_own` only if explicitly required (Research auth fails closed without it). Prefer leave policy until a reviewed cleanup. |
 
 ## Explicit non-goals
 

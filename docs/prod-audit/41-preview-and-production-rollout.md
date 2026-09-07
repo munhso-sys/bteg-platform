@@ -80,7 +80,7 @@ Skip on production until Preview backfill validated.
 | 4.1 | Apply migration 1 (`research_*`) on production | New down migration if needed |
 | 4.2 | Deploy apps with P0-01 service-role writers + embed secrets | Revert app deploy |
 | 4.3 | Apply migration 2 (`lock_app_data_store_rls`) | Policy restore migration |
-| 4.4 | Apply migration 3 (`org_app_data_store`) | Leave table; revert app to legacy read if emergency |
+| 4.4 | Apply migration 3 (`org_app_data_store`) | Leave table; revert app only for emergency (never drop table ad hoc) |
 | 4.5 | Deploy P0-03 app changes (IC/policy org partition) | Revert app; legacy fallback reads remain |
 | 4.6 | Production backfill mega-row → org partitions (if needed) | Restore from backup |
 | 4.7 | Smoke on `bteg.inspect.mn` + module URLs | Revert 4.5–4.6 |
@@ -95,7 +95,7 @@ Skip on production until Preview backfill validated.
 |---------------|----------|
 | Preview app regression | Redeploy previous Preview SHA |
 | Migration 2 breaks anon writers | Down migration restoring `app_data_store` policies |
-| P0-03 app issue | Revert app; `org_app_data_store` can remain empty |
+| P0-03 app issue | Revert app code; keep `org_app_data_store` (additive). Cleanup migration later if needed. |
 | Production smoke fail | Halt 4.6–4.7; revert app deploy before data backfill |
 
 ---

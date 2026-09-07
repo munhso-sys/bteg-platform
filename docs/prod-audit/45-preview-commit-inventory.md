@@ -90,6 +90,7 @@ IC-D01/D05, P0-01/P0-02 core, Research projects API/RLS, runtime-info, lock `app
 
 1. UTF-8 embed encoding restore (build blockers)
 2. `user_profiles` SELECT-own migration
-3. P0-03 org store + program server + IC/policy wiring
+3. P0-03 org store + program server + IC/policy wiring  
+   - Emergency rollback: revert app commit(s); **do not drop** `org_app_data_store`
 4. Playwright + gate scripts + root/dev package files
 5. Audit/readiness docs + issue register + production-safety rule

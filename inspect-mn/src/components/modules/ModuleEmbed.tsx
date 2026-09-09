@@ -126,7 +126,7 @@ export function ModuleEmbed({
       title={app.label}
       src={src}
       className="h-full w-full flex-1 border-0 bg-[var(--card)]"
-      allow="clipboard-read; clipboard-write"
+      allow="clipboard-read; clipboard-write; camera; microphone"
       onLoad={() => {
         postTheme();
         void postSession();

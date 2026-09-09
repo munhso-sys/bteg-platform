@@ -9,6 +9,7 @@ const TABS = [
   { href: "/management-center/telegram", label: "Telegram бот" },
   { href: "/management-center/report-distribution", label: "Тайлан түгээлт" },
   { href: "/management-center/ai-scope", label: "AI мэдээллийн эрх" },
+  { href: "/management-center/usage", label: "Хэрэглээ / лог" },
 ];
 
 export function ManagementNav() {

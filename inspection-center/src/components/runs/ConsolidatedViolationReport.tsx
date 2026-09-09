@@ -7,6 +7,7 @@ import {
   ConsolidatedReportPdfButton,
   ConsolidatedReportWordButton,
 } from "@/components/ui/ExportButtons";
+import { ShareConsolidatedReportDialog } from "@/components/runs/ShareConsolidatedReportDialog";
 import { buildConsolidatedViolationReport } from "@/lib/runs/consolidated-report";
 import type {
   InspectionAnswer,
@@ -99,7 +100,22 @@ export function ConsolidatedViolationReport({
             <ConsolidatedReportPdfButton
               disabled={report.savedUnitCount === 0}
               label="Үл тохирлын тайлан PDF"
+              report={report}
+              runTitle={runTitle}
+              inspectionDate={inspectionDate}
+              inspectedByOrg={inspectedByOrg}
+              performers={filledPerformers}
               inspectionType={inspectionType}
+            />
+            <ShareConsolidatedReportDialog
+              disabled={report.savedUnitCount === 0}
+              report={report}
+              runTitle={runTitle}
+              inspectionDate={inspectionDate}
+              inspectedByOrg={inspectedByOrg}
+              performers={filledPerformers}
+              inspectionType={inspectionType}
+              filename={`ul-tohirol-${runId.slice(0, 8)}`}
             />
           </div>
         }

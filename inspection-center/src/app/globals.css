@@ -396,7 +396,8 @@ html.dark .h-scroll::-webkit-scrollbar-thumb:hover {
   }
 
   body[data-print-mode="consolidated-report"] .consolidated-report .overflow-x-auto,
-  body[data-print-mode="consolidated-report"] .consolidated-report .consolidated-report-body {
+  body[data-print-mode="consolidated-report"] .consolidated-report .consolidated-report-body,
+  body[data-print-mode="consolidated-report"] .consolidated-report .table-scroll {
     overflow: visible !important;
     max-height: none !important;
   }

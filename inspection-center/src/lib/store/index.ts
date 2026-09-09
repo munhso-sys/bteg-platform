@@ -1036,6 +1036,97 @@ export function exportInspectionStoreSections(sections: StoreClearSection[]) {
   return payload;
 }
 
+/**
+ * Restore selected sections from an export payload produced by
+ * `exportInspectionStoreSections`. Replaces those sections only;
+ * templates / master / org links / risk thresholds stay untouched.
+ */
+export function importInspectionStoreSections(
+  payload: unknown,
+  sections: StoreClearSection[],
+): StoreClearResult {
+  if (!payload || typeof payload !== "object") {
+    throw new Error("JSON бүтэц буруу байна.");
+  }
+  const body = payload as Record<string, unknown>;
+  if (body.app != null && body.app !== "inspection-center") {
+    throw new Error(
+      `Энэ файл inspection-center-ийн нөөц биш (app=${String(body.app)}).`,
+    );
+  }
+
+  const selected = new Set(sections);
+  const counts: StoreClearResult["counts"] = {};
+  const cleared: StoreClearSection[] = [];
+
+  if (selected.has("execution")) {
+    const execution = body.execution;
+    if (!execution || typeof execution !== "object") {
+      throw new Error("Файлаас execution хэсэг олдсонгүй.");
+    }
+    const ex = execution as Record<string, unknown>;
+    const data = readStore();
+    const next = {
+      ...data,
+      runs: Array.isArray(ex.runs) ? ex.runs : [],
+      answers: Array.isArray(ex.answers) ? ex.answers : [],
+      findings: Array.isArray(ex.findings) ? ex.findings : [],
+      actions: Array.isArray(ex.actions) ? ex.actions : [],
+      evidence: Array.isArray(ex.evidence) ? ex.evidence : [],
+      scoreSnapshots: Array.isArray(ex.scoreSnapshots) ? ex.scoreSnapshots : [],
+    };
+    writeStore(next as typeof data);
+    storeMemory().findingsLinkedAt = undefined;
+    counts.execution =
+      next.runs.length +
+      next.answers.length +
+      next.findings.length +
+      next.actions.length +
+      next.evidence.length +
+      next.scoreSnapshots.length;
+    cleared.push("execution");
+  }
+
+  if (selected.has("legacyPlans")) {
+    if (!("legacyPlans" in body)) {
+      throw new Error("Файлаас legacyPlans хэсэг олдсонгүй.");
+    }
+    const data = readStore();
+    const plans = Array.isArray(body.legacyPlans) ? body.legacyPlans : [];
+    writeStore({ ...data, plans: plans as typeof data.plans });
+    counts.legacyPlans = plans.length;
+    cleared.push("legacyPlans");
+  }
+
+  if (selected.has("annualPlans")) {
+    if (!("annualPlans" in body)) {
+      throw new Error("Файлаас annualPlans хэсэг олдсонгүй.");
+    }
+    const rows = Array.isArray(body.annualPlans) ? body.annualPlans : [];
+    writeAnnualPlans(rows as ReturnType<typeof readAnnualPlans>);
+    counts.annualPlans = rows.length;
+    cleared.push("annualPlans");
+  }
+
+  if (selected.has("annualPlanTypes")) {
+    if (!("annualPlanTypes" in body)) {
+      throw new Error("Файлаас annualPlanTypes хэсэг олдсонгүй.");
+    }
+    const rows = Array.isArray(body.annualPlanTypes) ? body.annualPlanTypes : [];
+    writeAnnualPlanTypeTargets(
+      rows as ReturnType<typeof readAnnualPlanTypeTargets>,
+    );
+    counts.annualPlanTypes = rows.length;
+    cleared.push("annualPlanTypes");
+  }
+
+  if (cleared.length === 0) {
+    throw new Error("Сэргээх хэсэг сонгоогүй эсвэл файлд байхгүй.");
+  }
+
+  return { cleared, counts };
+}
+
 export function readMasterWorkbook(): MasterWorkbookData {
   const raw = readJsonFile<MasterWorkbookData>(
     MASTER_IMPORT_FILE,

@@ -36,13 +36,13 @@ export function Panel({
   return (
     <section
       className={cn(
-        "min-w-0 max-w-full overflow-hidden rounded border border-slate-300 bg-white",
+        "min-w-0 max-w-full overflow-hidden rounded border border-[var(--border)] bg-[var(--card)]",
         className,
       )}
     >
       {(title || actions) && (
-        <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-3 py-2">
-          <h2 className="min-w-0 truncate text-sm font-semibold">{title}</h2>
+        <div className="flex items-center justify-between gap-2 border-b border-[var(--border)] px-3 py-2">
+          <h2 className="min-w-0 truncate text-sm font-semibold text-[var(--fg)]">{title}</h2>
           {actions}
         </div>
       )}
@@ -64,8 +64,8 @@ export function KpiCard({
   compact?: boolean;
 }) {
   return (
-    <div className="rounded border border-slate-300 bg-white px-3 py-2">
-      <div className="text-[10px] uppercase tracking-wide text-slate-500">{label}</div>
+    <div className="rounded border border-[var(--border)] bg-[var(--card)] px-3 py-2">
+      <div className="text-[10px] uppercase tracking-wide text-[var(--muted)]">{label}</div>
       <div
         className={cn(
           "mt-1 font-semibold leading-snug",
@@ -74,7 +74,7 @@ export function KpiCard({
       >
         {value}
       </div>
-      {hint ? <div className="mt-0.5 text-[10px] text-slate-500">{hint}</div> : null}
+      {hint ? <div className="mt-0.5 text-[10px] text-[var(--muted)]">{hint}</div> : null}
     </div>
   );
 }
@@ -99,7 +99,13 @@ export function Badge({
 }
 
 export function ScoreChip({ score }: { score: number | null | undefined }) {
-  if (score == null) return <Badge className="bg-slate-100 text-slate-600">Үнэлгээгүй</Badge>;
+  if (score == null) {
+    return (
+      <Badge className="bg-slate-100 text-slate-600 dark:bg-[var(--surface-muted)] dark:text-[var(--muted)]">
+        Үнэлгээгүй
+      </Badge>
+    );
+  }
   const tone =
     score >= 90
       ? "bg-emerald-100 text-emerald-800"

@@ -20,8 +20,6 @@ function signSecret() {
   return (
     process.env.INSPECTION_EMBED_SECRET?.trim() ||
     process.env.POLICY_EMBED_SECRET?.trim() ||
-    "inspect-platform-policy-embed-v1" ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
     ""
   );
 }
@@ -31,9 +29,9 @@ function verifySecrets() {
     ...new Set(
       [
         process.env.INSPECTION_EMBED_SECRET?.trim(),
+        process.env.INSPECTION_EMBED_SECRET_PREVIOUS?.trim(),
         process.env.POLICY_EMBED_SECRET?.trim(),
-        "inspect-platform-policy-embed-v1",
-        process.env.SUPABASE_SERVICE_ROLE_KEY?.trim(),
+        process.env.POLICY_EMBED_SECRET_PREVIOUS?.trim(),
       ].filter((s): s is string => Boolean(s)),
     ),
   ];

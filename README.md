@@ -1,6 +1,6 @@
 # Platform workspace
 
-Root: `C:\Users\Owner\platform`
+Clone root: this repository (example: `C:\Users\YOGA\platform-clean`).
 
 ## Folder map (ҮҮРЭГ / ҮР ДҮН / TOOLS)
 
@@ -11,20 +11,19 @@ Root: `C:\Users\Owner\platform`
 | `development` | Судалгаа хөгжүүлэлт | ҮҮРЭГ |
 | `inspect-mn` | Platform portal | ҮР ДҮН + TOOLS + embeds ҮҮРЭГ apps |
 
-Old path stub: `C:\Users\Owner\bgs-policy-compliance\MOVED.md`
+## Quick start (local — matches production iframe architecture)
 
-## Quick start (portal)
-
-```bash
-cd C:\Users\Owner\platform\inspect-mn
+```powershell
+.\scripts\start-duty-modules.ps1
+cd inspect-mn
 npm install
 npm run dev
 ```
 
-See `inspect-mn/README.md` and `HOW_TO_OPEN_DUTY_MODULES.md` for ports and embed setup.
+Open http://localhost:3000. See `HOW_TO_OPEN_DUTY_MODULES.md` and each app’s `.env.example`.
 
 ## Deployment readiness
 
-- Env templates: `inspect-mn/.env.local.example`
+- Env templates: `inspect-mn/.env.example`, `inspection-center/.env.example`, `bgs-policy-compliance/.env.example`, `development/.env.example`
 - Supabase: document per-app; do not create production projects until IDs confirmed
-- Vercel: prepare projects, do **not** deploy until credentials confirmed
+- Vercel: do **not** deploy unless explicitly instructed

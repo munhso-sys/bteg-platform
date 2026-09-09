@@ -46,6 +46,20 @@ export default function LoginClient() {
         return;
       }
 
+      void fetch("/api/usage/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "login",
+          module: "portal",
+          path: "/login",
+          detail: "password",
+        }),
+        keepalive: true,
+      }).catch(() => {
+        // non-blocking
+      });
+
       router.replace(nextPath.startsWith("/") ? nextPath : "/");
       router.refresh();
     } catch (err) {

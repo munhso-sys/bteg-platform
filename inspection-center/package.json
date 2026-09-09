@@ -13,6 +13,10 @@
     "import:sidebar-findings": "tsx scripts/import-sidebar-findings.ts",
     "import:document": "tsx scripts/import-document-inspection.ts",
     "test:scoring": "tsx --test src/lib/scoring/scoring.test.ts",
+    "test:access": "tsx --test src/lib/access/embed-resolve.test.ts src/lib/access/write-access.test.ts",
+    "test:security": "npm run test:access",
+    "test:supabase": "tsx --test src/lib/supabase/server.test.ts",
+    "test:e2e:security": "tsx --test scripts/e2e-security.test.ts",
     "seed:remote": "tsx --tsconfig tsconfig.json scripts/seed-remote-store.ts"
   },
   "dependencies": {
@@ -20,6 +24,7 @@
     "@supabase/supabase-js": "^2.112.3",
     "lucide-react": "^1.31.0",
     "next": "16.3.0",
+    "pdfmake": "^0.2.20",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "uuid": "^14.0.1",
@@ -28,6 +33,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pdfmake": "^0.2.11",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/uuid": "^10.0.0",

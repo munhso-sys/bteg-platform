@@ -4,6 +4,16 @@ import type { ConsolidatedReport } from "@/lib/runs/consolidated-report";
 const PHOTO_WIDTH_PX = 112;
 const PHOTO_HEIGHT_PX = 96;
 
+export type ConsolidatedReportExportInput = {
+  report: ConsolidatedReport;
+  runTitle: string;
+  inspectionDate: string;
+  inspectedByOrg?: string;
+  performers?: Array<{ name: string; position: string }>;
+  inspectionType?: "JOINT_INSPECTION" | "NIGHT_INSPECTION";
+  filename?: string;
+};
+
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, "&amp;")
@@ -25,13 +35,28 @@ function photoCell(photoUrl: string | null) {
   </td>`;
 }
 
-export function buildConsolidatedReportWordHtml(input: {
-  report: ConsolidatedReport;
-  runTitle: string;
-  inspectionDate: string;
-  inspectedByOrg?: string;
-  performers?: Array<{ name: string; position: string }>;
-}): string {
+function reportLabels(inspectionType?: "JOINT_INSPECTION" | "NIGHT_INSPECTION") {
+  const isNight = inspectionType === "NIGHT_INSPECTION";
+  return {
+    mainHeading: isNight
+      ? "Шөнийн хяналт шалгалтын тайлан"
+      : "Хамтарсан хяналт шалгалтын тайлан",
+    reportSubtitle: isNight
+      ? "Ажлын байрны шөнийн хяналт шалгалтын хуудас"
+      : "Ажлын байрны хамтарсан хяналт шалгалтын хуудас",
+    checkingTeam: isNight ? "ДХШХ" : "ДХШХ, БОХ, ХАБЭАХ",
+  };
+}
+
+/**
+ * Shared HTML used for both Word (.doc) download and PDF (print) so layout
+ * and content stay identical.
+ */
+export function buildConsolidatedReportHtml(
+  input: ConsolidatedReportExportInput,
+  options?: { autoPrint?: boolean },
+): string {
+  const labels = reportLabels(input.inspectionType);
   const org = escapeHtml(
     input.inspectedByOrg || "“Болдтөмөр Ерөө гол” ХХК",
   );
@@ -91,13 +116,24 @@ export function buildConsolidatedReportWordHtml(input: {
           })
           .join("");
 
+  const autoPrintScript = options?.autoPrint
+    ? `<script>
+        window.onload = function () {
+          setTimeout(function () {
+            window.focus();
+            window.print();
+          }, 250);
+        };
+      </script>`
+    : "";
+
   return `<!DOCTYPE html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office"
       xmlns:w="urn:schemas-microsoft-com:office:word"
       lang="mn">
 <head>
   <meta charset="utf-8" />
-  <title>Шөнийн хяналт шалгалтын тайлан</title>
+  <title>${escapeHtml(labels.mainHeading)}</title>
   <!--[if gte mso 9]>
   <xml>
     <w:WordDocument>
@@ -108,7 +144,11 @@ export function buildConsolidatedReportWordHtml(input: {
   </xml>
   <![endif]-->
   <style>
-    /* A4 landscape + Word Narrow margins (0.5in) */
+    /* A4 landscape + Narrow margins (0.5in) — Word and PDF */
+    @page {
+      size: A4 landscape;
+      margin: 0.5in;
+    }
     @page WordSection1 {
       size: 297mm 210mm;
       margin: 0.5in 0.5in 0.5in 0.5in;
@@ -117,18 +157,38 @@ export function buildConsolidatedReportWordHtml(input: {
     div.WordSection1 {
       page: WordSection1;
     }
-    body { font-family: "Times New Roman", Times, serif; font-size: 11pt; color: #111; }
+    body {
+      font-family: "Times New Roman", Times, serif;
+      font-size: 11pt;
+      color: #111;
+      margin: 0;
+      background: #fff;
+    }
     h1 { font-size: 14pt; text-align: center; margin: 0 0 2pt; }
     .sub { text-align: center; color: #555; font-size: 9pt; margin: 0; }
     .meta td { padding: 1pt 8pt 1pt 0; vertical-align: top; font-size: 10pt; }
-    img { width: ${PHOTO_WIDTH_PX}px; height: ${PHOTO_HEIGHT_PX}px; }
+    table { page-break-inside: auto; }
+    tr { page-break-inside: avoid; page-break-after: auto; }
+    h3 { page-break-after: avoid; }
+    img {
+      width: ${PHOTO_WIDTH_PX}px;
+      height: ${PHOTO_HEIGHT_PX}px;
+      max-width: ${PHOTO_WIDTH_PX}px;
+      object-fit: cover;
+    }
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      h3 { background: #1e293b !important; color: #fff !important; }
+      thead tr { background: #f1f5f9 !important; }
+    }
   </style>
+  ${autoPrintScript}
 </head>
 <body>
   <div class="WordSection1">
-    <h1>Шөнийн хяналт шалгалтын тайлан</h1>
+    <h1>${escapeHtml(labels.mainHeading)}</h1>
     <p class="sub">Work Place Inspection Report Form</p>
-    <p class="sub">Ажлын байрны хамтарсан хяналт шалгалтын хуудас</p>
+    <p class="sub">${escapeHtml(labels.reportSubtitle)}</p>
     <p style="margin-top:8px;font-size:10pt;">
       <b>ХШ гүйцэтгэсэн ажилтан:</b>
       ${performers || "Нэр, албан тушаал бүртгээгүй"}
@@ -137,7 +197,7 @@ export function buildConsolidatedReportWordHtml(input: {
     <table class="meta" style="margin-top:10px;width:100%;">
       <tr>
         <td><b>Байгууллага:</b> ${org}</td>
-        <td><b>Шалгах баг:</b> ДХШХ, БОХ, ХАБЭАХ</td>
+        <td><b>Шалгах баг:</b> ${escapeHtml(labels.checkingTeam)}</td>
         <td><b>Огноо:</b> ${date}</td>
       </tr>
     </table>
@@ -163,15 +223,17 @@ export function buildConsolidatedReportWordHtml(input: {
 </html>`;
 }
 
-export function downloadConsolidatedReportWord(input: {
-  report: ConsolidatedReport;
-  runTitle: string;
-  inspectionDate: string;
-  inspectedByOrg?: string;
-  performers?: Array<{ name: string; position: string }>;
-  filename?: string;
-}) {
-  const html = buildConsolidatedReportWordHtml(input);
+/** @deprecated Use buildConsolidatedReportHtml */
+export function buildConsolidatedReportWordHtml(
+  input: ConsolidatedReportExportInput,
+): string {
+  return buildConsolidatedReportHtml(input);
+}
+
+export function downloadConsolidatedReportWord(
+  input: ConsolidatedReportExportInput,
+) {
+  const html = buildConsolidatedReportHtml(input);
   const blob = new Blob(["\ufeff", html], {
     type: "application/msword;charset=utf-8",
   });
@@ -181,4 +243,43 @@ export function downloadConsolidatedReportWord(input: {
   link.download = `${input.filename || "hamtarsan-ul-tohirol"}.doc`;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+/**
+ * Print PDF from the same HTML as Word (avoids clipped on-screen scroll containers).
+ */
+export function printConsolidatedReportPdf(
+  input: ConsolidatedReportExportInput,
+) {
+  const html = buildConsolidatedReportHtml(input, { autoPrint: true });
+  const frame = document.createElement("iframe");
+  frame.setAttribute("aria-hidden", "true");
+  frame.style.position = "fixed";
+  frame.style.right = "0";
+  frame.style.bottom = "0";
+  frame.style.width = "0";
+  frame.style.height = "0";
+  frame.style.border = "0";
+  document.body.appendChild(frame);
+
+  const win = frame.contentWindow;
+  const doc = frame.contentDocument;
+  if (!win || !doc) {
+    frame.remove();
+    // Fallback: popup window
+    const popup = window.open("", "_blank");
+    if (!popup) return;
+    popup.document.open();
+    popup.document.write(html);
+    popup.document.close();
+    return;
+  }
+
+  const cleanup = () => {
+    setTimeout(() => frame.remove(), 1000);
+  };
+  win.addEventListener("afterprint", cleanup);
+  doc.open();
+  doc.write(html);
+  doc.close();
 }

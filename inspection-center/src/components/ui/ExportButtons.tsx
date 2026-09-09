@@ -2,7 +2,11 @@
 
 import { Download, FileText, FileType2, Layers } from "lucide-react";
 import type { ConsolidatedReport } from "@/lib/runs/consolidated-report";
-import { downloadConsolidatedReportWord } from "@/lib/runs/export-consolidated-word";
+import {
+  downloadConsolidatedReportWord,
+  printConsolidatedReportPdf,
+  type ConsolidatedReportExportInput,
+} from "@/lib/runs/export-consolidated-word";
 
 function cleanCell(value: string) {
   return value.replace(/\s+/g, " ").trim();
@@ -134,20 +138,38 @@ export function ExportButtons({
 export function ConsolidatedReportPdfButton({
   disabled,
   label = "Үл тохирлын тайлан PDF",
+  report,
+  runTitle,
+  inspectionDate,
+  inspectedByOrg,
+  performers,
   inspectionType,
 }: {
   disabled?: boolean;
   label?: string;
+  report: ConsolidatedReport;
+  runTitle: string;
+  inspectionDate: string;
+  inspectedByOrg?: string;
+  performers?: Array<{ name: string; position: string }>;
   inspectionType?: "JOINT_INSPECTION" | "NIGHT_INSPECTION";
 }) {
   const isNight = inspectionType === "NIGHT_INSPECTION";
+  const payload: ConsolidatedReportExportInput = {
+    report,
+    runTitle,
+    inspectionDate,
+    inspectedByOrg,
+    performers,
+    inspectionType,
+  };
   return (
     <button
       type="button"
       className="btn btn-primary"
       disabled={disabled}
-      onClick={() => printWithMode("consolidated-report")}
-      title={`${isNight ? "Шөнийн" : "Хамтарсан"} ХШ-ын үл тохирлын тайланг PDF болгон хадгалах`}
+      onClick={() => printConsolidatedReportPdf(payload)}
+      title={`${isNight ? "Шөнийн" : "Хамтарсан"} ХШ-ын үл тохирлын тайланг PDF болгон хадгалах (Word-той ижил)`}
     >
       <Layers size={16} />
       {label}
@@ -190,6 +212,7 @@ export function ConsolidatedReportWordButton({
           inspectedByOrg,
           performers,
           filename,
+          inspectionType,
         })
       }
       title={`${isNight ? "Шөнийн" : "Хамтарсан"} ХШ-ын үл тохирлын тайланг MS Word (.doc) болгон татах`}

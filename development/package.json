@@ -6,7 +6,10 @@
     "dev": "next dev -p 3003",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:storage": "npx tsx --test src/lib/rd-storage.test.ts",
+    "test:research": "npx tsx --test src/lib/rd-storage.test.ts src/lib/research/rls.test.ts",
+    "test:security": "npm run test:research"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
@@ -24,6 +27,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "tailwindcss": "^4",
+    "tsx": "^4.23.12",
     "typescript": "^5"
   }
 }

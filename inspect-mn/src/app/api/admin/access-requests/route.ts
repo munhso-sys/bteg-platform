@@ -158,7 +158,11 @@ export async function PATCH(req: Request) {
   // Ensure auth user exists, then generate recovery link and send via Resend.
   // Do NOT call generateLink({ type: "invite" }) after createUser — invite
   // tries to create again and fails with "already been registered".
+  //
+  // Vercel team membership is unrelated: Portal roles come only from
+  // user_profiles + RBAC after this approval path.
   let createdUserId = await findUserIdByEmail(admin, request.email);
+  const existingAuthUser = Boolean(createdUserId);
 
   if (!createdUserId) {
     const { data: created, error: createErr } =
@@ -278,6 +282,9 @@ export async function PATCH(req: Request) {
     user_id: createdUserId,
     email_sent: emailSent,
     email_error: emailError,
+    // Recovery link is returned only to the authorizing admin when email fails.
+    // Never log this URL. Clients must not persist it in analytics.
     invite_url: emailSent ? null : inviteUrl,
+    existing_auth_user: existingAuthUser,
   });
 }

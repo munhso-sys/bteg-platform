@@ -45,3 +45,7 @@ data/local/db.json.tmp
 *.tmp
 
 .vercel
+
+# Never commit plaintext Vercel / API token dumps
+vercel token.txt
+**/vercel token.txt

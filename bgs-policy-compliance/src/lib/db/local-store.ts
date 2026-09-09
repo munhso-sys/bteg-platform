@@ -23,12 +23,24 @@ import {
 } from "./data-paths";
 import {
   decodeRemotePayload,
+  loadOrgRemoteRow,
   loadRemoteRow,
   preferRemoteStore,
   REMOTE_KEYS,
   saveRemotePayload,
   saveRemotePayloadIfMatch,
 } from "./remote-store";
+import { getPolicyScope } from "@/lib/access/scope";
+
+async function resolvePolicyOrganizationId(): Promise<string | null> {
+  try {
+    const scope = await getPolicyScope();
+    const heltes = scope?.heltesId?.trim();
+    return heltes || null;
+  } catch {
+    return null;
+  }
+}
 
 function emptyDb(): LocalDatabase {
   return {
@@ -133,8 +145,16 @@ function dbPath() {
 
 async function loadBundledDb(): Promise<LocalDatabase> {
   const bundled = path.join(getBundledLocalDataDir(), "db.json");
-  const raw = await fs.readFile(bundled, "utf8");
-  return JSON.parse(raw) as LocalDatabase;
+  try {
+    const raw = await fs.readFile(bundled, "utf8");
+    const db = JSON.parse(raw) as LocalDatabase;
+    if (!Array.isArray(db.policies)) return emptyDb();
+    return db;
+  } catch {
+    // data/ is gitignored — Vercel deploys often have no seed file.
+    // Prefer empty in-memory DB over crashing dashboard (P0-03 safe).
+    return emptyDb();
+  }
 }
 
 /** Windows/serverless-safe write. */
@@ -192,7 +212,10 @@ async function writeFileReplace(filePath: string, contents: string) {
 }
 
 async function readRemoteDb(): Promise<LocalDatabase> {
-  const row = await loadRemoteRow(REMOTE_KEYS.db);
+  const organizationId = await resolvePolicyOrganizationId();
+  const row = organizationId
+    ? await loadOrgRemoteRow(organizationId, REMOTE_KEYS.db)
+    : await loadRemoteRow(REMOTE_KEYS.db);
   if (row) {
     const remote = decodeRemotePayload<LocalDatabase>(row.payload);
     if (remote && Array.isArray(remote.policies)) return remote;
@@ -200,16 +223,21 @@ async function readRemoteDb(): Promise<LocalDatabase> {
     throw new Error("Supabase db уншиж чадсангүй (corrupt payload)");
   }
 
-  // First boot only when the remote key is missing.
+  // First boot seed requires org partition (P0-03). Without scope, serve
+  // bundled DB read-only — never write an unscoped remote row.
+  if (!organizationId) {
+    return loadBundledDb();
+  }
   const seededDb = await loadBundledDb();
   const status = await saveRemotePayloadIfMatch(
     REMOTE_KEYS.db,
     seededDb,
     null,
+    organizationId,
   );
   if (status === "ok") return seededDb;
   if (status === "conflict") {
-    const again = await loadRemoteRow(REMOTE_KEYS.db);
+    const again = await loadOrgRemoteRow(organizationId, REMOTE_KEYS.db);
     const remote = again
       ? decodeRemotePayload<LocalDatabase>(again.payload)
       : null;
@@ -281,7 +309,13 @@ export async function readDb(): Promise<LocalDatabase> {
 export async function writeDb(db: LocalDatabase): Promise<void> {
   const run = writeQueue.then(async () => {
     if (preferRemoteStore()) {
-      const ok = await saveRemotePayload(REMOTE_KEYS.db, db);
+      const organizationId = await resolvePolicyOrganizationId();
+      if (!organizationId) {
+        throw new Error(
+          "Policy remote write refused without organization scope (P0-03)",
+        );
+      }
+      const ok = await saveRemotePayload(REMOTE_KEYS.db, db, organizationId);
       if (!ok) {
         throw new Error("Supabase дээр өгөгдөл хадгалж чадсангүй");
       }
@@ -323,8 +357,14 @@ export async function updateDb(
 
     const maxAttempts = 6;
     let lastStatus: "ok" | "conflict" | "error" = "error";
+    const organizationId = await resolvePolicyOrganizationId();
+    if (!organizationId) {
+      throw new Error(
+        "Policy remote update refused without organization scope (P0-03)",
+      );
+    }
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const row = await loadRemoteRow(REMOTE_KEYS.db);
+      const row = await loadOrgRemoteRow(organizationId, REMOTE_KEYS.db);
       let db: LocalDatabase;
       let expectedUpdatedAt: string | null = null;
 
@@ -345,6 +385,7 @@ export async function updateDb(
         REMOTE_KEYS.db,
         db,
         expectedUpdatedAt,
+        organizationId,
       );
       if (lastStatus === "ok") {
         rememberDb(db);

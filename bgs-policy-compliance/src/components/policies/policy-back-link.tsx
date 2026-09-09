@@ -48,7 +48,7 @@ export function ContextBackLink({
       href={href}
       title={text}
       aria-label={text}
-      className="inline-flex items-center gap-1.5 rounded border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-800 hover:bg-slate-50"
+      className="inline-flex items-center gap-1.5 rounded border border-[var(--border)] bg-[var(--card)] px-2.5 py-1.5 text-sm text-[var(--fg)] hover:bg-[var(--surface-muted)]"
     >
       <ArrowLeft size={16} />
       <span>Буцах</span>

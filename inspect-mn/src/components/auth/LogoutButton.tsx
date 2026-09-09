@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Loader2, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/cn";
+import { broadcastPortalLogout } from "@/lib/portal-logout-broadcast";
 
 export function LogoutButton({
   className,
@@ -24,6 +25,7 @@ export function LogoutButton({
     onClick?.();
     setLoading(true);
     try {
+      broadcastPortalLogout();
       const supabase = createClient();
       await supabase.auth.signOut();
       window.location.assign("/login");

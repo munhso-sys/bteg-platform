@@ -1,24 +1,33 @@
-# Starts the 3 ҮҮРЭГ module apps for the platform portal embed.
+# Starts the 3 duty module apps for the platform portal embed (local only).
+# Resolves paths from this repo root — works on any machine clone.
 $ErrorActionPreference = "Stop"
 
+$root = Split-Path -Parent $PSScriptRoot
+if (-not (Test-Path (Join-Path $root "inspect-mn"))) {
+  Write-Error "Expected repo root at $root (inspect-mn missing)."
+}
+
 $apps = @(
-  @{ Name = "inspection-center"; Path = "C:\Users\Owner\platform\inspection-center"; Port = 3001 },
-  @{ Name = "bgs-policy-compliance"; Path = "C:\Users\Owner\platform\bgs-policy-compliance"; Port = 3002 },
-  @{ Name = "development"; Path = "C:\Users\Owner\platform\development"; Port = 3003 }
+  @{ Name = "inspection-center"; Rel = "inspection-center"; Port = 3001 },
+  @{ Name = "bgs-policy-compliance"; Rel = "bgs-policy-compliance"; Port = 3002 },
+  @{ Name = "development"; Rel = "development"; Port = 3003 }
 )
 
 foreach ($app in $apps) {
-  if (-not (Test-Path $app.Path)) {
-    Write-Host "SKIP missing $($app.Path)"
+  $path = Join-Path $root $app.Rel
+  if (-not (Test-Path $path)) {
+    Write-Host "SKIP missing $path"
     continue
   }
   Write-Host "Starting $($app.Name) on port $($app.Port)..."
-  Start-Process -FilePath "npm" -ArgumentList @("run", "dev", "--", "-p", "$($app.Port)") -WorkingDirectory $app.Path -WindowStyle Minimized
+  Start-Process -FilePath "npm" -ArgumentList @("run", "dev", "--", "-p", "$($app.Port)") -WorkingDirectory $path -WindowStyle Minimized
 }
 
+$portal = Join-Path $root "inspect-mn"
 Write-Host ""
 Write-Host "Then start portal:"
-Write-Host "  cd C:\Users\Owner\platform\inspect-mn"
+Write-Host "  cd `"$portal`""
 Write-Host "  npm run dev"
 Write-Host ""
-Write-Host "Open portal and use sidebar: Хяналт шалгалт / Журмын биелэлт / Судалгаа хөгжүүлэлт"
+Write-Host "Open http://localhost:3000 - sidebar: inspection / policy / development"
+Write-Host "Duty modules require matching POLICY_EMBED_SECRET / INSPECTION_EMBED_SECRET on portal + modules."

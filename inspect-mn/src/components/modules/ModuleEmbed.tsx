@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { DutyModuleApp } from "@/lib/module-apps";
 import { embedSrc } from "@/lib/module-apps";
 import { applyTheme, readStoredTheme, type ThemeMode } from "@/lib/theme";
+import { INSPECT_LOGOUT_EVENT } from "@/lib/portal-logout-broadcast";
+import { createClient } from "@/lib/supabase/client";
 
 /**
  * Embed duty module. Theme is passed once via URL, then synced with postMessage
@@ -55,12 +57,25 @@ export function ModuleEmbed({
       setTheme(data.theme);
     }
 
+    function onPortalLogout() {
+      try {
+        iframeRef.current?.contentWindow?.postMessage(
+          { type: "inspect-logout" },
+          app.origin,
+        );
+      } catch {
+        // ignore
+      }
+    }
+
     window.addEventListener("inspect-theme-change", onTheme);
     window.addEventListener("message", onMessage);
+    window.addEventListener(INSPECT_LOGOUT_EVENT, onPortalLogout);
     return () => {
       window.clearTimeout(bootId);
       window.removeEventListener("inspect-theme-change", onTheme);
       window.removeEventListener("message", onMessage);
+      window.removeEventListener(INSPECT_LOGOUT_EVENT, onPortalLogout);
     };
   }, [app.origin]);
 
@@ -74,6 +89,26 @@ export function ModuleEmbed({
       // ignore
     }
   }, [app.origin, theme]);
+
+  const postSession = useCallback(async () => {
+    if (app.id !== "development") return;
+    try {
+      const supabase = createClient();
+      const { data } = await supabase.auth.getSession();
+      const session = data.session;
+      if (!session?.access_token || !session.refresh_token) return;
+      iframeRef.current?.contentWindow?.postMessage(
+        {
+          type: "inspect-session",
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+        },
+        app.origin,
+      );
+    } catch {
+      // ignore
+    }
+  }, [app.id, app.origin]);
 
   if (!bootTheme) {
     return (
@@ -91,8 +126,11 @@ export function ModuleEmbed({
       title={app.label}
       src={src}
       className="h-full w-full flex-1 border-0 bg-[var(--card)]"
-      allow="clipboard-read; clipboard-write"
-      onLoad={postTheme}
+      allow="clipboard-read; clipboard-write; camera; microphone"
+      onLoad={() => {
+        postTheme();
+        void postSession();
+      }}
     />
   );
 }

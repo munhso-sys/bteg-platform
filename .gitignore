@@ -46,11 +46,28 @@ yarn-error.log*
 # test coverage
 coverage/
 
-# local runtime data
-data/
+# Playwright / local gate artifacts
+test-results/
+playwright-report/
+docs/prod-audit/*.log
+docs/prod-audit/e2e-server-*.log
+docs/prod-audit/e2e-last-run.json
+
+# local runtime data (JSON stores under app data dirs)
+# Do NOT use a bare `data/` rule — it also matches App Router routes like
+# `src/app/**/settings/data/page.tsx`.
+inspection-center/data/
+bgs-policy-compliance/data/
+development/data/
+inspect-mn/data/
+**/data/local/
 *.tmp
 
 # misc
 *.pem
 *.sst
 *.node
+
+# Never commit plaintext Vercel / API token dumps
+bgs-policy-compliance/vercel token.txt
+**/vercel token.txt

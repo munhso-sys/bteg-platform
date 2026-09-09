@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { IBM_Plex_Sans, Source_Sans_3 } from "next/font/google";
 import { AppShell } from "@/components/layout/AppShell";
 import "./globals.css";
@@ -28,6 +29,8 @@ export const viewport: Viewport = {
   themeColor: "#1f2937",
 };
 
+const THEME_BOOT_SCRIPT = `(function(){try{var t=localStorage.getItem('inspect-mn-theme');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -39,14 +42,12 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${sourceSans.variable} ${ibmPlex.variable} h-full antialiased`}
     >
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('inspect-mn-theme');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();`,
-          }}
-        />
-      </head>
       <body className="min-h-full font-sans">
+        <Script
+          id="inspect-theme-boot"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }}
+        />
         <AppShell>{children}</AppShell>
       </body>
     </html>

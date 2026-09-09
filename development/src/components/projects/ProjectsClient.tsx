@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ProgressBar } from "@/components/ProgressBar";
 import { KpiDetailModal } from "@/components/projects/KpiDetailModal";
@@ -9,9 +9,7 @@ import { MetricCard, Panel, TableScroll } from "@/components/ui/primitives";
 import {
   PROJECT_PRIORITY_LABELS,
   PROJECT_STATUS_LABELS,
-  PROJECTS_STORAGE_KEY,
   projectKpis,
-  seedProjects,
 } from "@/lib/projects-data";
 import type { ResearchProject } from "@/lib/types";
 
@@ -33,61 +31,92 @@ const KPI_TITLES: Record<string, string> = {
   urgent: "Нэн яаралтай төслүүд",
 };
 
-function loadProjects(): ResearchProject[] {
-  try {
-    const raw = localStorage.getItem(PROJECTS_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as ResearchProject[];
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch {
-    // ignore
-  }
-  return seedProjects;
-}
-
 export function ProjectsClient() {
-  const [projects, setProjects] = useState<ResearchProject[]>(seedProjects);
-  const [hydrated, setHydrated] = useState(false);
+  const [projects, setProjects] = useState<ResearchProject[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [selected, setSelected] = useState<ResearchProject | null>(null);
   const [createMode, setCreateMode] = useState(false);
   const [selectedKpi, setSelectedKpi] = useState<string | null>(null);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setProjects(loadProjects());
-      setHydrated(true);
-    }, 0);
-    return () => window.clearTimeout(timer);
+  const reload = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/research/projects", { cache: "no-store" });
+      const body = (await res.json().catch(() => null)) as {
+        ok?: boolean;
+        error?: string;
+        projects?: ResearchProject[];
+      } | null;
+      if (!res.ok || !body?.ok) {
+        setProjects([]);
+        setError(body?.error || `Load failed (${res.status})`);
+        return;
+      }
+      setProjects(body.projects ?? []);
+    } catch (e) {
+      setProjects([]);
+      setError(e instanceof Error ? e.message : "Load failed");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    if (!hydrated) return;
-    localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(projects));
-  }, [hydrated, projects]);
+    queueMicrotask(() => {
+      void reload();
+    });
+  }, [reload]);
 
   const groups = useMemo(() => projectKpis(projects), [projects]);
 
-  function saveProject(next: ResearchProject) {
-    setProjects((prev) => {
-      const exists = prev.some((p) => p.id === next.id);
-      return exists ? prev.map((p) => (p.id === next.id ? next : p)) : [next, ...prev];
+  async function saveProject(next: ResearchProject) {
+    setSaveError(null);
+    const isNew = !projects.some((p) => p.id === next.id);
+    const res = await fetch("/api/research/projects", {
+      method: isNew ? "POST" : "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(isNew ? { ...next, id: undefined } : next),
     });
+    const body = (await res.json().catch(() => null)) as {
+      ok?: boolean;
+      error?: string;
+      project?: ResearchProject;
+    } | null;
+    if (!res.ok || !body?.ok || !body.project) {
+      setSaveError(body?.error || `Save failed (${res.status})`);
+      return;
+    }
     setSelected(null);
     setCreateMode(false);
+    await reload();
   }
 
-  function deleteProject(id: string) {
-    setProjects((prev) => prev.filter((p) => p.id !== id));
+  async function deleteProject(id: string) {
+    setSaveError(null);
+    const res = await fetch(`/api/research/projects?id=${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+    const body = (await res.json().catch(() => null)) as {
+      ok?: boolean;
+      error?: string;
+    } | null;
+    if (!res.ok || !body?.ok) {
+      setSaveError(body?.error || `Delete failed (${res.status})`);
+      return;
+    }
     setSelected(null);
     setCreateMode(false);
+    await reload();
   }
 
   return (
     <div>
       <PageHeader
         title="Судалгааны төслүүд"
-        subtitle="Судалгаа, инноваци, хөгжүүлэлтийн төслүүд — явц, төлөв, хариуцагч"
+        subtitle="Серверт хадгалагдана — байгууллагын RLS хамгаалалттай"
         actions={
           <button
             type="button"
@@ -95,12 +124,27 @@ export function ProjectsClient() {
             onClick={() => {
               setSelected(null);
               setCreateMode(true);
+              setSaveError(null);
             }}
           >
             + Шинэ төсөл
           </button>
         }
       />
+
+      {error ? (
+        <div role="alert" className="mb-4 rounded-md border border-rose-400/50 bg-rose-500/10 px-3 py-2 text-sm">
+          {error}
+        </div>
+      ) : null}
+      {saveError ? (
+        <div role="alert" className="mb-4 rounded-md border border-rose-400/50 bg-rose-500/10 px-3 py-2 text-sm">
+          Хадгалалт амжилтгүй: {saveError}
+        </div>
+      ) : null}
+      {loading ? (
+        <p className="mb-4 text-sm text-[var(--muted)]">Ачаалж байна…</p>
+      ) : null}
 
       <section className="mb-5 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-6">
         {KPI_META.map((kpi) => (
@@ -115,10 +159,7 @@ export function ProjectsClient() {
         ))}
       </section>
 
-      <Panel
-        title="Судалгааны төслүүд"
-        description="Нэр, ангилал, төлөв, явц, хугацаа, хариуцагч"
-      >
+      <Panel title="Судалгааны төслүүд" description="Нэр, ангилал, төлөв, явц, хугацаа, хариуцагч">
         <TableScroll>
           <table>
             <thead className="sticky top-0">
@@ -139,15 +180,14 @@ export function ProjectsClient() {
                   onClick={() => {
                     setCreateMode(false);
                     setSelected(p);
+                    setSaveError(null);
                   }}
                   className="cursor-pointer"
                 >
                   <td>
                     <div className="font-semibold">{p.title}</div>
                     {p.is_urgent ? (
-                      <div className="mt-1 text-xs font-medium text-rose-600">
-                        Нэн яаралтай
-                      </div>
+                      <div className="mt-1 text-xs font-medium text-rose-600">Нэн яаралтай</div>
                     ) : null}
                   </td>
                   <td>{p.category || "—"}</td>

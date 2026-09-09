@@ -1,44 +1,69 @@
 # Inspect-MN Platform Portal
 
-Дотоод үйл ажиллагааны **бүрэн UI апп** (`C:\Users\Owner\platform\inspect-mn`).
+Дотоод үйл ажиллагааны портал (`inspect-mn`). Local-д гурван sibling Next.js аппыг **iframe**-ээр embed хийнэ; production дээр мөн адил Vercel origin-ууд руу холбогдоно. Энэ нь нэг апп дотор бүх модуль ажиллах setup **биш**.
 
-Зургийн мэдээллийн архитектур — бүх 9 модуль портал дотор шууд нээгдэнэ:
-- **ҮҮРЭГ** — Хяналт шалгалт, Журмын биелэлт, Судалгаа хөгжүүлэлт
-- **ҮР ДҮН / TOOLS** — үр дүнгийн болон хэрэгслийн модулиуд
+## Ports
 
-Local URL / workspace path хэрэглэгчийн UI дээр харагдахгүй. Менюгээс шууд модулийн самбар руу орно.
+| App | Path | Port | Portal env |
+|-----|------|------|------------|
+| Portal | `inspect-mn` | 3000 | `NEXT_PUBLIC_SITE_URL=http://localhost:3000` |
+| Хяналт шалгалт | `inspection-center` | 3001 | `NEXT_PUBLIC_INSPECT_URL=http://localhost:3001` |
+| Журмын биелэлт | `bgs-policy-compliance` | 3002 | `NEXT_PUBLIC_POLICY_URL=http://localhost:3002` |
+| Судалгаа хөгжүүлэлт | `development` | 3003 | `NEXT_PUBLIC_DEVELOPMENT_URL=http://localhost:3003` |
 
 ## Local development
 
-```bash
-cd C:\Users\Owner\platform\inspect-mn
-npm install
+```powershell
+# From repo root
+.\scripts\start-duty-modules.ps1
+cd inspect-mn
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-**Stable mode:** бүх 9 модуль энэ нэг апп дотор ажиллана. Sibling apps/iframe шаардлагагүй.
+Менюгээс модулийн самбар руу шууд орно. Local URL / workspace path хэрэглэгчийн UI дээр харагдахгүй.
 
-## Routes
+## Sidebar modules
 
-| Route | Menu |
-|-------|------|
-| `/` | Dashboard |
-| `/inspection` | Хяналт шалгалт |
-| `/policy-compliance` | Журмын биелэлт |
-| `/development` | Судалгаа хөгжүүлэлт |
-| `/employee-voice` | Ажилтны дуу хоолой |
-| `/risk-management` | Эрсдэлийн удирдлага |
-| `/report-analysis` | Тайлан шинжилгээ |
-| `/smartmine` | SmartMine (самбар, боловсруулалт, тоног төхөөрөмж, засвар, Reason Tool) |
-| `/ai-assistant` | AI туслах |
-| `/settings` | Тохиргоо |
-| `/management-center` | Удирдлагын төв |
+Портал sidebar-т **12** модуль (`src/lib/modules.ts`). Гурван ҮҮРЭГ embed-д sibling апп хэрэгтэй; бусад нь портал process дотор ажиллана.
+
+| Route | Menu | Group |
+|-------|------|-------|
+| `/` | Dashboard | — |
+| `/inspection` | Хяналт шалгалт | ҮҮРЭГ (iframe → :3001) |
+| `/policy-compliance` | Журмын биелэлт | ҮҮРЭГ (iframe → :3002) |
+| `/guidance` | Удирдамж | ҮҮРЭГ |
+| `/development` | Судалгаа хөгжүүлэлт | ҮҮРЭГ (iframe → :3003) |
+| `/employee-voice` | Ажилтны дуу хоолой | ҮР ДҮН |
+| `/risk-management` | Эрсдэлийн удирдлага | ҮР ДҮН |
+| `/report-analysis` | Тайлан шинжилгээ | ҮР ДҮН |
+| `/smartmine` | SmartMine | ҮР ДҮН |
+| `/ai-assistant` | AI туслах | TOOLS |
+| `/policy-review` | Баримт харьцуулалт | TOOLS |
+| `/settings` | Тохиргоо | TOOLS |
+| `/management-center` | Удирдлагын төв | TOOLS |
 
 ## Environment variables
 
-Copy `.env.local.example` → `.env.local`.
+Copy each app’s `.env.example` → `.env.local` and fill values, **or** from repo root:
+
+```powershell
+node scripts\sync-local-env.cjs
+```
+
+That sets `NEXT_PUBLIC_SITE_URL=http://localhost:3000`, copies public Supabase keys into duty modules, and generates matching embed secrets if missing (does not print secrets).
+
+Shared across portal + duty modules:
+
+- `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` (or publishable)
+- `POLICY_EMBED_SECRET` — **same value** on portal and `bgs-policy-compliance`
+- `INSPECTION_EMBED_SECRET` — **same value** on portal and `inspection-center` (or reuse policy secret)
+
+Portal-only for local:
+
+- `NEXT_PUBLIC_SITE_URL=http://localhost:3000` (do **not** use production site URL for local auth redirects)
+- Duty module `NEXT_PUBLIC_*_URL` → localhost ports above
 
 | Variable | Required now | Notes |
 |----------|--------------|-------|
@@ -46,48 +71,30 @@ Copy `.env.local.example` → `.env.local`.
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Legacy anon JWT key |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Optional | Modern publishable key |
 | `SUPABASE_SERVICE_ROLE_KEY` | No (prep) | Server-only; never expose to browser |
-| `NEXT_PUBLIC_INSPECT_URL` | Optional | Default `http://localhost:3001` |
-| `NEXT_PUBLIC_POLICY_URL` | Optional | Default `http://localhost:3002` |
-| `SMARTMINE_SUPABASE_URL` | For SmartMine | Default `https://hlidcdaaxmdhisdfkaca.supabase.co` |
-| `SMARTMINE_SUPABASE_SERVICE_ROLE_KEY` | For SmartMine | Server-only; reads canonical views |
-| `SMARTMINE_ORGANIZATION_ID` | Optional | Default `BAYANGOL` |
+| `POLICY_EMBED_SECRET` | Yes (duty embeds) | Same on portal + policy module |
+| `INSPECTION_EMBED_SECRET` | Yes (duty embeds) | Same on portal + inspection-center |
+| `NEXT_PUBLIC_INSPECT_URL` | Local duty | Default `http://localhost:3001` |
+| `NEXT_PUBLIC_POLICY_URL` | Local duty | Default `http://localhost:3002` |
+| `NEXT_PUBLIC_DEVELOPMENT_URL` | Local duty | Default `http://localhost:3003` |
+| `SMARTMINE_SUPABASE_URL` | For SmartMine | Separate SmartMine project if used |
+| `SMARTMINE_SUPABASE_SERVICE_ROLE_KEY` | For SmartMine | Server-only |
+| `SMARTMINE_ORGANIZATION_ID` | Optional | Org scope for SmartMine |
 
-**Do not deploy** until Supabase project IDs and Vercel credentials are confirmed.
+Optional:
 
-See also `../docs/SUPABASE_CONNECTION.md` for the active project (`bteg-smartmine-mvp`).
+- Policy: keep local `bgs-policy-compliance/data/local/db.json` (gitignored). Refresh: `cd bgs-policy-compliance && npm run data:refresh`
+- IC: keep `inspection-center/data/store.json` (gitignored). Dev prefers local FS store.
+- Do not set `USE_REMOTE_STORE=1` against Production while experimenting with writes.
 
-## Supabase connection plan
+See also `../docs/SUPABASE_CONNECTION.md` and `../HOW_TO_OPEN_DUTY_MODULES.md`.
 
-1. Connected via MCP account linked to org `barulas` (user hint: `corporation0214-hue`).
-2. Active project: `bteg-smartmine-mvp` (`hlidcdaaxmdhisdfkaca`).
-3. Env vars are in each app `.env.local` (not committed).
-4. Portal `/settings` and `/api/supabase/health` show live connection status.
-5. Free-tier project limit is full (2/2). Pause/upgrade an existing project before creating a dedicated `inspect-mn-platform` DB.
-6. Keep `service_role` only in server routes when needed; never expose to browser.
+## Safety
 
-## Vercel deployment
+- Local only: no GitHub push, no Vercel deploy, no Production Supabase mutations unless explicitly instructed.
+- Keep `service_role` only in server routes; never expose to browser.
 
-Production project: `platform-portal` (account `munhso-9795s-projects`)
-
-- Production URL: https://platform-portal-blue.vercel.app
-- Inspector: https://vercel.com/munhso-9795s-projects/platform-portal
-
-Redeploy:
-
-```bash
-cd C:\Users\Owner\platform\inspect-mn
-npx vercel --prod --yes
-```
-
-Note: ҮҮРЭГ module embeds still point to local ports until those apps are also deployed and `NEXT_PUBLIC_*_URL` env vars are updated on Vercel.
-
-Do **not** overwrite the older Vercel project named `inspect-mn` (SmartMine).
 ## Stack
 
 - Next.js App Router + TypeScript
 - Tailwind CSS v4
 - lucide-react
-
-## Note on other `inspect-mn`
-
-`C:\Users\Owner\inspect-mn` is a separate existing SmartMine app and was **not** modified. This portal lives only under `C:\Users\Owner\platform\inspect-mn`.

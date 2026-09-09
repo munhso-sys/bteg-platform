@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Suspense } from "react";
+import { PortalSessionBridge } from "@/components/PortalSessionBridge";
 import { ShellFrame } from "@/components/layout/ShellFrame";
 import { ThemeFromPortal } from "@/components/theme-from-portal";
 import "./globals.css";
@@ -16,6 +18,8 @@ export const viewport: Viewport = {
   themeColor: "#1f2937",
 };
 
+const THEME_BOOT_SCRIPT = `(function(){try{var q=new URLSearchParams(location.search).get('theme');var t=q||localStorage.getItem('inspect-mn-theme');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -27,15 +31,14 @@ export default function RootLayout({
       suppressHydrationWarning
       className="h-full antialiased"
     >
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var q=new URLSearchParams(location.search).get('theme');var t=q||localStorage.getItem('inspect-mn-theme');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();`,
-          }}
-        />
-      </head>
       <body className="min-h-full font-sans">
+        <Script
+          id="inspect-theme-boot"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }}
+        />
         <ThemeFromPortal />
+        <PortalSessionBridge />
         <Suspense
           fallback={
             <div className="flex min-h-[100dvh]">

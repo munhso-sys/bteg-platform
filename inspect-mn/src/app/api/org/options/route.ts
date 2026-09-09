@@ -1,59 +1,13 @@
-import { promises as fs } from "fs";
-import path from "path";
 import { NextResponse } from "next/server";
 import { getDutyModuleApps } from "@/lib/module-apps";
+import { loadBundledOrgAccessOptions } from "@/lib/org/catalog";
+import type { AccessOptions } from "@/lib/org/types";
 
-type AccessOptions = {
-  heltes: Array<{
-    id: string;
-    name: string;
-    albas: Array<{
-      id: string;
-      name: string;
-      positions: Array<{ id: string; name: string }>;
-    }>;
-  }>;
-};
-
-function positionCodeLabel(code: string) {
-  return code.replace(/_/g, " ").replace(/-/g, " · ").trim();
-}
-
-async function loadLocalCatalog(): Promise<AccessOptions> {
-  const p = path.join(process.cwd(), "data", "reference", "org-catalog.json");
-  const raw = JSON.parse(await fs.readFile(p, "utf8")) as {
-    heltes: Array<{
-      id: string;
-      name: string;
-      albas: Array<{
-        id: string;
-        name: string;
-        position_codes?: string[];
-      }>;
-    }>;
-  };
-
-  return {
-    heltes: raw.heltes.map((h) => ({
-      id: h.id,
-      name:
-        h.name === "Дотоод хяналтын хэлтэс"
-          ? "Дотоод хяналт шалгалтын хэлтэс"
-          : h.name,
-      albas: h.albas.map((a) => ({
-        id: a.id,
-        name:
-          a.name === "Дотоод хяналтын хэлтэс"
-            ? "Дотоод хяналт шалгалтын хэлтэс"
-            : a.name,
-        positions: (a.position_codes ?? []).map((code) => ({
-          id: `code:${code}`,
-          name: positionCodeLabel(code),
-        })),
-      })),
-    })),
-  };
-}
+/**
+ * Vercel team membership only unlocks Deployment Protection.
+ * Application authorization always comes from Preview Supabase session +
+ * active user_profiles + RBAC — never from Vercel identity.
+ */
 
 async function loadFromPolicy(): Promise<AccessOptions | null> {
   const origin = getDutyModuleApps()["policy-compliance"].origin;
@@ -64,7 +18,9 @@ async function loadFromPolicy(): Promise<AccessOptions | null> {
     });
     if (!res.ok) return null;
     const json = (await res.json()) as { ok?: boolean } & AccessOptions;
-    if (!json.ok || !Array.isArray(json.heltes)) return null;
+    if (!json.ok || !Array.isArray(json.heltes) || json.heltes.length === 0) {
+      return null;
+    }
     return { heltes: json.heltes };
   } catch {
     return null;
@@ -74,13 +30,29 @@ async function loadFromPolicy(): Promise<AccessOptions | null> {
 export async function GET() {
   try {
     const remote = await loadFromPolicy();
-    const data = remote ?? (await loadLocalCatalog());
-    return NextResponse.json({ ok: true, source: remote ? "policy" : "local", ...data });
+    const data = remote ?? loadBundledOrgAccessOptions();
+    if (!data.heltes.length) {
+      return NextResponse.json(
+        { ok: false, error: "Org catalog empty", code: "ORG_CATALOG_EMPTY" },
+        { status: 500 },
+      );
+    }
+    return NextResponse.json({
+      ok: true,
+      source: remote ? "policy" : "local",
+      ...data,
+    });
   } catch (err) {
+    const code =
+      err instanceof Error && err.message === "ORG_CATALOG_INVALID"
+        ? "ORG_CATALOG_INVALID"
+        : "ORG_OPTIONS_FAILED";
+    console.error("[api/org/options]", code);
     return NextResponse.json(
       {
         ok: false,
-        error: err instanceof Error ? err.message : "Org options failed",
+        code,
+        error: "Байгууллагын жагсаалт ачаалахад алдаа гарлаа.",
       },
       { status: 500 },
     );

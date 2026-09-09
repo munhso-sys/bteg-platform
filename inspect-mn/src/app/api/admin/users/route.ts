@@ -51,13 +51,21 @@ export async function PATCH(req: Request) {
   if (body.role_id) patch.role_id = body.role_id;
   if (body.status) patch.status = body.status;
 
-  const { error } = await admin
+  const { data, error } = await admin
     .from("user_profiles")
     .update(patch)
-    .eq("user_id", body.user_id);
+    .eq("user_id", body.user_id)
+    .select("user_id")
+    .maybeSingle();
 
   if (error) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
+  if (!data) {
+    return NextResponse.json(
+      { ok: false, error: "Хэрэглэгчийн профайл олдсонгүй" },
+      { status: 404 },
+    );
   }
   return NextResponse.json({ ok: true });
 }

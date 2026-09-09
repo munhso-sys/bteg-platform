@@ -30,12 +30,14 @@ const pillarIcon: Record<ProgramPillarId, ElementType> = {
 type FilterId = "all" | "current" | "delayed";
 
 export function ProgramBoard() {
-  const { items, save, remove, cycleQuarter } = useProgramInitiatives();
+  const { items, save, remove, cycleQuarter, loading, error } =
+    useProgramInitiatives();
   const now = calendarQuarter();
   const [year, setYear] = useState(now.year);
   const [filter, setFilter] = useState<FilterId>("all");
   const [editing, setEditing] = useState<ProgramInitiative | null>(null);
   const [createMode, setCreateMode] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const currentMeta = QUARTER_META.find((q) => q.key === now.key);
 
@@ -56,7 +58,7 @@ export function ProgramBoard() {
     <div>
       <PageHeader
         title="Хөтөлбөрийн ажил"
-        subtitle="Судалгаа, бүтээмж, цахим шилжилтийн ажлын явц, улирлын гүйцэтгэл"
+        subtitle="Серверт хадгалагдана — байгууллагын RLS хамгаалалттай"
         actions={
           <button
             type="button"
@@ -64,12 +66,27 @@ export function ProgramBoard() {
             onClick={() => {
               setCreateMode(true);
               setEditing(emptyInitiative("research", year));
+              setSaveError(null);
             }}
           >
             + Шинэ ажил
           </button>
         }
       />
+
+      {error ? (
+        <div role="alert" className="mb-4 rounded-md border border-rose-400/50 bg-rose-500/10 px-3 py-2 text-sm">
+          {error}
+        </div>
+      ) : null}
+      {saveError ? (
+        <div role="alert" className="mb-4 rounded-md border border-rose-400/50 bg-rose-500/10 px-3 py-2 text-sm">
+          Хадгалалт амжилтгүй: {saveError}
+        </div>
+      ) : null}
+      {loading ? (
+        <p className="mb-4 text-sm text-[var(--muted)]">Ачаалж байна…</p>
+      ) : null}
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <select
@@ -194,7 +211,11 @@ export function ProgramBoard() {
                           <QuarterCells
                             item={item}
                             interactive
-                            onToggle={(key) => cycleQuarter(item.id, key)}
+                            onToggle={(key) => {
+                            void cycleQuarter(item.id, key).then((ok) => {
+                              if (!ok) setSaveError("Улирлын төлөв шинэчлэхэд алдаа гарлаа");
+                            });
+                          }}
                           />
                         </tr>
                       ))
@@ -216,14 +237,26 @@ export function ProgramBoard() {
             setCreateMode(false);
           }}
           onSave={(next) => {
-            save(next);
-            setEditing(null);
-            setCreateMode(false);
+            void save(next).then((ok) => {
+              if (!ok) {
+                setSaveError("Хадгалахад алдаа гарлаа");
+                return;
+              }
+              setSaveError(null);
+              setEditing(null);
+              setCreateMode(false);
+            });
           }}
           onDelete={(id) => {
-            remove(id);
-            setEditing(null);
-            setCreateMode(false);
+            void remove(id).then((ok) => {
+              if (!ok) {
+                setSaveError("Устгахад алдаа гарлаа");
+                return;
+              }
+              setSaveError(null);
+              setEditing(null);
+              setCreateMode(false);
+            });
           }}
         />
       ) : null}

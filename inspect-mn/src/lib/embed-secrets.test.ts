@@ -1,0 +1,77 @@
+import assert from "node:assert/strict";
+import { createHmac } from "node:crypto";
+import { describe, it } from "node:test";
+import {
+  LEGACY_HARDCODED_EMBED_SECRET,
+  assertPolicyEmbedSecretConfigured,
+  resolveInspectionEmbedSignSecret,
+  resolvePolicyEmbedSignSecret,
+  resolvePolicyEmbedVerifySecrets,
+} from "./embed-secret-config";
+import {
+  signPolicyEmbedToken,
+  verifyPolicyEmbedToken,
+} from "./policy-embed-crypto";
+
+function setEnv(key: string, value: string | undefined) {
+  const env = process.env as Record<string, string | undefined>;
+  if (value === undefined) delete env[key];
+  else env[key] = value;
+}
+
+describe("P0-02 embed secret config", () => {
+  it("does not fall back to hardcoded or service-role secrets", () => {
+    const prevPolicy = process.env.POLICY_EMBED_SECRET;
+    const prevInsp = process.env.INSPECTION_EMBED_SECRET;
+    const prevSrv = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const prevNode = process.env.NODE_ENV;
+    const prevVercel = process.env.VERCEL;
+    try {
+      setEnv("POLICY_EMBED_SECRET", undefined);
+      setEnv("INSPECTION_EMBED_SECRET", undefined);
+      setEnv("SUPABASE_SERVICE_ROLE_KEY", "service-role-must-not-sign");
+      setEnv("NODE_ENV", "production");
+      setEnv("VERCEL", undefined);
+      assert.equal(resolvePolicyEmbedSignSecret(), "");
+      assert.deepEqual(resolvePolicyEmbedVerifySecrets(), []);
+      assert.equal(resolveInspectionEmbedSignSecret(), "");
+      assert.equal(assertPolicyEmbedSecretConfigured(), false);
+      assert.notEqual(resolvePolicyEmbedSignSecret(), LEGACY_HARDCODED_EMBED_SECRET);
+    } finally {
+      setEnv("POLICY_EMBED_SECRET", prevPolicy);
+      setEnv("INSPECTION_EMBED_SECRET", prevInsp);
+      setEnv("SUPABASE_SERVICE_ROLE_KEY", prevSrv);
+      setEnv("NODE_ENV", prevNode);
+      setEnv("VERCEL", prevVercel);
+    }
+  });
+
+  it("rejects tokens forged with the old hardcoded secret", () => {
+    const prevPolicy = process.env.POLICY_EMBED_SECRET;
+    try {
+      setEnv("POLICY_EMBED_SECRET", "unit-test-policy-secret");
+      const claims = {
+        uid: "u1",
+        role: "admin",
+        positionId: null,
+        positionName: null,
+        mode: "full" as const,
+        exp: Date.now() + 60_000,
+      };
+      const good = signPolicyEmbedToken(claims);
+      assert.ok(good);
+      assert.ok(verifyPolicyEmbedToken(good));
+
+      const body = good!.split(".")[0]!;
+      const forgedSig = createHmac("sha256", LEGACY_HARDCODED_EMBED_SECRET)
+        .update(body)
+        .digest("base64")
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/g, "");
+      assert.equal(verifyPolicyEmbedToken(`${body}.${forgedSig}`), null);
+    } finally {
+      setEnv("POLICY_EMBED_SECRET", prevPolicy);
+    }
+  });
+});

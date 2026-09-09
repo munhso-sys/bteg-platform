@@ -10,6 +10,7 @@ import {
   writeCachedSessionSettings,
   type SessionSettings,
 } from "@/lib/session-settings";
+import { broadcastPortalLogout } from "@/lib/portal-logout-broadcast";
 
 const ACTIVITY_EVENTS = [
   "mousemove",
@@ -108,6 +109,7 @@ export function IdleLogout() {
       if (loggingOutRef.current) return;
       loggingOutRef.current = true;
       try {
+        broadcastPortalLogout();
         const supabase = createClient();
         await supabase.auth.signOut();
       } catch {

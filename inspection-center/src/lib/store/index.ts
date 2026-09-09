@@ -46,11 +46,23 @@ import {
   mapRiskLevel,
 } from "@/lib/scoring";
 import {
+  loadOrgRemoteRow,
   loadRemoteRow,
   REMOTE_KEYS,
   saveRemotePayload,
 } from "@/lib/store/remote";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
+import { getInspectionScope } from "@/lib/access/scope";
+
+async function resolveStoreOrganizationId(): Promise<string | null> {
+  try {
+    const scope = await getInspectionScope();
+    const heltes = scope?.heltesId?.trim();
+    return heltes || null;
+  } catch {
+    return null;
+  }
+}
 
 /** Seed/import files shipped with the deploy (often read-only on Vercel). */
 const SEED_DATA_DIR = path.join(process.cwd(), "data");
@@ -170,7 +182,14 @@ function queueRemoteWrite(
       memory.pendingRemotePayload?.delete(key);
       memory.remoteWriteScheduled?.delete(key);
       if (latest === undefined) return;
-      await saveRemotePayload(key, latest);
+      const organizationId = await resolveStoreOrganizationId();
+      if (!organizationId) {
+        console.warn(
+          `[store] refused unscoped remote write for ${key} (P0-03)`,
+        );
+        return;
+      }
+      await saveRemotePayload(key, latest, organizationId);
     })
     .catch((error) => {
       console.warn(`[store] remote write failed (${key}):`, error);
@@ -294,11 +313,28 @@ export async function ensureStoreHydrated() {
       return;
     }
 
-    const remoteLoad = Promise.all([
-      loadRemoteRow<InspectionCenterData>(REMOTE_KEYS.store),
-      loadRemoteRow<AnnualPlanRow[]>(REMOTE_KEYS.annualPlans),
-      loadRemoteRow<AnnualPlanTypeTarget[]>(REMOTE_KEYS.annualPlanTypes),
-    ]);
+    const organizationId = await resolveStoreOrganizationId();
+    const remoteLoad = organizationId
+      ? Promise.all([
+          loadOrgRemoteRow<InspectionCenterData>(
+            organizationId,
+            REMOTE_KEYS.store,
+          ),
+          loadOrgRemoteRow<AnnualPlanRow[]>(
+            organizationId,
+            REMOTE_KEYS.annualPlans,
+          ),
+          loadOrgRemoteRow<AnnualPlanTypeTarget[]>(
+            organizationId,
+            REMOTE_KEYS.annualPlanTypes,
+          ),
+        ])
+      : Promise.all([
+          // Legacy read-only fallback when no unit scope (admin full mode).
+          loadRemoteRow<InspectionCenterData>(REMOTE_KEYS.store),
+          loadRemoteRow<AnnualPlanRow[]>(REMOTE_KEYS.annualPlans),
+          loadRemoteRow<AnnualPlanTypeTarget[]>(REMOTE_KEYS.annualPlanTypes),
+        ]);
 
     const timed = await Promise.race([
       remoteLoad.then((rows) => ({ ok: true as const, rows })),
@@ -334,7 +370,9 @@ export async function ensureStoreHydrated() {
       (!remoteStore ||
         Boolean(localStoreStamp && localStoreStamp > remoteStore.updatedAt))
     ) {
-      await saveRemotePayload(REMOTE_KEYS.store, memory.store);
+      if (organizationId) {
+        await saveRemotePayload(REMOTE_KEYS.store, memory.store, organizationId);
+      }
     } else if (!memory.store) {
       memory.store = diskStore
         ? normalizeStoreData(diskStore)
@@ -358,7 +396,13 @@ export async function ensureStoreHydrated() {
       (!remotePlans ||
         Boolean(localPlansStamp && localPlansStamp > remotePlans.updatedAt))
     ) {
-      await saveRemotePayload(REMOTE_KEYS.annualPlans, memory.annualPlans);
+      if (organizationId) {
+        await saveRemotePayload(
+          REMOTE_KEYS.annualPlans,
+          memory.annualPlans,
+          organizationId,
+        );
+      }
     }
 
     const localTypesStamp = newestStamp(
@@ -377,10 +421,13 @@ export async function ensureStoreHydrated() {
       (!remoteTypes ||
         Boolean(localTypesStamp && localTypesStamp > remoteTypes.updatedAt))
     ) {
-      await saveRemotePayload(
-        REMOTE_KEYS.annualPlanTypes,
-        memory.annualPlanTypes,
-      );
+      if (organizationId) {
+        await saveRemotePayload(
+          REMOTE_KEYS.annualPlanTypes,
+          memory.annualPlanTypes,
+          organizationId,
+        );
+      }
     }
 
     memory.hydratedAt = Date.now();
@@ -441,11 +488,33 @@ export async function flushPlanRemoteWrites(
 
   if (plansPayload !== undefined) {
     memory.pendingRemotePayload?.delete(REMOTE_KEYS.annualPlans);
-    writes.push(saveRemotePayload(REMOTE_KEYS.annualPlans, plansPayload));
+    const organizationId = await resolveStoreOrganizationId();
+    if (organizationId) {
+      writes.push(
+        saveRemotePayload(
+          REMOTE_KEYS.annualPlans,
+          plansPayload,
+          organizationId,
+        ),
+      );
+    } else {
+      console.warn("[store] refused unscoped annualPlans flush (P0-03)");
+    }
   }
   if (typesPayload !== undefined) {
     memory.pendingRemotePayload?.delete(REMOTE_KEYS.annualPlanTypes);
-    writes.push(saveRemotePayload(REMOTE_KEYS.annualPlanTypes, typesPayload));
+    const organizationId = await resolveStoreOrganizationId();
+    if (organizationId) {
+      writes.push(
+        saveRemotePayload(
+          REMOTE_KEYS.annualPlanTypes,
+          typesPayload,
+          organizationId,
+        ),
+      );
+    } else {
+      console.warn("[store] refused unscoped annualPlanTypes flush (P0-03)");
+    }
   }
 
   if (writes.length === 0) return;
@@ -965,6 +1034,97 @@ export function exportInspectionStoreSections(sections: StoreClearSection[]) {
   }
 
   return payload;
+}
+
+/**
+ * Restore selected sections from an export payload produced by
+ * `exportInspectionStoreSections`. Replaces those sections only;
+ * templates / master / org links / risk thresholds stay untouched.
+ */
+export function importInspectionStoreSections(
+  payload: unknown,
+  sections: StoreClearSection[],
+): StoreClearResult {
+  if (!payload || typeof payload !== "object") {
+    throw new Error("JSON бүтэц буруу байна.");
+  }
+  const body = payload as Record<string, unknown>;
+  if (body.app != null && body.app !== "inspection-center") {
+    throw new Error(
+      `Энэ файл inspection-center-ийн нөөц биш (app=${String(body.app)}).`,
+    );
+  }
+
+  const selected = new Set(sections);
+  const counts: StoreClearResult["counts"] = {};
+  const cleared: StoreClearSection[] = [];
+
+  if (selected.has("execution")) {
+    const execution = body.execution;
+    if (!execution || typeof execution !== "object") {
+      throw new Error("Файлаас execution хэсэг олдсонгүй.");
+    }
+    const ex = execution as Record<string, unknown>;
+    const data = readStore();
+    const next = {
+      ...data,
+      runs: Array.isArray(ex.runs) ? ex.runs : [],
+      answers: Array.isArray(ex.answers) ? ex.answers : [],
+      findings: Array.isArray(ex.findings) ? ex.findings : [],
+      actions: Array.isArray(ex.actions) ? ex.actions : [],
+      evidence: Array.isArray(ex.evidence) ? ex.evidence : [],
+      scoreSnapshots: Array.isArray(ex.scoreSnapshots) ? ex.scoreSnapshots : [],
+    };
+    writeStore(next as typeof data);
+    storeMemory().findingsLinkedAt = undefined;
+    counts.execution =
+      next.runs.length +
+      next.answers.length +
+      next.findings.length +
+      next.actions.length +
+      next.evidence.length +
+      next.scoreSnapshots.length;
+    cleared.push("execution");
+  }
+
+  if (selected.has("legacyPlans")) {
+    if (!("legacyPlans" in body)) {
+      throw new Error("Файлаас legacyPlans хэсэг олдсонгүй.");
+    }
+    const data = readStore();
+    const plans = Array.isArray(body.legacyPlans) ? body.legacyPlans : [];
+    writeStore({ ...data, plans: plans as typeof data.plans });
+    counts.legacyPlans = plans.length;
+    cleared.push("legacyPlans");
+  }
+
+  if (selected.has("annualPlans")) {
+    if (!("annualPlans" in body)) {
+      throw new Error("Файлаас annualPlans хэсэг олдсонгүй.");
+    }
+    const rows = Array.isArray(body.annualPlans) ? body.annualPlans : [];
+    writeAnnualPlans(rows as ReturnType<typeof readAnnualPlans>);
+    counts.annualPlans = rows.length;
+    cleared.push("annualPlans");
+  }
+
+  if (selected.has("annualPlanTypes")) {
+    if (!("annualPlanTypes" in body)) {
+      throw new Error("Файлаас annualPlanTypes хэсэг олдсонгүй.");
+    }
+    const rows = Array.isArray(body.annualPlanTypes) ? body.annualPlanTypes : [];
+    writeAnnualPlanTypeTargets(
+      rows as ReturnType<typeof readAnnualPlanTypeTargets>,
+    );
+    counts.annualPlanTypes = rows.length;
+    cleared.push("annualPlanTypes");
+  }
+
+  if (cleared.length === 0) {
+    throw new Error("Сэргээх хэсэг сонгоогүй эсвэл файлд байхгүй.");
+  }
+
+  return { cleared, counts };
 }
 
 export function readMasterWorkbook(): MasterWorkbookData {

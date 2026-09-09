@@ -10,6 +10,7 @@ import {
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import type { HeaderProfile } from "@/components/layout/HeaderUserProfile";
 import { IdleLogout } from "@/components/auth/IdleLogout";
+import { UsageBeacon } from "@/components/management/UsageBeacon";
 import { applyTheme, readStoredTheme, type ThemeMode } from "@/lib/theme";
 import {
   usePortalChromeCollapse,
@@ -450,19 +451,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   if (duty) {
-    return <DutyChrome modules={modules}>{children}</DutyChrome>;
+    return (
+      <>
+        <UsageBeacon />
+        <DutyChrome modules={modules}>{children}</DutyChrome>
+      </>
+    );
   }
 
   return (
-    <PortalChrome
-      modules={modules}
-      profile={profile}
-      activeLabel={activeModule?.label ?? "Dashboard"}
-      open={open}
-      setOpen={setOpen}
-    >
-      {children}
-    </PortalChrome>
+    <>
+      <UsageBeacon />
+      <PortalChrome
+        modules={modules}
+        profile={profile}
+        activeLabel={activeModule?.label ?? "Dashboard"}
+        open={open}
+        setOpen={setOpen}
+      >
+        {children}
+      </PortalChrome>
+    </>
   );
 }
 

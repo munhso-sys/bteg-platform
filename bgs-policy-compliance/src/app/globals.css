@@ -11,6 +11,9 @@
   --sidebar: #1f2937;
   --sidebar-fg: #f8fafc;
   --card: #ffffff;
+  --input: #ffffff;
+  --surface-muted: #f1f5f9;
+  --placeholder: #64748b;
 }
 
 @theme inline {
@@ -107,12 +110,19 @@ tr:hover td {
 .textarea {
   border: 1px solid var(--border);
   border-radius: 0.375rem;
-  background: white;
+  background: var(--input);
   padding: 0.4rem 0.6rem;
   font-size: 0.875rem;
   color: var(--fg);
   min-width: 0;
   width: 100%;
+}
+
+.input::placeholder,
+.select::placeholder,
+.textarea::placeholder {
+  color: var(--placeholder);
+  opacity: 1;
 }
 
 .input:focus,
@@ -131,15 +141,17 @@ html.dark {
   --fg: #e8eef7;
   /* Lighter muted so secondary copy stays readable on navy */
   --muted: #c5d0dc;
-  --border: #243044;
+  --border: #3a4a63;
   --brand: #f59e0b;
   --brand-dark: #fbbf24;
   --sidebar: #070d18;
   --sidebar-fg: #f8fafc;
   --card: #121a2a;
+  --input: #1a2438;
+  --placeholder: #9aabbd;
   --table-head: #0f172a;
   --table-hover: #152033;
-  --surface-muted: #152033;
+  --surface-muted: #1a2438;
 }
 
 html.dark body {
@@ -157,15 +169,54 @@ html.dark body {
 
 html.dark .bg-white,
 html.dark .bg-white\/95,
-html.dark .bg-white\/90 {
+html.dark .bg-white\/90,
+html.dark .bg-white\/80 {
   background-color: var(--card) !important;
 }
 
 html.dark .bg-slate-50,
+html.dark .bg-slate-50\/80,
+html.dark .bg-slate-50\/90,
 html.dark .bg-slate-100,
 html.dark .bg-amber-50,
-html.dark .bg-orange-50 {
+html.dark .bg-orange-50,
+html.dark .bg-rose-50,
+html.dark .bg-emerald-50,
+html.dark .bg-lime-50,
+html.dark .bg-sky-50,
+html.dark .bg-violet-50,
+html.dark .bg-teal-50,
+html.dark .bg-fuchsia-50 {
   background-color: var(--surface-muted) !important;
+}
+
+/* Pastel chip fills → translucent tones readable on navy */
+html.dark .bg-sky-100 {
+  background-color: rgba(56, 189, 248, 0.18) !important;
+}
+html.dark .bg-violet-100 {
+  background-color: rgba(167, 139, 250, 0.18) !important;
+}
+html.dark .bg-teal-100 {
+  background-color: rgba(45, 212, 191, 0.18) !important;
+}
+html.dark .bg-fuchsia-100 {
+  background-color: rgba(232, 121, 249, 0.18) !important;
+}
+html.dark .bg-emerald-100 {
+  background-color: rgba(52, 211, 153, 0.18) !important;
+}
+html.dark .bg-lime-100 {
+  background-color: rgba(163, 230, 53, 0.16) !important;
+}
+html.dark .bg-amber-100 {
+  background-color: rgba(251, 191, 36, 0.18) !important;
+}
+html.dark .bg-orange-100 {
+  background-color: rgba(251, 146, 60, 0.18) !important;
+}
+html.dark .bg-rose-100 {
+  background-color: rgba(251, 113, 133, 0.18) !important;
 }
 
 html.dark .text-slate-700,
@@ -178,14 +229,45 @@ html.dark .text-slate-300 {
 
 html.dark .text-slate-800,
 html.dark .text-slate-900,
-html.dark .text-slate-950 {
+html.dark .text-slate-950,
+html.dark .text-black {
   color: var(--fg) !important;
+}
+
+html.dark .text-amber-900,
+html.dark .text-amber-800,
+html.dark .text-orange-900,
+html.dark .text-orange-800,
+html.dark .text-rose-800,
+html.dark .text-rose-700,
+html.dark .text-rose-600\/80,
+html.dark .text-emerald-800,
+html.dark .text-lime-800,
+html.dark .text-sky-800,
+html.dark .text-violet-800,
+html.dark .text-teal-800,
+html.dark .text-fuchsia-800 {
+  color: #e8eef7 !important;
 }
 
 html.dark .border-slate-100,
 html.dark .border-slate-200,
-html.dark .border-slate-300 {
+html.dark .border-slate-300,
+html.dark .border-amber-200,
+html.dark .border-rose-200,
+html.dark .border-emerald-200,
+html.dark .border-orange-300 {
   border-color: var(--border) !important;
+}
+
+/* Dark navy buttons (forms) stay readable */
+html.dark .bg-slate-900,
+html.dark .bg-slate-800,
+html.dark .bg-gray-900,
+html.dark .bg-zinc-900 {
+  background-color: #f59e0b !important;
+  color: #0b1220 !important;
+  border-color: #fbbf24 !important;
 }
 
 html.dark th {
@@ -201,25 +283,46 @@ html.dark .btn,
 html.dark .input,
 html.dark .select,
 html.dark .textarea,
-html.dark input:not([type="checkbox"]):not([type="radio"]),
+html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
 html.dark textarea,
 html.dark select {
-  background: var(--card) !important;
+  background: var(--input) !important;
   color: var(--fg) !important;
   border-color: var(--border) !important;
   color-scheme: dark;
+  caret-color: var(--fg);
 }
 
 /* Native <select> popup: keep options readable (Win/Chrome light popup + inherited fg) */
 html.dark option,
 html.dark optgroup {
-  background-color: var(--card);
+  background-color: var(--input);
   color: var(--fg);
 }
 
-html.dark ::placeholder {
-  color: var(--muted);
-  opacity: 0.9;
+html.dark ::placeholder,
+html.dark input::placeholder,
+html.dark textarea::placeholder,
+html.dark .input::placeholder,
+html.dark .textarea::placeholder,
+html.dark input::-webkit-input-placeholder,
+html.dark textarea::-webkit-input-placeholder {
+  color: var(--placeholder) !important;
+  opacity: 1 !important;
+}
+
+html.dark .field-label {
+  color: #d5dee8 !important;
+}
+
+html.dark .text-amber-200 {
+  color: #fde68a !important;
+}
+html.dark .text-emerald-200 {
+  color: #a7f3d0 !important;
+}
+html.dark .text-rose-200 {
+  color: #fecdd3 !important;
 }
 
 html.dark input[type="date"],
@@ -271,9 +374,20 @@ html.dark .btn:hover {
 }
 
 html.dark .btn-primary {
-  background: var(--brand);
-  border-color: var(--brand-dark);
-  color: #fff;
+  background: var(--brand) !important;
+  border-color: var(--brand-dark) !important;
+  color: #0b1220 !important;
+}
+
+html.dark .btn-primary:hover {
+  background: var(--brand-dark) !important;
+  color: #0b1220 !important;
+}
+
+/* Shadowed popovers / drawers */
+html.dark .shadow-lg,
+html.dark .shadow-2xl {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55) !important;
 }
 
 /* Soft scrollbars (Ноорог журам style) + horizontal overflow helpers */

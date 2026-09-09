@@ -1,0 +1,52 @@
+/**
+ * Embed HMAC secret resolution (P0-02).
+ * No hardcoded defaults. No service-role reuse for signing.
+ */
+
+export const LEGACY_HARDCODED_EMBED_SECRET = "inspect-platform-policy-embed-v1";
+
+export function resolvePolicyEmbedSignSecret(): string {
+  return process.env.POLICY_EMBED_SECRET?.trim() || "";
+}
+
+export function resolvePolicyEmbedVerifySecrets(): string[] {
+  return [
+    ...new Set(
+      [
+        process.env.POLICY_EMBED_SECRET?.trim(),
+        process.env.POLICY_EMBED_SECRET_PREVIOUS?.trim(),
+      ].filter((s): s is string => Boolean(s)),
+    ),
+  ];
+}
+
+export function resolveInspectionEmbedSignSecret(): string {
+  return (
+    process.env.INSPECTION_EMBED_SECRET?.trim() ||
+    process.env.POLICY_EMBED_SECRET?.trim() ||
+    ""
+  );
+}
+
+export function resolveInspectionEmbedVerifySecrets(): string[] {
+  return [
+    ...new Set(
+      [
+        process.env.INSPECTION_EMBED_SECRET?.trim(),
+        process.env.INSPECTION_EMBED_SECRET_PREVIOUS?.trim(),
+        process.env.POLICY_EMBED_SECRET?.trim(),
+        process.env.POLICY_EMBED_SECRET_PREVIOUS?.trim(),
+      ].filter((s): s is string => Boolean(s)),
+    ),
+  ];
+}
+
+export function isProductionLikeRuntime() {
+  return process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
+}
+
+/** Fail closed: production requires POLICY_EMBED_SECRET. */
+export function assertPolicyEmbedSecretConfigured(): boolean {
+  if (!isProductionLikeRuntime()) return true;
+  return Boolean(resolvePolicyEmbedSignSecret());
+}

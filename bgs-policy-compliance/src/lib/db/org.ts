@@ -197,9 +197,11 @@ function applyCatalogOverrides(
   };
 }
 
+import bundledOrgCatalog from "./org-catalog.json";
+
 async function loadCatalog(): Promise<OrgCatalog> {
-  const p = path.join(process.cwd(), "data", "reference", "org-catalog.json");
-  const raw = JSON.parse(await fs.readFile(p, "utf8")) as OrgCatalog;
+  // Bundled seed is the deployment-safe source of truth (Vercel has no gitignored data/).
+  const raw = structuredClone(bundledOrgCatalog) as OrgCatalog;
   // Known naming corrections (spreadsheet / import typos)
   for (const h of raw.heltes) {
     if (h.name === "Дотоод хяналтын хэлтэс") {
@@ -219,13 +221,7 @@ async function loadCatalog(): Promise<OrgCatalog> {
 async function saveCatalog(catalog: OrgCatalog) {
   // Persist additive/rename state via overrides only (works on Vercel + local).
   // Never rewrite the bundled org-catalog.json seed — that caused allocation drift.
-  const basePath = path.join(
-    process.cwd(),
-    "data",
-    "reference",
-    "org-catalog.json",
-  );
-  const base = JSON.parse(await fs.readFile(basePath, "utf8")) as OrgCatalog;
+  const base = structuredClone(bundledOrgCatalog) as OrgCatalog;
   const baseHeltesIds = new Set(base.heltes.map((h) => h.id));
   const baseAlbaIds = new Set(
     base.heltes.flatMap((h) => h.albas.map((a) => a.id)),
@@ -424,6 +420,28 @@ export async function clearAllPolicyOrgOverrides() {
 
 export async function clearAllPositionOrgOverrides() {
   await savePositionOverrides({});
+}
+
+/** Replace all policy org overrides from an export payload object. */
+export async function replaceAllPolicyOrgOverrides(
+  overrides: unknown,
+): Promise<number> {
+  if (!overrides || typeof overrides !== "object" || Array.isArray(overrides)) {
+    throw new Error("policyOrgOverrides бүтэц буруу байна.");
+  }
+  await saveOverrides(overrides as PolicyOrgOverridesFile);
+  return Object.keys(overrides as PolicyOrgOverridesFile).length;
+}
+
+/** Replace all position org overrides from an export payload object. */
+export async function replaceAllPositionOrgOverrides(
+  overrides: unknown,
+): Promise<number> {
+  if (!overrides || typeof overrides !== "object" || Array.isArray(overrides)) {
+    throw new Error("positionOrgOverrides бүтэц буруу байна.");
+  }
+  await savePositionOverrides(overrides as PositionOrgOverridesFile);
+  return Object.keys(overrides as PositionOrgOverridesFile).length;
 }
 
 function applyPositionOrgOverrides(
@@ -853,11 +871,22 @@ async function syncUnitNamesToDb(input: {
   });
 }
 
-/** Apply known naming corrections into positions/db once */
+/** Apply known naming corrections into positions/db once (scoped writes only). */
 export async function applyOrgNamingCorrections() {
   const fixes: Array<{ from: string; to: string }> = [
     { from: "Дотоод хяналтын хэлтэс", to: "Дотоод хяналт шалгалтын хэлтэс" },
   ];
+
+  // Remote org store requires trusted organization scope (P0-03). Skip mutation
+  // when scope is missing — never fall back to an unscoped tenant write.
+  if (preferRemoteStore()) {
+    const { getPolicyScope } = await import("@/lib/access/scope");
+    const scope = await getPolicyScope();
+    if (!scope?.heltesId?.trim()) {
+      return;
+    }
+  }
+
   await updateDb((db) => {
     let changed = false;
     for (const fix of fixes) {
@@ -1842,6 +1871,72 @@ export async function setPositionOrgAssignment(input: {
 }
 
 /** Resolve which org unit a job position belongs to (map + catalog). */
+export async function resolvePositionsOrgLabels(
+  positionIds: string[],
+): Promise<
+  Map<
+    string,
+    {
+      heltesId: string;
+      heltesName: string;
+      albaId: string;
+      albaName: string;
+      organizationName: string;
+    }
+  >
+> {
+  const [map, catalog, positionOverrides, db] = await Promise.all([
+    loadMap(),
+    loadCatalog(),
+    loadPositionOverrides(),
+    getDb(),
+  ]);
+  const albaMeta = new Map<
+    string,
+    { heltesId: string; heltesName: string; albaName: string }
+  >();
+  for (const h of catalog.heltes) {
+    for (const a of h.albas) {
+      albaMeta.set(a.id, {
+        heltesId: h.id,
+        heltesName: h.name,
+        albaName: a.name,
+      });
+    }
+  }
+  const byId = new Map(db.job_positions.map((p) => [p.id, p]));
+  const out = new Map<
+    string,
+    {
+      heltesId: string;
+      heltesName: string;
+      albaId: string;
+      albaName: string;
+      organizationName: string;
+    }
+  >();
+  for (const positionId of positionIds) {
+    const ov = positionOverrides[positionId];
+    const p = byId.get(positionId);
+    const albaId =
+      ov?.alba_id || map.position_to_alba[positionId] || OTHER_ALBA_ID;
+    const meta = albaMeta.get(albaId);
+    const organizationName = (
+      ov && ov.organization_name !== undefined
+        ? (ov.organization_name ?? "")
+        : (p?.organization_name ?? "")
+    ).trim();
+    out.set(positionId, {
+      heltesId: meta?.heltesId ?? ov?.heltes_id ?? OTHER_HELTES_ID,
+      heltesName: meta?.heltesName ?? "Ангилагдаагүй",
+      albaId,
+      albaName: meta?.albaName ?? "—",
+      organizationName,
+    });
+  }
+  return out;
+}
+
 export async function resolvePositionOrg(positionId: string): Promise<{
   heltesId: string | null;
   albaId: string | null;

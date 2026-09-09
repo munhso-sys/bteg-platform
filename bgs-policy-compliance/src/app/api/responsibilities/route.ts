@@ -1,9 +1,12 @@
 import { requirePolicyMutation } from "@/lib/access/scope";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { upsertResponsibility } from "@/lib/db/repository";
+import {
+  upsertResponsibility,
+  upsertResponsibilitiesBulk,
+} from "@/lib/db/repository";
 
-const schema = z.object({
+const itemSchema = z.object({
   policy_clause_id: z.string().uuid().or(z.string().min(1)),
   job_position_id: z.string().uuid().or(z.string().min(1)),
   responsibility_type: z.enum([
@@ -17,13 +20,24 @@ const schema = z.object({
   notes: z.string().nullable().optional(),
 });
 
+const schema = z.union([
+  itemSchema,
+  z.object({
+    items: z.array(itemSchema).min(1),
+  }),
+]);
+
 export async function POST(req: Request) {
   const gate = await requirePolicyMutation();
   if (gate.error) return gate.error;
   try {
     const body = schema.parse(await req.json());
+    if ("items" in body) {
+      const count = await upsertResponsibilitiesBulk(body.items);
+      return NextResponse.json({ ok: true, count }, { status: 201 });
+    }
     await upsertResponsibility(body);
-    return NextResponse.json({ ok: true }, { status: 201 });
+    return NextResponse.json({ ok: true, count: 1 }, { status: 201 });
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json(

@@ -1,31 +1,24 @@
-# Stable run mode
+# Local + production run model
 
-Production runs as **one Next.js app** on Vercel:
+Production portal (`bteg.inspect.mn`) embeds duty modules from sibling Vercel apps via iframe.
+Local does the same against `localhost:3001–3003`.
 
-https://platform-portal-blue.vercel.app
+Docs that claimed “all modules inside one Next.js app / no iframe” are **obsolete** relative to current `DutyModulePage` + `ModuleEmbed`.
 
-## Why this is the stable mode
-
-- No iframe to localhost sibling apps
-- No 3 extra `next dev` processes / port conflicts
-- All 9 modules live inside `inspect-mn`
-- Supabase env only (URL + anon/publishable keys)
-
-Sibling folders (`inspection-center`, `bgs-policy-compliance`, `development`) remain for deep feature work later; they are **not required** to run the portal.
-
-## Local
+## Local (parity with production architecture)
 
 ```powershell
-cd C:\Users\Owner\platform\inspect-mn
+# Repo root (any clone path)
+.\scripts\start-duty-modules.ps1
+cd inspect-mn
 npm install
 npm run dev
 ```
 
 Open http://localhost:3000
 
+See `HOW_TO_OPEN_DUTY_MODULES.md` and each app’s `.env.example`.
+
 ## Production redeploy
 
-```powershell
-cd C:\Users\Owner\platform\inspect-mn
-npx vercel --prod --yes
-```
+Do **not** redeploy from this doc. Production changes require explicit human instruction.

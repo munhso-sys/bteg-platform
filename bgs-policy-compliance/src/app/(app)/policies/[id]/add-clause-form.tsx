@@ -57,40 +57,41 @@ export function AddClauseForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-2 text-sm">
-      <select
-        name="section_id"
-        className="w-full rounded border border-slate-300 px-2 py-1.5"
-      >
-        <option value="">Хэсэггүй</option>
-        {sections.map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.label}
-          </option>
-        ))}
-      </select>
-      <input
-        name="parent_id"
-        placeholder="Эх зүйлийн id (заавал биш)"
-        className="w-full rounded border border-slate-300 px-2 py-1.5 font-mono text-xs"
-      />
-      <input
-        name="reference_number"
-        placeholder="1.1.1"
-        className="w-full rounded border border-slate-300 px-2 py-1.5"
-      />
-      <textarea
-        name="text"
-        required
-        rows={3}
-        placeholder="Зүйлийн текст"
-        className="w-full rounded border border-slate-300 px-2 py-1.5"
-      />
-      {error ? <p className="text-xs text-rose-700">{error}</p> : null}
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded bg-slate-900 px-3 py-1.5 text-white disabled:opacity-50"
-      >
+      <label className="block space-y-1">
+        <span className="field-label text-xs">Хэсэг</span>
+        <select name="section_id" className="select">
+          <option value="">Хэсэггүй</option>
+          {sections.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="block space-y-1">
+        <span className="field-label text-xs">Эх зүйлийн ID</span>
+        <input
+          name="parent_id"
+          placeholder="заавал биш"
+          className="input font-mono text-xs"
+        />
+      </label>
+      <label className="block space-y-1">
+        <span className="field-label text-xs">Дугаар</span>
+        <input name="reference_number" placeholder="1.1.1" className="input" />
+      </label>
+      <label className="block space-y-1">
+        <span className="field-label text-xs">Зүйлийн текст</span>
+        <textarea
+          name="text"
+          required
+          rows={3}
+          placeholder="Зүйлийн агуулга"
+          className="textarea"
+        />
+      </label>
+      {error ? <p className="text-xs text-rose-600 dark:text-rose-300">{error}</p> : null}
+      <button type="submit" disabled={pending} className="btn btn-primary">
         {pending ? "Нэмэж байна…" : "Зүйл нэмэх"}
       </button>
     </form>

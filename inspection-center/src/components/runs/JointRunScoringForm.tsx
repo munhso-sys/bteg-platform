@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { Camera, RotateCcw, Save, X } from "lucide-react";
 import type {
   InspectionAnswer,
@@ -39,8 +39,50 @@ type UnitOption = {
 };
 
 const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
+const PHOTO_ACCEPT = "image/*,image/heic,image/heif,.heic,.heif";
+const PHOTO_MAX_EDGE = 1600;
+const PHOTO_JPEG_QUALITY = 0.82;
 
 const EMPTY_PERFORMER: InspectionPerformer = { name: "", position: "" };
+
+async function fileToCompressedDataUrl(file: File): Promise<{
+  dataUrl: string;
+  name: string;
+}> {
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () =>
+        reject(new Error("Зургийг уншиж чадсангүй (HEIC/формат)."));
+      el.src = objectUrl;
+    });
+
+    const scale = Math.min(
+      1,
+      PHOTO_MAX_EDGE / Math.max(img.naturalWidth || 1, img.naturalHeight || 1),
+    );
+    const width = Math.max(1, Math.round((img.naturalWidth || 1) * scale));
+    const height = Math.max(1, Math.round((img.naturalHeight || 1) * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas бэлэн биш");
+    ctx.drawImage(img, 0, 0, width, height);
+
+    const dataUrl = canvas.toDataURL("image/jpeg", PHOTO_JPEG_QUALITY);
+    const approxBytes = Math.ceil(((dataUrl.length - 22) * 3) / 4);
+    if (approxBytes > MAX_PHOTO_BYTES) {
+      throw new Error("Зураг 2MB-аас бага байх ёстой (шахалтын дараа)");
+    }
+    const base = file.name.replace(/\.[^.]+$/, "") || "photo";
+    return { dataUrl, name: `${base}.jpg` };
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
 
 function normalizePerformers(
   performers: InspectionPerformer[] | undefined,
@@ -178,6 +220,8 @@ export function JointRunScoringForm({
   const [performers, setPerformers] = useState<InspectionPerformer[]>(() =>
     normalizePerformers(initialPerformers),
   );
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const photoTargetRef = useRef<string | null>(null);
   const locked = pending || busy || readOnly;
 
   const activeUnit = units.find((unit) => unit.key === activeUnitKey) ?? units[0];
@@ -272,26 +316,54 @@ export function JointRunScoringForm({
   }
 
   function pickPhoto(answerId: string) {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-    input.onchange = () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      if (file.size > MAX_PHOTO_BYTES) {
-        setMessage("Зураг 2MB-аас бага байх ёстой");
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = typeof reader.result === "string" ? reader.result : null;
-        if (!result) return;
-        setDraft(answerId, { photoUrl: result, photoName: file.name });
-        setMessage("");
-      };
-      reader.readAsDataURL(file);
-    };
+    const input = photoInputRef.current;
+    if (!input || locked) return;
+    photoTargetRef.current = answerId;
+    input.value = "";
     input.click();
+  }
+
+  async function onPhotoSelected(fileList: FileList | null) {
+    const answerId = photoTargetRef.current;
+    photoTargetRef.current = null;
+    const file = fileList?.[0];
+    if (!answerId || !file) return;
+
+    setMessage("Зураг бэлдэж байна…");
+    try {
+      // Prefer compress path (mobile camera / HEIC). Fall back to raw FileReader
+      // when the browser cannot decode the image (rare desktop formats).
+      try {
+        const { dataUrl, name } = await fileToCompressedDataUrl(file);
+        setDraft(answerId, { photoUrl: dataUrl, photoName: name });
+        setMessage("");
+        return;
+      } catch (compressError) {
+        if (file.size > MAX_PHOTO_BYTES) {
+          setMessage(
+            compressError instanceof Error
+              ? compressError.message
+              : "Зураг 2MB-аас бага байх ёстой",
+          );
+          return;
+        }
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result =
+              typeof reader.result === "string" ? reader.result : null;
+            if (!result) reject(new Error("Зураг уншигдсангүй"));
+            else resolve(result);
+          };
+          reader.onerror = () => reject(new Error("Зураг уншигдсангүй"));
+          reader.readAsDataURL(file);
+        });
+        setDraft(answerId, { photoUrl: dataUrl, photoName: file.name });
+        setMessage("");
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Зураг оруулахад алдаа");
+    }
   }
 
   function selectUnit(unitKey: string) {
@@ -395,6 +467,17 @@ export function JointRunScoringForm({
 
   return (
     <div>
+      <input
+        ref={photoInputRef}
+        type="file"
+        accept={PHOTO_ACCEPT}
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden="true"
+        onChange={(event) => {
+          void onPhotoSelected(event.target.files);
+        }}
+      />
       {message ? (
         <div className="mb-3 rounded border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--fg)]">
           {message}

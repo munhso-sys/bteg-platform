@@ -4,6 +4,10 @@ import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
 import type { PermissionId, RoleId, UserProfile } from "@/lib/rbac/types";
 import { resolveUnitScope } from "@/lib/rbac/unit-scope";
 import { isUnitScopedRole } from "@/lib/policy-embed";
+import {
+  resolveInspectionEmbedSignSecret,
+  resolveInspectionEmbedVerifySecrets,
+} from "@/lib/embed-secret-config";
 
 export type InspectionEmbedMode = "full" | "unit";
 
@@ -22,26 +26,11 @@ export type InspectionEmbedClaims = {
 const EMBED_BUILD_TIMEOUT_MS = 8_000;
 
 function signSecret() {
-  return (
-    process.env.INSPECTION_EMBED_SECRET?.trim() ||
-    process.env.POLICY_EMBED_SECRET?.trim() ||
-    "inspect-platform-policy-embed-v1" ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
-    ""
-  );
+  return resolveInspectionEmbedSignSecret();
 }
 
 function verifySecrets() {
-  return [
-    ...new Set(
-      [
-        process.env.INSPECTION_EMBED_SECRET?.trim(),
-        process.env.POLICY_EMBED_SECRET?.trim(),
-        "inspect-platform-policy-embed-v1",
-        process.env.SUPABASE_SERVICE_ROLE_KEY?.trim(),
-      ].filter((s): s is string => Boolean(s)),
-    ),
-  ];
+  return resolveInspectionEmbedVerifySecrets();
 }
 
 function b64url(input: Buffer | string) {

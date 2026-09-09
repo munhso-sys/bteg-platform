@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import type { StoreClearSection } from "@/lib/store";
 
 const SECTIONS: Array<{
@@ -33,7 +33,8 @@ const SECTIONS: Array<{
   },
 ];
 
-const CONFIRM_WORD = "УСТГАХ";
+const CONFIRM_CLEAR = "УСТГАХ";
+const CONFIRM_IMPORT = "СЭРГЭЭХ";
 
 type ActionResult =
   | { ok: true; message: string }
@@ -64,10 +65,12 @@ function downloadJsonFile(filename: string, json: string) {
 export function DataResetClient({
   clearAction,
   exportAction,
+  importAction,
   counts,
 }: {
   clearAction: (formData: FormData) => Promise<ActionResult>;
   exportAction: (formData: FormData) => Promise<ExportResult>;
+  importAction: (formData: FormData) => Promise<ActionResult>;
   counts: {
     execution: number;
     legacyPlans: number;
@@ -76,8 +79,10 @@ export function DataResetClient({
   };
 }) {
   const router = useRouter();
+  const fileRef = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
   const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [selected, setSelected] = useState<Record<StoreClearSection, boolean>>({
     execution: true,
     legacyPlans: false,
@@ -85,13 +90,16 @@ export function DataResetClient({
     annualPlanTypes: false,
   });
   const [confirm, setConfirm] = useState("");
+  const [importConfirm, setImportConfirm] = useState("");
+  const [fileName, setFileName] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [downloaded, setDownloaded] = useState(false);
 
   const anySelected = Object.values(selected).some(Boolean);
-  const confirmOk = confirm.trim() === CONFIRM_WORD;
-  const busy = pending || exporting;
+  const confirmOk = confirm.trim() === CONFIRM_CLEAR;
+  const importConfirmOk = importConfirm.trim() === CONFIRM_IMPORT;
+  const busy = pending || exporting || importing;
 
   function toggle(id: StoreClearSection) {
     setSelected((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -118,6 +126,37 @@ export function DataResetClient({
       setMessage(`DATA татлаа: ${result.filename}`);
     } finally {
       setExporting(false);
+    }
+  }
+
+  async function onImport() {
+    setMessage("");
+    setError("");
+    const file = fileRef.current?.files?.[0];
+    if (!file || !anySelected || !importConfirmOk) return;
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const formData = new FormData();
+      for (const id of selectedSections(selected)) {
+        formData.append("section", id);
+      }
+      formData.set("confirm", importConfirm.trim());
+      formData.set("json", text);
+      const result = await importAction(formData);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setMessage(result.message);
+      setImportConfirm("");
+      setFileName("");
+      if (fileRef.current) fileRef.current.value = "";
+      startTransition(() => router.refresh());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Файл уншихад алдаа");
+    } finally {
+      setImporting(false);
     }
   }
 
@@ -149,14 +188,14 @@ export function DataResetClient({
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="rounded-md border border-amber-300/60 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-100">
-        Устгахаас өмнө сонгосон DATA-г JSON файлаар татаж авна уу. Template /
-        master хуудас, эрсдэлийн босго, алба·хуудас холболт хадгалагдана. Зөвхөн
-        Admin.
+        Устгахаас өмнө сонгосон DATA-г JSON файлаар татаж авна уу. Татсан
+        файлаа буцааж upload хийж сэргээж болно. Template / master хуудас,
+        эрсдэлийн босго, алба·хуудас холболт хадгалагдана. Зөвхөн Admin.
       </div>
 
       <fieldset className="space-y-2">
         <legend className="mb-1 text-sm font-semibold text-[var(--fg)]">
-          Хэсэг сонгох (тах / устгах)
+          Хэсэг сонгох (тах / сэргээх / устгах)
         </legend>
         {SECTIONS.map((section) => (
           <label
@@ -205,10 +244,60 @@ export function DataResetClient({
         )}
       </div>
 
+      <div className="space-y-3 rounded-md border border-[var(--border)] bg-[var(--card)] px-3 py-3">
+        <h3 className="text-sm font-semibold text-[var(--fg)]">
+          JSON нөөцөөс сэргээх (upload)
+        </h3>
+        <p className="text-xs text-[var(--muted)]">
+          Дээр сонгосон хэсгүүдийг файлын агуулгаар{" "}
+          <strong className="text-[var(--fg)]">бүрэн солино</strong>. Зөвхөн
+          энэ аппын «DATA татах» файлаа ашиглана.
+        </p>
+        <label className="block text-sm">
+          <span className="mb-1 block font-medium text-[var(--fg)]">JSON файл</span>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json,.json"
+            className="input max-w-lg"
+            disabled={busy}
+            onChange={(event) => {
+              setFileName(event.target.files?.[0]?.name ?? "");
+              setError("");
+            }}
+          />
+          {fileName ? (
+            <span className="mt-1 block text-xs text-[var(--muted)]">{fileName}</span>
+          ) : null}
+        </label>
+        <label className="block text-sm">
+          <span className="mb-1 block font-medium text-[var(--fg)]">
+            Баталгаажуулах ·{" "}
+            <span className="font-mono">{CONFIRM_IMPORT}</span> гэж бичнэ үү
+          </span>
+          <input
+            className="input max-w-xs"
+            value={importConfirm}
+            onChange={(event) => setImportConfirm(event.target.value)}
+            disabled={busy}
+            autoComplete="off"
+            placeholder={CONFIRM_IMPORT}
+          />
+        </label>
+        <button
+          type="button"
+          className="btn"
+          disabled={busy || !anySelected || !importConfirmOk || !fileName}
+          onClick={() => void onImport()}
+        >
+          {importing ? "Сэргээж байна…" : "Сонгосон хэсгийг сэргээх"}
+        </button>
+      </div>
+
       <label className="block text-sm">
         <span className="mb-1 block font-medium text-[var(--fg)]">
-          Баталгаажуулах · <span className="font-mono">{CONFIRM_WORD}</span> гэж
-          бичнэ үү
+          Устгах баталгаажуулах ·{" "}
+          <span className="font-mono">{CONFIRM_CLEAR}</span> гэж бичнэ үү
         </span>
         <input
           className="input max-w-xs"
@@ -216,7 +305,7 @@ export function DataResetClient({
           onChange={(event) => setConfirm(event.target.value)}
           disabled={busy}
           autoComplete="off"
-          placeholder={CONFIRM_WORD}
+          placeholder={CONFIRM_CLEAR}
         />
       </label>
 

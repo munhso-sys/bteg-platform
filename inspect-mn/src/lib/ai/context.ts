@@ -389,7 +389,30 @@ export async function askOpenAi(params: {
 
   const data = (await res.json()) as {
     choices?: Array<{ message?: { content?: string | null } }>;
+    usage?: {
+      prompt_tokens?: number;
+      completion_tokens?: number;
+      total_tokens?: number;
+    };
+    model?: string;
   };
+
+  try {
+    const { recordUsageEvent } = await import("@/lib/usage/record");
+    await recordUsageEvent({
+      kind: "openai",
+      module: params.context.module,
+      path: "/api/ai/chat",
+      model: data.model ?? model,
+      promptTokens: data.usage?.prompt_tokens ?? null,
+      completionTokens: data.usage?.completion_tokens ?? null,
+      totalTokens: data.usage?.total_tokens ?? null,
+      detail: `ai:${params.context.module}`,
+    });
+  } catch {
+    // never fail the chat on analytics
+  }
+
   return (
     data.choices?.[0]?.message?.content?.trim() ||
     "AI хариу үүсгэж чадсангүй."

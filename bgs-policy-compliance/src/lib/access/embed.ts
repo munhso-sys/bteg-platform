@@ -17,21 +17,18 @@ export type PolicyEmbedClaims = {
 export const POLICY_SCOPE_COOKIE = "policy_scope";
 
 function signSecret() {
-  return (
-    process.env.POLICY_EMBED_SECRET?.trim() ||
-    "inspect-platform-policy-embed-v1" ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
-    ""
-  );
+  return process.env.POLICY_EMBED_SECRET?.trim() || "";
 }
 
 function verifySecrets() {
-  const list = [
-    process.env.POLICY_EMBED_SECRET?.trim(),
-    "inspect-platform-policy-embed-v1",
-    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim(),
-  ].filter((s): s is string => Boolean(s));
-  return [...new Set(list)];
+  return [
+    ...new Set(
+      [
+        process.env.POLICY_EMBED_SECRET?.trim(),
+        process.env.POLICY_EMBED_SECRET_PREVIOUS?.trim(),
+      ].filter((s): s is string => Boolean(s)),
+    ),
+  ];
 }
 
 function b64urlFromBytes(bytes: ArrayBuffer | Uint8Array) {

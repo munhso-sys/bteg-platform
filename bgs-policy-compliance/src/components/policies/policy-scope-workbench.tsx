@@ -147,8 +147,8 @@ function buildEvalOptionsForRows(
       label: `${r.positionName} · ${RESPONSIBILITY_LABELS[r.responsibility_type]}`,
       group: [r.heltesName, r.albaName].filter(Boolean).join(" · ") || "Бусад",
       isScope: false,
-      heltesName: r.heltesName,
-      albaName: r.albaName,
+      heltesName: r.heltesName ?? undefined,
+      albaName: r.albaName ?? undefined,
       positionName: r.positionName,
     });
   }

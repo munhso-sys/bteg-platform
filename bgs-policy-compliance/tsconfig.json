@@ -38,6 +38,10 @@
   ],
   "exclude": [
     "node_modules",
-    ".next/dev"
+    ".next/dev",
+    "scripts/_extracted",
+    "scripts/_extracted_v2",
+    "scripts/tmp-*.mjs",
+    "scripts/tmp-*.ts"
   ]
 }

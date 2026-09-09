@@ -45,23 +45,25 @@ export function AddSectionForm({ policyId }: { policyId: string }) {
 
   return (
     <form onSubmit={onSubmit} className="space-y-2 text-sm">
-      <input
-        name="reference_number"
-        placeholder="Дугаар"
-        className="w-full rounded border border-slate-300 px-2 py-1.5"
-      />
-      <input
-        name="text"
-        placeholder="Хэсгийн гарчиг"
-        required
-        className="w-full rounded border border-slate-300 px-2 py-1.5"
-      />
-      {error ? <p className="text-xs text-rose-700">{error}</p> : null}
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded bg-slate-900 px-3 py-1.5 text-white disabled:opacity-50"
-      >
+      <label className="block space-y-1">
+        <span className="field-label text-xs">Дугаар</span>
+        <input
+          name="reference_number"
+          placeholder="Жишээ: 1"
+          className="input"
+        />
+      </label>
+      <label className="block space-y-1">
+        <span className="field-label text-xs">Хэсгийн гарчиг</span>
+        <input
+          name="text"
+          placeholder="Хэсгийн нэр"
+          required
+          className="input"
+        />
+      </label>
+      {error ? <p className="text-xs text-rose-600 dark:text-rose-300">{error}</p> : null}
+      <button type="submit" disabled={pending} className="btn btn-primary">
         {pending ? "Нэмэж байна…" : "Хэсэг нэмэх"}
       </button>
     </form>

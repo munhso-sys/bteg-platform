@@ -145,8 +145,16 @@ function dbPath() {
 
 async function loadBundledDb(): Promise<LocalDatabase> {
   const bundled = path.join(getBundledLocalDataDir(), "db.json");
-  const raw = await fs.readFile(bundled, "utf8");
-  return JSON.parse(raw) as LocalDatabase;
+  try {
+    const raw = await fs.readFile(bundled, "utf8");
+    const db = JSON.parse(raw) as LocalDatabase;
+    if (!Array.isArray(db.policies)) return emptyDb();
+    return db;
+  } catch {
+    // data/ is gitignored — Vercel deploys often have no seed file.
+    // Prefer empty in-memory DB over crashing dashboard (P0-03 safe).
+    return emptyDb();
+  }
 }
 
 /** Windows/serverless-safe write. */
@@ -215,11 +223,10 @@ async function readRemoteDb(): Promise<LocalDatabase> {
     throw new Error("Supabase db уншиж чадсангүй (corrupt payload)");
   }
 
-  // First boot only when the remote key is missing — require org partition (P0-03).
+  // First boot seed requires org partition (P0-03). Without scope, serve
+  // bundled DB read-only — never write an unscoped remote row.
   if (!organizationId) {
-    throw new Error(
-      "Policy remote seed refused without organization scope (P0-03)",
-    );
+    return loadBundledDb();
   }
   const seededDb = await loadBundledDb();
   const status = await saveRemotePayloadIfMatch(

@@ -53,11 +53,17 @@ function SideNav({
   expanded: boolean;
   items: NavItem[];
 }) {
-  const pathname = usePathname() || "/";
+  const pathname = usePathname() ?? "/";
+  // Defer active styling until after mount so SSR HTML matches the first client paint
+  // (usePathname can differ between RSC pass and hydration in embed/iframe contexts).
+  const [navReady, setNavReady] = useState(false);
+  useEffect(() => {
+    setNavReady(true);
+  }, []);
   return (
     <nav className="flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden p-2">
       {items.map((item) => {
-        const active = isActivePath(pathname, item.href);
+        const active = navReady && isActivePath(pathname, item.href);
         const Icon = item.icon;
         return (
           <Link
@@ -91,7 +97,7 @@ function DesktopRail({
 }) {
   const [hovered, setHovered] = useState(false);
   const [pinned, setPinned] = useState(false);
-  const [finePointer, setFinePointer] = useState(true);
+  const [finePointer, setFinePointer] = useState(false);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const expanded = pinned || hovered;
 
@@ -178,7 +184,11 @@ function MobileTabBar({
   items: NavItem[];
   collapsed: boolean;
 }) {
-  const pathname = usePathname() || "/";
+  const pathname = usePathname() ?? "/";
+  const [navReady, setNavReady] = useState(false);
+  useEffect(() => {
+    setNavReady(true);
+  }, []);
   return (
     <nav
       className={cn(
@@ -193,7 +203,7 @@ function MobileTabBar({
         }}
       >
         {items.slice(0, 4).map((item) => {
-          const active = isActivePath(pathname, item.href);
+          const active = navReady && isActivePath(pathname, item.href);
           const Icon = item.icon;
           return (
             <Link

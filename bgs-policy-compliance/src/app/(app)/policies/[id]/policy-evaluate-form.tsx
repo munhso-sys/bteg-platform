@@ -2,101 +2,42 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { COMPLIANCE_STATUS_LABELS, RESPONSIBILITY_SHORT } from "@/lib/constants";
-import { SCOPE_EVAL_PREFIX } from "@/lib/org-assign";
+import { COMPLIANCE_STATUS_LABELS, RESPONSIBILITY_LABELS } from "@/lib/constants";
 import { withBasePath } from "@/lib/paths";
 import type { ComplianceStatus, ResponsibilityType } from "@/lib/types";
-import {
-  OrgFolderSelect,
-  type OrgTreeHeltes,
-  type OrgTreeLeaf,
-} from "@/components/ui/org-folder-select";
 
 const STATUSES = Object.keys(COMPLIANCE_STATUS_LABELS) as ComplianceStatus[];
 const EVAL_CHUNK = 80;
 
-export type EvaluateLinkOption = {
+export type PolicyEvalOption = {
   id: string;
-  job_position_ids: string[];
-  responsibility_type: ResponsibilityType;
   label: string;
   group: string;
-  isScope?: boolean;
-  heltesName?: string;
-  albaName?: string;
-  positionName?: string;
+  policy_clause_ids: string[];
+  job_position_ids: string[];
+  responsibility_type: ResponsibilityType;
 };
 
-function buildOrgTreeFromLinks(links: EvaluateLinkOption[]): {
-  tree: OrgTreeHeltes[];
-  scopeLeaves: OrgTreeLeaf[];
-} {
-  const scopeLeaves: OrgTreeLeaf[] = [];
-  const hMap = new Map<
-    string,
-    { label: string; albas: Map<string, { label: string; leaves: OrgTreeLeaf[] }> }
-  >();
-
-  for (const l of links) {
-    if (l.isScope) {
-      scopeLeaves.push({
-        id: l.id,
-        label: l.label,
-      });
-      continue;
-    }
-    const heltes = (l.heltesName || l.group || "Ангилагдаагүй").trim();
-    const alba = (l.albaName || "—").trim();
-    if (!hMap.has(heltes)) {
-      hMap.set(heltes, { label: heltes, albas: new Map() });
-    }
-    const h = hMap.get(heltes)!;
-    if (!h.albas.has(alba)) {
-      h.albas.set(alba, { label: alba, leaves: [] });
-    }
-    h.albas.get(alba)!.leaves.push({
-      id: l.id,
-      label: l.positionName || l.label,
-      meta: RESPONSIBILITY_SHORT[l.responsibility_type],
-    });
-  }
-
-  const tree: OrgTreeHeltes[] = [...hMap.entries()]
-    .map(([id, h]) => ({
-      id,
-      label: h.label,
-      albas: [...h.albas.entries()]
-        .map(([aid, a]) => ({
-          id: aid,
-          label: a.label,
-          leaves: a.leaves.sort((x, y) =>
-            x.label.localeCompare(y.label, "mn"),
-          ),
-        }))
-        .sort((a, b) => a.label.localeCompare(b.label, "mn")),
-    }))
-    .sort((a, b) => a.label.localeCompare(b.label, "mn"));
-
-  return { tree, scopeLeaves };
-}
-
-export function ClauseEvaluateForm({
-  clauseId,
-  links,
+export function PolicyEvaluateForm({
+  options,
 }: {
-  clauseId: string;
-  links: EvaluateLinkOption[];
+  options: PolicyEvalOption[];
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [okMsg, setOkMsg] = useState<string | null>(null);
-  const [selected, setSelected] = useState(() => links[0]?.id ?? "");
 
-  const { tree, scopeLeaves } = useMemo(
-    () => buildOrgTreeFromLinks(links),
-    [links],
-  );
+  const grouped = useMemo(() => {
+    const map = new Map<string, PolicyEvalOption[]>();
+    for (const o of options) {
+      const g = o.group?.trim() || "Бусад";
+      const list = map.get(g) ?? [];
+      list.push(o);
+      map.set(g, list);
+    }
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0], "mn"));
+  }, [options]);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -104,15 +45,20 @@ export function ClauseEvaluateForm({
     setError(null);
     setOkMsg(null);
     const fd = new FormData(e.currentTarget);
-    const option = links.find((l) => l.id === selected);
-    if (!option || !option.job_position_ids.length) {
+    const selected = String(fd.get("target") || "");
+    const option = options.find((o) => o.id === selected);
+    if (
+      !option ||
+      !option.policy_clause_ids.length ||
+      !option.job_position_ids.length
+    ) {
       setError("Сонголт олдсонгүй");
       setPending(false);
       return;
     }
 
     const baseBody = {
-      policy_clause_id: clauseId,
+      policy_clause_ids: option.policy_clause_ids,
       responsibility_type: option.responsibility_type,
       evaluation_period: fd.get("evaluation_period"),
       score: Number(fd.get("score")),
@@ -130,7 +76,7 @@ export function ClauseEvaluateForm({
       let saved = 0;
       for (let i = 0; i < chunks.length; i++) {
         if (chunks.length > 1) {
-          setOkMsg(`Хадгалж байна… ${saved}/${ids.length}`);
+          setOkMsg(`Хадгалж байна… ${saved} оноо`);
         }
         const res = await fetch(withBasePath("/api/evaluations"), {
           method: "POST",
@@ -149,20 +95,16 @@ export function ClauseEvaluateForm({
             // ignore
           }
           if (saved > 0) {
-            message = `${saved}/${ids.length} хадгалсны дараа: ${message}`;
+            message = `${saved} оноо хадгалсны дараа: ${message}`;
           }
           throw new Error(message);
         }
         const data = (await res.json().catch(() => null)) as {
           count?: number;
         } | null;
-        saved += data?.count ?? chunks[i].length;
+        saved += data?.count ?? 0;
       }
-      setOkMsg(
-        option.isScope || ids.length > 1
-          ? `${saved} ажлын байранд оноо хадгаллаа.`
-          : "Хадгаллаа.",
-      );
+      setOkMsg(`${saved} холбоост оноо хадгаллаа.`);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Хадгалж чадсангүй");
@@ -171,24 +113,34 @@ export function ClauseEvaluateForm({
     }
   }
 
-  if (!links.length) {
-    return <p className="text-sm text-slate-500">Эхлээд ажлын байр онооно уу.</p>;
+  if (!options.length) {
+    return (
+      <p className="text-sm text-slate-500">
+        Эхлээд журам/хэсэг/зүйлд ажлын байр холбоно уу.
+      </p>
+    );
   }
 
   return (
     <form onSubmit={onSubmit} className="space-y-2 text-sm">
-      <OrgFolderSelect
-        name="link"
+      <select
+        name="target"
         required
-        tree={tree}
-        scopeLeaves={scopeLeaves}
-        value={selected}
-        onChange={setSelected}
-        placeholder="Хэлтэс / алба / ажлын байр сонгох…"
-      />
+        className="select w-full rounded border border-slate-300 px-2 py-1.5"
+      >
+        {grouped.map(([group, items]) => (
+          <optgroup key={group} label={group}>
+            {items.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.label}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
       <p className="text-[11px] text-slate-500">
-        Хэлтэс → алба folder нээж ажлын байр сонгоно. «Бүх албан тушаал»
-        сонговол оноо бүгдэд автоматаар орно.
+        Журам/хэсгийн нийт сонголт нь холбогдсон бүх зүйлд оноог автоматаар
+        онооно. Дараа нь зүйл бүрээр засаж болно.
       </p>
       <input
         name="evaluation_period"
@@ -240,4 +192,4 @@ export function ClauseEvaluateForm({
   );
 }
 
-export { SCOPE_EVAL_PREFIX };
+export { RESPONSIBILITY_LABELS };

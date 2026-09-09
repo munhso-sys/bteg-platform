@@ -2,7 +2,7 @@ import Link from "next/link";
 import { PageHeader, Panel, KpiCard } from "@/components/ui/primitives";
 import { ResponsibilityBarChart } from "@/components/charts/charts";
 import { RESPONSIBILITY_LABELS } from "@/lib/constants";
-import { listOrgUnitComplianceRows, applyOrgNamingCorrections } from "@/lib/db/org";
+import { listOrgUnitComplianceRows } from "@/lib/db/org";
 import { getDashboardStats, getDataQualityWarnings } from "@/lib/db/repository";
 import { OrgUnitComplianceTable } from "./org-unit-compliance-table";
 import { getPolicyScope } from "@/lib/access/scope";
@@ -11,7 +11,8 @@ import { isUnitScoped } from "@/lib/access/embed";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  await applyOrgNamingCorrections();
+  // Do not mutate org data during dashboard render (P0-03).
+  // Naming corrections belong on explicit scoped maintenance paths only.
   const scope = await getPolicyScope();
   const [stats, warnings, unitRowsRaw] = await Promise.all([
     getDashboardStats(),

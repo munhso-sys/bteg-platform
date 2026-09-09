@@ -941,17 +941,255 @@ export async function upsertResponsibility(input: {
   });
 }
 
-/** Soft-unlink: deactivate responsibility so it disappears from clause/position UIs. */
+/** Remove evaluations (and evidence) for clause↔position↔type keys. */
+function purgeEvaluationsForKeys(db: LocalDatabase, keys: Set<string>) {
+  if (!keys.size) return 0;
+  const removedEvalIds = new Set<string>();
+  const kept: ComplianceEvaluation[] = [];
+  for (const e of db.compliance_evaluations) {
+    if (keys.has(evaluationLinkKey(e))) {
+      removedEvalIds.add(e.id);
+    } else {
+      kept.push(e);
+    }
+  }
+  db.compliance_evaluations = kept;
+  if (removedEvalIds.size) {
+    db.evaluation_evidence = db.evaluation_evidence.filter(
+      (ev) => !removedEvalIds.has(ev.evaluation_id),
+    );
+  }
+  return removedEvalIds.size;
+}
+
+function deactivateLinkAndPurgeEvals(
+  db: LocalDatabase,
+  link: ClausePositionResponsibility,
+) {
+  link.is_active = false;
+  link.is_checked = false;
+  purgeEvaluationsForKeys(
+    db,
+    new Set([
+      `${link.policy_clause_id}:${link.job_position_id}:${link.responsibility_type}`,
+    ]),
+  );
+}
+
+/** Soft-unlink: deactivate responsibility and delete its evaluations. */
 export async function deactivateResponsibility(linkId: string) {
   let found = false;
   await updateDb((db) => {
     const link = db.clause_position_responsibilities.find((r) => r.id === linkId);
     if (!link) return;
-    link.is_active = false;
-    link.is_checked = false;
+    deactivateLinkAndPurgeEvals(db, link);
     found = true;
   });
   return found;
+}
+
+export async function deactivateResponsibilities(linkIds: string[]) {
+  const idSet = new Set(linkIds.filter(Boolean));
+  let count = 0;
+  await updateDb((db) => {
+    const keys = new Set<string>();
+    for (const link of db.clause_position_responsibilities) {
+      if (!idSet.has(link.id) || !link.is_active) continue;
+      link.is_active = false;
+      link.is_checked = false;
+      keys.add(
+        `${link.policy_clause_id}:${link.job_position_id}:${link.responsibility_type}`,
+      );
+      count += 1;
+    }
+    purgeEvaluationsForKeys(db, keys);
+  });
+  return count;
+}
+
+/** Soft-unlink all active links under a policy, section, or clause; purge evals. */
+export async function deactivateResponsibilitiesByScope(input: {
+  policy_id?: string;
+  section_id?: string;
+  clause_id?: string;
+}) {
+  let count = 0;
+  await updateDb((db) => {
+    let clauseIds: Set<string> | null = null;
+    if (input.clause_id) {
+      clauseIds = new Set([input.clause_id]);
+    } else if (input.section_id) {
+      clauseIds = new Set(
+        db.policy_clauses
+          .filter(
+            (c) =>
+              !c.is_deleted &&
+              c.section_id === input.section_id &&
+              (!input.policy_id || c.policy_id === input.policy_id),
+          )
+          .map((c) => c.id),
+      );
+    } else if (input.policy_id) {
+      clauseIds = new Set(
+        db.policy_clauses
+          .filter((c) => !c.is_deleted && c.policy_id === input.policy_id)
+          .map((c) => c.id),
+      );
+    }
+    if (!clauseIds?.size) return;
+
+    const keys = new Set<string>();
+    for (const link of db.clause_position_responsibilities) {
+      if (!link.is_active || !clauseIds.has(link.policy_clause_id)) continue;
+      link.is_active = false;
+      link.is_checked = false;
+      keys.add(
+        `${link.policy_clause_id}:${link.job_position_id}:${link.responsibility_type}`,
+      );
+      count += 1;
+    }
+    purgeEvaluationsForKeys(db, keys);
+  });
+  return count;
+}
+
+export async function upsertResponsibilitiesBulk(
+  inputs: Array<{
+    policy_clause_id: string;
+    job_position_id: string;
+    responsibility_type: ResponsibilityType;
+    weight?: number;
+    required_evidence?: string | null;
+    notes?: string | null;
+  }>,
+) {
+  let count = 0;
+  await updateDb((db) => {
+    for (const input of inputs) {
+      const existing = db.clause_position_responsibilities.find(
+        (r) =>
+          r.policy_clause_id === input.policy_clause_id &&
+          r.job_position_id === input.job_position_id &&
+          r.responsibility_type === input.responsibility_type,
+      );
+      if (existing) {
+        existing.is_active = true;
+        existing.is_checked = true;
+        existing.weight = input.weight ?? existing.weight;
+        existing.required_evidence =
+          input.required_evidence ?? existing.required_evidence;
+        existing.notes = input.notes ?? existing.notes;
+      } else {
+        db.clause_position_responsibilities.push({
+          id: newId(),
+          policy_clause_id: input.policy_clause_id,
+          job_position_id: input.job_position_id,
+          responsibility_type: input.responsibility_type,
+          is_checked: true,
+          is_active: true,
+          weight: input.weight ?? 1,
+          required_evidence: input.required_evidence ?? null,
+          notes: input.notes ?? null,
+        });
+      }
+      count += 1;
+    }
+  });
+  return count;
+}
+
+export async function createEvaluationsBulk(input: {
+  policy_clause_ids: string[];
+  job_position_ids: string[];
+  responsibility_type: ResponsibilityType;
+  evaluation_period: string;
+  period_start?: string | null;
+  period_end?: string | null;
+  score: number;
+  status: ComplianceEvaluation["status"];
+  comment?: string | null;
+  evidence_text?: string | null;
+  /** When true, create missing links for single-clause bulk scores. */
+  ensureLinks?: boolean;
+}) {
+  const clauseIds = [...new Set(input.policy_clause_ids.filter(Boolean))];
+  const positionIds = [...new Set(input.job_position_ids.filter(Boolean))];
+  if (!clauseIds.length || !positionIds.length) return 0;
+  const ensureLinks = input.ensureLinks === true;
+
+  let count = 0;
+  await updateDb((db) => {
+    const now = new Date().toISOString();
+    const evidenceText = input.evidence_text?.trim() || "";
+    for (const policy_clause_id of clauseIds) {
+      for (const job_position_id of positionIds) {
+        const existingLink = db.clause_position_responsibilities.find(
+          (l) =>
+            l.policy_clause_id === policy_clause_id &&
+            l.job_position_id === job_position_id &&
+            l.responsibility_type === input.responsibility_type,
+        );
+        if (!existingLink || !existingLink.is_active) {
+          // Only score existing active links for multi-clause bulk; skip orphans
+          // unless ensureLinks (single-clause bulk from evaluate UI).
+          if (
+            !ensureLinks &&
+            (clauseIds.length > 1 || positionIds.length > 1)
+          ) {
+            continue;
+          }
+        }
+        if (existingLink) {
+          existingLink.is_active = true;
+        } else {
+          db.clause_position_responsibilities.push({
+            id: newId(),
+            policy_clause_id,
+            job_position_id,
+            responsibility_type: input.responsibility_type,
+            is_checked: true,
+            is_active: true,
+            weight: 1,
+            required_evidence: null,
+            notes: "Үнэлгээний үед автоматаар үүсгэсэн",
+          });
+        }
+
+        const evaluation: ComplianceEvaluation = {
+          id: newId(),
+          policy_clause_id,
+          job_position_id,
+          responsibility_type: input.responsibility_type,
+          evaluation_period: input.evaluation_period,
+          period_start: input.period_start ?? null,
+          period_end: input.period_end ?? null,
+          evaluator_user_id: db.users[0]?.id ?? null,
+          score: input.score,
+          status: input.status,
+          comment: input.comment ?? null,
+          evaluated_at: now,
+          created_at: now,
+          updated_at: now,
+        };
+        db.compliance_evaluations.push(evaluation);
+        count += 1;
+        if (evidenceText) {
+          db.evaluation_evidence.push({
+            id: newId(),
+            evaluation_id: evaluation.id,
+            evidence_type: "text",
+            title: "Үнэлгээний нотлох баримт",
+            content: evidenceText,
+            url: null,
+            file_path: null,
+            metadata: {},
+            created_at: now,
+          });
+        }
+      }
+    }
+  });
+  return count;
 }
 
 function normalizeOfficialCode(value: string | null | undefined) {

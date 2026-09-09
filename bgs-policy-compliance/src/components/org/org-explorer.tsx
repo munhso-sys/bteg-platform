@@ -137,77 +137,63 @@ function ContentDrawer({
   const [policyError, setPolicyError] = useState<string | null>(null);
 
   const scopeKey = `${state.heltesId}|${state.albaId}|${state.tab}`;
-  const [scopeEpoch, setScopeEpoch] = useState(scopeKey);
-  if (scopeKey !== scopeEpoch) {
-    setScopeEpoch(scopeKey);
+
+  useEffect(() => {
     setSelectedPolicyId(null);
     setPolicyDetail(null);
     setPolicyError(null);
-  }
+  }, [scopeKey]);
 
   useEffect(() => {
-    let cancelled = false;
-    const bootId = window.setTimeout(() => {
-      if (cancelled) return;
-      setLoading(true);
-      setError(null);
-    }, 0);
+    const ac = new AbortController();
+    setLoading(true);
+    setError(null);
     const qs = new URLSearchParams({
       heltesId: state.heltesId,
       albaId: state.albaId,
       tab: state.tab,
     });
-    fetch(withBasePath(`/api/org/alba-content?${qs}`))
+    fetch(withBasePath(`/api/org/alba-content?${qs}`), { signal: ac.signal })
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || `Алдаа (${res.status})`);
-        if (cancelled) return;
         if (state.tab === "policies") setPolicies(data.policies ?? []);
         else setPositions(data.positions ?? []);
       })
       .catch((err) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Ачаалж чадсангүй");
-        }
+        if (ac.signal.aborted) return;
+        setError(err instanceof Error ? err.message : "Ачаалж чадсангүй");
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!ac.signal.aborted) setLoading(false);
       });
-    return () => {
-      cancelled = true;
-      window.clearTimeout(bootId);
-    };
+    return () => ac.abort();
   }, [state.heltesId, state.albaId, state.tab]);
 
   useEffect(() => {
     if (!selectedPolicyId) {
-      const id = window.setTimeout(() => setPolicyDetail(null), 0);
-      return () => window.clearTimeout(id);
-    }
-    let cancelled = false;
-    const bootId = window.setTimeout(() => {
-      if (cancelled) return;
-      setPolicyLoading(true);
+      setPolicyDetail(null);
+      setPolicyLoading(false);
       setPolicyError(null);
-    }, 0);
-    fetch(withBasePath(`/api/policies/${selectedPolicyId}`))
+      return;
+    }
+    const ac = new AbortController();
+    setPolicyLoading(true);
+    setPolicyError(null);
+    fetch(withBasePath(`/api/policies/${selectedPolicyId}`), { signal: ac.signal })
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || `Алдаа (${res.status})`);
-        if (!cancelled) setPolicyDetail(data as PolicyDetail);
+        setPolicyDetail(data as PolicyDetail);
       })
       .catch((err) => {
-        if (!cancelled) {
-          setPolicyError(err instanceof Error ? err.message : "Ачаалж чадсангүй");
-        }
+        if (ac.signal.aborted) return;
+        setPolicyError(err instanceof Error ? err.message : "Ачаалж чадсангүй");
       })
       .finally(() => {
-        if (!cancelled) setPolicyLoading(false);
+        if (!ac.signal.aborted) setPolicyLoading(false);
       });
-    return () => {
-      cancelled = true;
-      window.clearTimeout(bootId);
-    };
+    return () => ac.abort();
   }, [selectedPolicyId]);
 
   useEffect(() => {

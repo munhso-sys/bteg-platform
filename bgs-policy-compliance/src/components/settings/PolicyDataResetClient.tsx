@@ -2,34 +2,25 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
-import type { StoreClearSection } from "@/lib/store";
+
+export type PolicyDataSection = "policyOrg" | "positionOrg";
 
 const SECTIONS: Array<{
-  id: StoreClearSection;
+  id: PolicyDataSection;
   label: string;
   hint: string;
   defaultChecked?: boolean;
 }> = [
   {
-    id: "execution",
-    label: "Шалгалтын гүйцэтгэл ба үр дүн",
-    hint: "Гүйцэтгэл (runs), хариулт, оноо, зөрчил, арга хэмжээ, нотлох баримт",
+    id: "policyOrg",
+    label: "Журам · байгууллагын холболтын засвар (overrides)",
+    hint: "Тохиргоо → Алба · журам холбох дээрх гараар өөрчилсөн журмын хуваарилалт",
     defaultChecked: true,
   },
   {
-    id: "legacyPlans",
-    label: "Хуучин төлөвлөгөө (plans)",
-    hint: "Store дахь InspectionPlan бүртгэл — самбарын «төлөвлөгөө» тоонд нөлөөлнө",
-  },
-  {
-    id: "annualPlans",
-    label: "Жилийн төлөвлөгөө — Хуудсаар",
-    hint: "Хуудсаар нэмсэн жилийн төлөвлөгөөний мөрүүд",
-  },
-  {
-    id: "annualPlanTypes",
-    label: "Жилийн төлөвлөгөө — Төрлөөр",
-    hint: "Төрлөөр оруулсан жилийн тоо, сарын сонголт",
+    id: "positionOrg",
+    label: "Ажлын байр · байгууллагын холболтын засвар (overrides)",
+    hint: "Ажлын байрыг алба/хэлтэст гараар холбосон/салгасан бүртгэл",
   },
 ];
 
@@ -44,8 +35,8 @@ type ExportResult =
   | { ok: true; filename: string; json: string }
   | { ok: false; error: string };
 
-function selectedSections(selected: Record<StoreClearSection, boolean>) {
-  return (Object.keys(selected) as StoreClearSection[]).filter(
+function selectedSections(selected: Record<PolicyDataSection, boolean>) {
+  return (Object.keys(selected) as PolicyDataSection[]).filter(
     (id) => selected[id],
   );
 }
@@ -62,7 +53,7 @@ function downloadJsonFile(filename: string, json: string) {
   URL.revokeObjectURL(url);
 }
 
-export function DataResetClient({
+export function PolicyDataResetClient({
   clearAction,
   exportAction,
   importAction,
@@ -71,23 +62,16 @@ export function DataResetClient({
   clearAction: (formData: FormData) => Promise<ActionResult>;
   exportAction: (formData: FormData) => Promise<ExportResult>;
   importAction: (formData: FormData) => Promise<ActionResult>;
-  counts: {
-    execution: number;
-    legacyPlans: number;
-    annualPlans: number;
-    annualPlanTypes: number;
-  };
+  counts: Record<PolicyDataSection, number>;
 }) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [selected, setSelected] = useState<Record<StoreClearSection, boolean>>({
-    execution: true,
-    legacyPlans: false,
-    annualPlans: false,
-    annualPlanTypes: false,
+  const [selected, setSelected] = useState<Record<PolicyDataSection, boolean>>({
+    policyOrg: true,
+    positionOrg: false,
   });
   const [confirm, setConfirm] = useState("");
   const [importConfirm, setImportConfirm] = useState("");
@@ -101,7 +85,7 @@ export function DataResetClient({
   const importConfirmOk = importConfirm.trim() === CONFIRM_IMPORT;
   const busy = pending || exporting || importing;
 
-  function toggle(id: StoreClearSection) {
+  function toggle(id: PolicyDataSection) {
     setSelected((prev) => ({ ...prev, [id]: !prev[id] }));
     setDownloaded(false);
   }
@@ -189,8 +173,8 @@ export function DataResetClient({
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="rounded-md border border-amber-300/60 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-100">
         Устгахаас өмнө сонгосон DATA-г JSON файлаар татаж авна уу. Татсан
-        файлаа буцааж upload хийж сэргээж болно. Template / master хуудас,
-        эрсдэлийн босго, алба·хуудас холболт хадгалагдана. Зөвхөн Admin.
+        файлаа буцааж upload хийж сэргээж болно. Үндсэн журам / ажлын байрны
+        каталог (`db.json`) болон reference map үлдэнэ. Зөвхөн Admin.
       </div>
 
       <fieldset className="space-y-2">
@@ -250,8 +234,7 @@ export function DataResetClient({
         </h3>
         <p className="text-xs text-[var(--muted)]">
           Дээр сонгосон хэсгүүдийг файлын агуулгаар{" "}
-          <strong className="text-[var(--fg)]">бүрэн солино</strong>. Зөвхөн
-          энэ аппын «DATA татах» файлаа ашиглана.
+          <strong className="text-[var(--fg)]">бүрэн солино</strong>.
         </p>
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-[var(--fg)]">JSON файл</span>

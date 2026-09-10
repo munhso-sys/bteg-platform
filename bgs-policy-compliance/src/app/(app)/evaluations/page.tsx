@@ -5,7 +5,10 @@ import {
   listEvaluatedPoliciesByScoreAsc,
   listEvaluations,
   listPositionEvaluationSummaries,
+  listAttentionEvaluations,
+  listNotedEvaluations,
 } from "@/lib/db/repository";
+import { AttentionNotificationsPanel } from "@/components/policies/attention-notifications-panel";
 import { ExportLink } from "@/components/ui/export-link";
 import { formatDate, truncate } from "@/lib/utils";
 import { EvaluationsDetailTree } from "./evaluations-detail-tree";
@@ -20,12 +23,15 @@ function unitLabel(
 }
 
 export default async function EvaluationsPage() {
-  const [policyRows, positionRows, detailRows, policyOrg] = await Promise.all([
-    listEvaluatedPoliciesByScoreAsc(),
-    listPositionEvaluationSummaries(),
-    listEvaluations(),
-    getPolicyOrgAssignments(),
-  ]);
+  const [policyRows, positionRows, detailRows, policyOrg, attentionItems, notedItems] =
+    await Promise.all([
+      listEvaluatedPoliciesByScoreAsc(),
+      listPositionEvaluationSummaries(),
+      listEvaluations(),
+      getPolicyOrgAssignments(),
+      listAttentionEvaluations(20),
+      listNotedEvaluations(40),
+    ]);
 
   return (
     <div className="space-y-4">
@@ -49,6 +55,14 @@ export default async function EvaluationsPage() {
           </>
         }
       />
+
+      {(attentionItems.length > 0 || notedItems.length > 0) ? (
+        <AttentionNotificationsPanel
+          urgentItems={attentionItems}
+          noteItems={notedItems}
+          title="Анхаарах үнэлгээ (дундажаас хассан)"
+        />
+      ) : null}
 
       <Panel title="Үнэлсэн журмууд (бага → их)">
         <div className="max-h-[420px] overflow-auto">

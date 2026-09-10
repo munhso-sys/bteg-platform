@@ -213,9 +213,15 @@ async function writeFileReplace(filePath: string, contents: string) {
 
 async function readRemoteDb(): Promise<LocalDatabase> {
   const organizationId = await resolvePolicyOrganizationId();
-  const row = organizationId
+  // Prefer org partition when embed scope is present; if the org row (or
+  // org_app_data_store table) is missing, fall back to the legacy global
+  // mega-row so Production keeps serving real policies until P0-03 backfill.
+  let row = organizationId
     ? await loadOrgRemoteRow(organizationId, REMOTE_KEYS.db)
-    : await loadRemoteRow(REMOTE_KEYS.db);
+    : null;
+  if (!row) {
+    row = await loadRemoteRow(REMOTE_KEYS.db);
+  }
   if (row) {
     const remote = decodeRemotePayload<LocalDatabase>(row.payload);
     if (remote && Array.isArray(remote.policies)) return remote;
@@ -243,6 +249,7 @@ async function readRemoteDb(): Promise<LocalDatabase> {
       : null;
     if (remote && Array.isArray(remote.policies)) return remote;
   }
+  // Org table may not exist yet — last resort global already tried above.
   throw new Error("Supabase дээр db seed хийж чадсангүй");
 }
 
@@ -310,11 +317,9 @@ export async function writeDb(db: LocalDatabase): Promise<void> {
   const run = writeQueue.then(async () => {
     if (preferRemoteStore()) {
       const organizationId = await resolvePolicyOrganizationId();
-      if (!organizationId) {
-        throw new Error(
-          "Policy remote write refused without organization scope (P0-03)",
-        );
-      }
+      // Prefer org partition when embed has heltesId; otherwise (or if org
+      // table is missing) write the legacy global mega-row so Production
+      // admin/full-scope edits keep working until P0-03 is fully provisioned.
       const ok = await saveRemotePayload(REMOTE_KEYS.db, db, organizationId);
       if (!ok) {
         throw new Error("Supabase дээр өгөгдөл хадгалж чадсангүй");
@@ -358,13 +363,18 @@ export async function updateDb(
     const maxAttempts = 6;
     let lastStatus: "ok" | "conflict" | "error" = "error";
     const organizationId = await resolvePolicyOrganizationId();
-    if (!organizationId) {
-      throw new Error(
-        "Policy remote update refused without organization scope (P0-03)",
-      );
-    }
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const row = await loadOrgRemoteRow(organizationId, REMOTE_KEYS.db);
+      // Prefer org partition when present; otherwise use global mega-row.
+      // Admin/full embeds often have no heltesId — those must write global.
+      let writeOrganizationId: string | null = organizationId;
+      let row = organizationId
+        ? await loadOrgRemoteRow(organizationId, REMOTE_KEYS.db)
+        : null;
+      if (!row) {
+        row = await loadRemoteRow(REMOTE_KEYS.db);
+        writeOrganizationId = null;
+      }
+
       let db: LocalDatabase;
       let expectedUpdatedAt: string | null = null;
 
@@ -385,7 +395,7 @@ export async function updateDb(
         REMOTE_KEYS.db,
         db,
         expectedUpdatedAt,
-        organizationId,
+        writeOrganizationId,
       );
       if (lastStatus === "ok") {
         rememberDb(db);

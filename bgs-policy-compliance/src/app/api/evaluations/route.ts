@@ -34,6 +34,18 @@ const schema = z.object({
   ]),
   comment: z.string().nullable().optional(),
   evidence_text: z.string().nullable().optional(),
+  exclude_from_average: z.boolean().optional(),
+}).superRefine((body, ctx) => {
+  if (body.exclude_from_average === true) {
+    const comment = (body.comment ?? "").trim();
+    if (!comment) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["comment"],
+        message: "Дундажаас хасах үед тайлбар заавал шаардлагатай",
+      });
+    }
+  }
 });
 
 export async function POST(req: Request) {
@@ -86,6 +98,7 @@ export async function POST(req: Request) {
         status: body.status,
         comment: body.comment,
         evidence_text: body.evidence_text,
+        exclude_from_average: body.exclude_from_average === true,
       });
       count = 1;
     } else {
@@ -100,6 +113,7 @@ export async function POST(req: Request) {
         status: body.status,
         comment: body.comment,
         evidence_text: body.evidence_text,
+        exclude_from_average: body.exclude_from_average === true,
         ensureLinks: clauseIds.length === 1,
       });
     }

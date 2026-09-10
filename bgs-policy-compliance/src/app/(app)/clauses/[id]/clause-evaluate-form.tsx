@@ -111,14 +111,23 @@ export function ClauseEvaluateForm({
       return;
     }
 
+    const excludeFromAverage = fd.get("exclude_from_average") === "on";
+    const comment = String(fd.get("comment") || "").trim() || null;
+    if (excludeFromAverage && !comment) {
+      setError("Дундажаас хасах үед тайлбар заавал шаардлагатай");
+      setPending(false);
+      return;
+    }
+
     const baseBody = {
       policy_clause_id: clauseId,
       responsibility_type: option.responsibility_type,
       evaluation_period: fd.get("evaluation_period"),
       score: Number(fd.get("score")),
       status: fd.get("status"),
-      comment: fd.get("comment") || null,
+      comment,
       evidence_text: fd.get("evidence_text") || null,
+      exclude_from_average: excludeFromAverage,
     };
     const ids = option.job_position_ids;
     const chunks: string[][] = [];
@@ -228,6 +237,20 @@ export function ClauseEvaluateForm({
         className="w-full rounded border border-slate-300 px-2 py-1.5"
         placeholder="Нотлох баримт"
       />
+      <label className="flex items-start gap-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-2 text-xs text-amber-950 dark:text-amber-100">
+        <input
+          type="checkbox"
+          name="exclude_from_average"
+          className="mt-0.5"
+        />
+        <span>
+          <span className="font-medium">Дундажаас хасах / Анхаарах</span>
+          <span className="mt-0.5 block text-[11px] text-amber-900/80 dark:text-amber-100/80">
+            Role холбох боломжгүй эсвэл өөрчлөлт шаардлагатай үед тэмдэглэнэ.
+            Оноо хадгалагдана, харин журам/байрны голч дүнд орохгүй.
+          </span>
+        </span>
+      </label>
       {error ? <p className="text-xs text-rose-600">{error}</p> : null}
       {okMsg ? <p className="text-xs text-emerald-700">{okMsg}</p> : null}
       <button

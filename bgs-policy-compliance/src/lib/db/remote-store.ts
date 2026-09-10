@@ -177,15 +177,12 @@ export async function saveRemotePayload(
 ): Promise<boolean> {
   const org = organizationId?.trim();
   if (org) {
-    return saveOrgRemotePayload(org, key, payload);
-  }
-  // Platform-wide override catalogs may still use legacy key until normalized.
-  // Tenant mega-db must not write unscoped.
-  if (key === REMOTE_KEYS.db) {
+    const ok = await saveOrgRemotePayload(org, key, payload);
+    if (ok) return true;
+    // org_app_data_store may be missing on Production — fall through to global.
     console.warn(
-      "[remote-store] refused unscoped policy_compliance_db write (P0-03)",
+      `[remote-store] org save failed for ${org}/${key}; falling back to global app_data_store`,
     );
-    return false;
   }
   if (!isSupabaseConfigured()) return false;
   const client = createServerSupabaseClient();
@@ -265,13 +262,6 @@ export async function saveRemotePayloadIfMatch(
     }
     if (!data?.length) return "conflict";
     return "ok";
-  }
-
-  if (key === REMOTE_KEYS.db) {
-    console.warn(
-      "[remote-store] refused unscoped policy_compliance_db conditional write (P0-03)",
-    );
-    return "error";
   }
 
   if (expectedUpdatedAt == null) {

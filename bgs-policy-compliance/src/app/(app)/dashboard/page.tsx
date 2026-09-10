@@ -3,7 +3,13 @@ import { PageHeader, Panel, KpiCard } from "@/components/ui/primitives";
 import { ResponsibilityBarChart } from "@/components/charts/charts";
 import { RESPONSIBILITY_LABELS } from "@/lib/constants";
 import { listOrgUnitComplianceRows } from "@/lib/db/org";
-import { getDashboardStats, getDataQualityWarnings } from "@/lib/db/repository";
+import {
+  getDashboardStats,
+  getDataQualityWarnings,
+  listAttentionEvaluations,
+  listNotedEvaluations,
+} from "@/lib/db/repository";
+import { AttentionNotificationsPanel } from "@/components/policies/attention-notifications-panel";
 import { OrgUnitComplianceTable } from "./org-unit-compliance-table";
 import { getPolicyScope } from "@/lib/access/scope";
 import { isUnitScoped } from "@/lib/access/embed";
@@ -14,11 +20,14 @@ export default async function DashboardPage() {
   // Do not mutate org data during dashboard render (P0-03).
   // Naming corrections belong on explicit scoped maintenance paths only.
   const scope = await getPolicyScope();
-  const [stats, warnings, unitRowsRaw] = await Promise.all([
-    getDashboardStats(),
-    getDataQualityWarnings(),
-    listOrgUnitComplianceRows(),
-  ]);
+  const [stats, warnings, unitRowsRaw, attentionItems, notedItems] =
+    await Promise.all([
+      getDashboardStats(),
+      getDataQualityWarnings(),
+      listOrgUnitComplianceRows(),
+      listAttentionEvaluations(25),
+      listNotedEvaluations(40),
+    ]);
 
   const unitRows = isUnitScoped(scope)
     ? unitRowsRaw.filter((row) => {
@@ -72,16 +81,21 @@ export default async function DashboardPage() {
         <KpiCard label="Дундаж оноо" value={stats.averageScore ?? "—"} />
         <KpiCard label="Нийцээгүй" value={stats.nonCompliantCount} />
         <KpiCard
-          label="Хамгийн бага дундажтай нэгж"
-          value={stats.lowestAverageUnit?.name ?? "—"}
-          hint={
-            stats.lowestAverageUnit
-              ? `дундаж оноо ${stats.lowestAverageUnit.avg}`
-              : "Үнэлгээ байхгүй"
-          }
+          label="Анхаарах"
+          value={stats.attentionCount ?? 0}
+          hint="Дундажаас хассан тэмдэглэгээ"
           compact
         />
       </div>
+
+      {(attentionItems.length > 0 || notedItems.length > 0) ? (
+        <div className="mb-4">
+          <AttentionNotificationsPanel
+            urgentItems={attentionItems}
+            noteItems={notedItems}
+          />
+        </div>
+      ) : null}
 
       <div className="grid min-w-0 gap-3 lg:grid-cols-2">
         <Panel title="Үүргийн төрлөөрх биелэлт" className="min-w-0">

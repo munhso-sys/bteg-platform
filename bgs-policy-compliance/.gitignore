@@ -49,3 +49,12 @@ data/local/db.json.tmp
 # Never commit plaintext Vercel / API token dumps
 vercel token.txt
 **/vercel token.txt
+
+# Local data dumps and transcript extract scratch
+policy-compliance-data-*.json
+scripts/_extracted/
+scripts/_extracted_v2/
+scripts/tmp-*
+scripts/extract-transcript*.mjs
+scripts/scan-transcript*.mjs
+scripts/restore-prod-ui-now.mjs

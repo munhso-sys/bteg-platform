@@ -100,13 +100,15 @@ export async function getPolicyDetailForPosition(
     positions,
     trees,
     latestEvaluations,
-    avgScore:
-      latestEvaluations.length === 0
-        ? null
-        : Math.round(
-            (latestEvaluations.reduce((s, e) => e.score + s, 0) /
-              latestEvaluations.length) *
-              10,
-          ) / 10,
+    avgScore: (() => {
+      const scores = latestEvaluations
+        .filter((e) => e.exclude_from_average !== true)
+        .map((e) => e.score);
+      if (!scores.length) return null;
+      return Math.round((scores.reduce((s, n) => s + n, 0) / scores.length) * 10) / 10;
+    })(),
+    attentionCount: latestEvaluations.filter(
+      (e) => e.exclude_from_average === true,
+    ).length,
   };
 }

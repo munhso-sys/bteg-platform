@@ -23,7 +23,7 @@ import {
 import { withBasePath } from "@/lib/paths";
 import { cn } from "@/lib/utils";
 import type { ResponsibilityType } from "@/lib/types";
-import { UnlinkResponsibilityButton } from "./unlink-responsibility-button";
+import { EditResponsibilityLinkMenu } from "@/components/policies/edit-responsibility-link-menu";
 import {
   ClauseEvaluateForm,
   type EvaluateLinkOption,
@@ -288,9 +288,10 @@ function PositionRow({
         </Badge>
         <ScoreChip score={l.score} />
         {!readOnly ? (
-          <UnlinkResponsibilityButton
-            linkId={l.id}
-            label={`${l.positionName} · ${RESPONSIBILITY_LABELS[l.responsibility_type]}`}
+          <EditResponsibilityLinkMenu
+            linkIds={[l.id]}
+            positionName={l.positionName}
+            responsibilityType={l.responsibility_type}
           />
         ) : null}
       </div>

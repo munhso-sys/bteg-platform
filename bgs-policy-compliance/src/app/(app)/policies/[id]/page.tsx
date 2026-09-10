@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { PolicyScopeWorkbench } from "@/components/policies/policy-scope-workbench";
 import { ContextBackLink } from "@/components/policies/policy-back-link";
-import { Badge, PageHeader, Panel, ScoreChip } from "@/components/ui/primitives";
+import { Badge, PageHeader, ScoreChip } from "@/components/ui/primitives";
+import { CollapsiblePanel } from "@/components/ui/collapsible-panel";
 import {
   POLICY_STATUS_LABELS,
   RESPONSIBILITY_LABELS,
@@ -171,14 +172,19 @@ export default async function PolicyDetailPage({
   const scores = new Map(
     detail.latestEvaluations.map((e) => [
       `${e.policy_clause_id}:${e.job_position_id}:${e.responsibility_type}`,
-      e.score,
+      e,
     ]),
   );
+  const evidenceById =
+    "evaluationEvidenceById" in detail && detail.evaluationEvidenceById
+      ? (detail.evaluationEvidenceById as Record<string, string>)
+      : {};
 
   const clauseRows = detail.clauses.map((c) => ({
     id: c.id,
     label: `${c.reference_number || "—"} ${c.text.slice(0, 60)}`,
     sectionId: c.section_id,
+    parentId: c.parent_id,
   }));
   const sectionRows = detail.sections.map((s) => ({
     id: s.id,
@@ -197,6 +203,9 @@ export default async function PolicyDetailPage({
 
   const linkRows: LinkScoreRow[] = detail.responsibilities.map((r) => {
     const org = orgLabels.get(r.job_position_id);
+    const evaluation = scores.get(
+      `${r.policy_clause_id}:${r.job_position_id}:${r.responsibility_type}`,
+    );
     return {
       id: r.id,
       policy_clause_id: r.policy_clause_id,
@@ -205,11 +214,21 @@ export default async function PolicyDetailPage({
       positionName: positionNames.get(r.job_position_id) ?? r.job_position_id,
       heltesName: org?.heltesName,
       albaName: org?.albaName,
-      score:
-        scores.get(
-          `${r.policy_clause_id}:${r.job_position_id}:${r.responsibility_type}`,
-        ) ?? null,
+      score: evaluation?.score ?? null,
       notes: r.notes,
+      excludeFromAverage: evaluation?.exclude_from_average === true,
+      hasCountedNote:
+        evaluation != null &&
+        evaluation.exclude_from_average !== true &&
+        !!(
+          evaluation.comment?.trim() ||
+          evidenceById[evaluation.id]?.trim()
+        ),
+      evaluationId: evaluation?.id ?? null,
+      attentionComment: evaluation?.comment ?? null,
+      attentionEvidence: evaluation
+        ? (evidenceById[evaluation.id] ?? null)
+        : null,
     };
   });
 
@@ -301,10 +320,10 @@ export default async function PolicyDetailPage({
         </div>
         {!readOnly ? (
           <div className="space-y-3">
-            <Panel title="Хэсэг нэмэх">
+            <CollapsiblePanel title="Хэсэг нэмэх" defaultOpen={false}>
               <AddSectionForm policyId={id} />
-            </Panel>
-            <Panel title="Зүйл нэмэх">
+            </CollapsiblePanel>
+            <CollapsiblePanel title="Зүйл нэмэх" defaultOpen={false}>
               <AddClauseForm
                 policyId={id}
                 sections={detail.sections.map((s) => ({
@@ -312,13 +331,21 @@ export default async function PolicyDetailPage({
                   label: `${s.reference_number || ""} ${s.text || s.id}`.trim(),
                 }))}
               />
-            </Panel>
-            <Panel title="Холбогдсон ажлын байр">
+            </CollapsiblePanel>
+            <CollapsiblePanel
+              title="Холбогдсон ажлын байр"
+              defaultOpen={false}
+              badge={
+                <span className="rounded bg-[var(--surface-muted)] px-1.5 py-0.5 text-[10px] tabular-nums text-[var(--muted)]">
+                  {detail.positions.length}
+                </span>
+              }
+            >
               <ul className="max-h-80 space-y-1 overflow-auto text-sm">
                 {detail.positions.map((p) => (
                   <li key={p.id}>
                     <Link
-                      href={`/positions/${p.id}`}
+                      href={`/positions/${p.id}?from=policy&policyId=${encodeURIComponent(id)}`}
                       className="hover:underline"
                     >
                       {p.name}
@@ -326,10 +353,10 @@ export default async function PolicyDetailPage({
                   </li>
                 ))}
                 {!detail.positions.length ? (
-                  <li className="text-slate-500">Холбоосгүй.</li>
+                  <li className="text-[var(--muted)]">Холбоосгүй.</li>
                 ) : null}
               </ul>
-            </Panel>
+            </CollapsiblePanel>
           </div>
         ) : null}
       </div>

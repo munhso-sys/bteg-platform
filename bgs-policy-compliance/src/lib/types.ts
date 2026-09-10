@@ -148,6 +148,12 @@ export interface ComplianceEvaluation {
   score: number;
   status: ComplianceStatus;
   comment: string | null;
+  /**
+   * When true: recorded for audit/attention but excluded from policy/position
+   * average scores (e.g. role cannot apply / needs special change note).
+   * Older rows may omit this field (treat as false).
+   */
+  exclude_from_average?: boolean;
   evaluated_at: string;
   created_at: string;
   updated_at: string;

@@ -1,13 +1,17 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
-/** Restore Хэлтэс drawer, or return to Журмууд / Ажлын байр lists. */
+/** Restore Хэлтэс drawer, or return to Журмууд / Ажлын байр / журмын дэлгэрэнгүй. */
 export function contextBackHref(input: {
   from?: string | null;
   heltesId?: string | null;
   albaId?: string | null;
   tab?: string | null;
+  policyId?: string | null;
 }) {
+  if (input.from === "policy" && input.policyId) {
+    return `/policies/${input.policyId}`;
+  }
   if (input.from === "org" && input.heltesId && input.albaId) {
     const qs = new URLSearchParams({
       heltesId: input.heltesId,
@@ -26,22 +30,26 @@ export function ContextBackLink({
   heltesId,
   albaId,
   tab,
+  policyId,
   label,
 }: {
   from?: string | null;
   heltesId?: string | null;
   albaId?: string | null;
   tab?: string | null;
+  policyId?: string | null;
   label?: string;
 }) {
-  const href = contextBackHref({ from, heltesId, albaId, tab });
+  const href = contextBackHref({ from, heltesId, albaId, tab, policyId });
   const text =
     label ??
-    (from === "org"
-      ? "Хэлтэс рүү буцах"
-      : from === "positions"
-        ? "Ажлын байр руу буцах"
-        : "Журмууд руу буцах");
+    (from === "policy" && policyId
+      ? "Журмын үнэлгээ рүү буцах"
+      : from === "org"
+        ? "Хэлтэс рүү буцах"
+        : from === "positions"
+          ? "Ажлын байр руу буцах"
+          : "Журмууд руу буцах");
 
   return (
     <Link
@@ -62,6 +70,7 @@ export function PolicyBackLink(props: {
   heltesId?: string | null;
   albaId?: string | null;
   tab?: string | null;
+  policyId?: string | null;
 }) {
   return <ContextBackLink {...props} />;
 }
@@ -72,6 +81,7 @@ export function policyBackHref(input: {
   heltesId?: string | null;
   albaId?: string | null;
   tab?: string | null;
+  policyId?: string | null;
 }) {
   return contextBackHref(input);
 }

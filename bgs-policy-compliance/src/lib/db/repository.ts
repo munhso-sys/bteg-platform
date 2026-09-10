@@ -1,4 +1,5 @@
 import { avg } from "@/lib/utils";
+import { scoresForAverage, isExcludedFromAverage } from "@/lib/evaluation-attention";
 import { readDb, updateDb, newId, type LocalDatabase } from "./local-store";
 import type {
   ClausePositionResponsibility,
@@ -91,6 +92,7 @@ export async function getDashboardStats() {
     DEPLOYMENT: [],
   };
   for (const e of latest) {
+    if (isExcludedFromAverage(e)) continue;
     byType[e.responsibility_type].push(e.score);
   }
 
@@ -161,6 +163,7 @@ export async function getDashboardStats() {
   }
 
   for (const e of latest) {
+    if (isExcludedFromAverage(e)) continue;
     const pos = positionById.get(e.job_position_id);
     const heltesKey = resolveHeltesName(pos);
     const unitKey = resolveUnitName(pos);
@@ -207,8 +210,13 @@ export async function getDashboardStats() {
       links.length === 0
         ? 0
         : Math.round((new Set(latest.map((e) => `${e.policy_clause_id}:${e.job_position_id}:${e.responsibility_type}`)).size / links.length) * 1000) / 10,
-    averageScore: avg(latest.map((e) => e.score)),
-    nonCompliantCount: latest.filter((e) => e.score < 40 || e.status === "non_compliant").length,
+    averageScore: avg(scoresForAverage(latest)),
+    attentionCount: latest.filter((e) => isExcludedFromAverage(e)).length,
+    nonCompliantCount: latest.filter(
+      (e) =>
+        !isExcludedFromAverage(e) &&
+        (e.score < 40 || e.status === "non_compliant"),
+    ).length,
     highRiskDepartments: deptAvgs.slice(0, 5),
     lowestAverageUnit: unitAvgs[0] ?? null,
     scoreByResponsibility: (Object.keys(byType) as ResponsibilityType[]).map((t) => ({
@@ -301,6 +309,15 @@ export async function getPolicyDetail(id: string) {
     ),
   );
 
+  const evaluationEvidenceById = new Map<string, string>();
+  const latestIds = new Set(latest.map((e) => e.id));
+  for (const ev of db.evaluation_evidence) {
+    if (!latestIds.has(ev.evaluation_id) || !ev.content?.trim()) continue;
+    if (!evaluationEvidenceById.has(ev.evaluation_id)) {
+      evaluationEvidenceById.set(ev.evaluation_id, ev.content.trim());
+    }
+  }
+
   const trees = sections.map((section) => ({
     section,
     tree: buildClauseTree(clauses, responsibilities, section.id),
@@ -332,7 +349,9 @@ export async function getPolicyDetail(id: string) {
     scope,
     trees,
     latestEvaluations: latest,
-    avgScore: avg(latest.map((e) => e.score)),
+    evaluationEvidenceById: Object.fromEntries(evaluationEvidenceById),
+    avgScore: avg(scoresForAverage(latest)),
+    attentionCount: latest.filter((e) => isExcludedFromAverage(e)).length,
   };
 }
 
@@ -442,7 +461,7 @@ export async function getPositionDetail(id: string) {
     policies,
     evaluations: evals,
     latestEvaluations: latest,
-    avgScore: avg(latest.map((e) => e.score)),
+    avgScore: avg(scoresForAverage(latest)),
     counts: {
       clauses: clauseIds.size,
       policies: policyIds.size,
@@ -540,7 +559,12 @@ export async function listEvaluatedPoliciesByScoreAsc() {
 
   const byPolicy = new Map<
     string,
-    { scores: number[]; lastAt: string; clauseIds: Set<string> }
+    {
+      scores: number[];
+      lastAt: string;
+      clauseIds: Set<string>;
+      attentionCount: number;
+    }
   >();
 
   for (const e of latest) {
@@ -552,8 +576,13 @@ export async function listEvaluatedPoliciesByScoreAsc() {
       scores: [],
       lastAt: e.evaluated_at,
       clauseIds: new Set<string>(),
+      attentionCount: 0,
     };
-    row.scores.push(e.score);
+    if (!isExcludedFromAverage(e)) {
+      row.scores.push(e.score);
+    } else {
+      row.attentionCount += 1;
+    }
     row.clauseIds.add(clause.id);
     if (new Date(e.evaluated_at).getTime() > new Date(row.lastAt).getTime()) {
       row.lastAt = e.evaluated_at;
@@ -567,7 +596,8 @@ export async function listEvaluatedPoliciesByScoreAsc() {
       return {
         policy,
         avgScore: avg(row.scores) ?? 0,
-        evaluationCount: row.scores.length,
+        evaluationCount: row.scores.length + row.attentionCount,
+        attentionCount: row.attentionCount,
         clauseCount: row.clauseIds.size,
         lastEvaluatedAt: row.lastAt,
       };
@@ -588,7 +618,12 @@ export async function listPositionEvaluationSummaries() {
 
   const byPosition = new Map<
     string,
-    { scores: number[]; lastAt: string; policyIds: Set<string> }
+    {
+      scores: number[];
+      lastAt: string;
+      policyIds: Set<string>;
+      attentionCount: number;
+    }
   >();
   const clauseMap = new Map(db.policy_clauses.map((c) => [c.id, c]));
 
@@ -599,8 +634,13 @@ export async function listPositionEvaluationSummaries() {
       scores: [],
       lastAt: e.evaluated_at,
       policyIds: new Set<string>(),
+      attentionCount: 0,
     };
-    row.scores.push(e.score);
+    if (!isExcludedFromAverage(e)) {
+      row.scores.push(e.score);
+    } else {
+      row.attentionCount += 1;
+    }
     if (clause) row.policyIds.add(clause.policy_id);
     if (new Date(e.evaluated_at).getTime() > new Date(row.lastAt).getTime()) {
       row.lastAt = e.evaluated_at;
@@ -617,7 +657,8 @@ export async function listPositionEvaluationSummaries() {
           [position.heltes_name, position.alba_name].filter(Boolean).join(" · ") ||
           "Ангилагдаагүй",
         avgScore: avg(row.scores) ?? 0,
-        evaluationCount: row.scores.length,
+        evaluationCount: row.scores.length + row.attentionCount,
+        attentionCount: row.attentionCount,
         policyCount: row.policyIds.size,
         lastEvaluatedAt: row.lastAt,
       };
@@ -640,6 +681,7 @@ export async function createEvaluation(input: {
   status: ComplianceEvaluation["status"];
   comment?: string | null;
   evidence_text?: string | null;
+  exclude_from_average?: boolean;
 }) {
   return updateDb((db) => {
     const now = new Date().toISOString();
@@ -678,6 +720,7 @@ export async function createEvaluation(input: {
       score: input.score,
       status: input.status,
       comment: input.comment ?? null,
+      exclude_from_average: input.exclude_from_average === true,
       evaluated_at: now,
       created_at: now,
       updated_at: now,
@@ -988,6 +1031,58 @@ export async function deactivateResponsibility(linkId: string) {
   return found;
 }
 
+/**
+ * Change responsibility type on an active link.
+ * Purges evaluations keyed by the old type. If another active link already
+ * exists for the new type on the same clause↔position, the current link is
+ * soft-unlinked instead (avoids duplicate keys).
+ */
+export async function updateResponsibilityType(
+  linkId: string,
+  nextType: ResponsibilityType,
+): Promise<
+  | { ok: true; mode: "updated" | "merged" | "unchanged" }
+  | { ok: false; reason: "not_found" }
+> {
+  let result:
+    | { ok: true; mode: "updated" | "merged" | "unchanged" }
+    | { ok: false; reason: "not_found" } = { ok: false, reason: "not_found" };
+
+  await updateDb((db) => {
+    const link = db.clause_position_responsibilities.find(
+      (r) => r.id === linkId && r.is_active,
+    );
+    if (!link) return;
+    if (link.responsibility_type === nextType) {
+      result = { ok: true, mode: "unchanged" };
+      return;
+    }
+
+    const conflict = db.clause_position_responsibilities.find(
+      (r) =>
+        r.is_active &&
+        r.id !== linkId &&
+        r.policy_clause_id === link.policy_clause_id &&
+        r.job_position_id === link.job_position_id &&
+        r.responsibility_type === nextType,
+    );
+
+    const oldKey = `${link.policy_clause_id}:${link.job_position_id}:${link.responsibility_type}`;
+    purgeEvaluationsForKeys(db, new Set([oldKey]));
+
+    if (conflict) {
+      deactivateLinkAndPurgeEvals(db, link);
+      result = { ok: true, mode: "merged" };
+      return;
+    }
+
+    link.responsibility_type = nextType;
+    result = { ok: true, mode: "updated" };
+  });
+
+  return result;
+}
+
 export async function deactivateResponsibilities(linkIds: string[]) {
   const idSet = new Set(linkIds.filter(Boolean));
   let count = 0;
@@ -1017,7 +1112,20 @@ export async function deactivateResponsibilitiesByScope(input: {
   await updateDb((db) => {
     let clauseIds: Set<string> | null = null;
     if (input.clause_id) {
-      clauseIds = new Set([input.clause_id]);
+      const live = db.policy_clauses.filter((c) => !c.is_deleted);
+      const children = new Map<string, string[]>();
+      for (const c of live) {
+        if (!c.parent_id) continue;
+        const list = children.get(c.parent_id) ?? [];
+        list.push(c.id);
+        children.set(c.parent_id, list);
+      }
+      clauseIds = new Set<string>();
+      const walk = (id: string) => {
+        clauseIds!.add(id);
+        for (const childId of children.get(id) ?? []) walk(childId);
+      };
+      walk(input.clause_id);
     } else if (input.section_id) {
       clauseIds = new Set(
         db.policy_clauses
@@ -1109,6 +1217,7 @@ export async function createEvaluationsBulk(input: {
   status: ComplianceEvaluation["status"];
   comment?: string | null;
   evidence_text?: string | null;
+  exclude_from_average?: boolean;
   /** When true, create missing links for single-clause bulk scores. */
   ensureLinks?: boolean;
 }) {
@@ -1116,6 +1225,7 @@ export async function createEvaluationsBulk(input: {
   const positionIds = [...new Set(input.job_position_ids.filter(Boolean))];
   if (!clauseIds.length || !positionIds.length) return 0;
   const ensureLinks = input.ensureLinks === true;
+  const excludeFromAverage = input.exclude_from_average === true;
 
   let count = 0;
   await updateDb((db) => {
@@ -1167,6 +1277,7 @@ export async function createEvaluationsBulk(input: {
           score: input.score,
           status: input.status,
           comment: input.comment ?? null,
+          exclude_from_average: excludeFromAverage,
           evaluated_at: now,
           created_at: now,
           updated_at: now,
@@ -1190,6 +1301,140 @@ export async function createEvaluationsBulk(input: {
     }
   });
   return count;
+}
+
+/** Latest evaluations flagged for attention (excluded from averages). */
+export async function listAttentionEvaluations(limit = 40) {
+  return listAttentionFeedItems({ mode: "exclude", limit });
+}
+
+/** Latest evaluations with notes that still count in averages. */
+export async function listNotedEvaluations(limit = 60) {
+  return listAttentionFeedItems({ mode: "note", limit });
+}
+
+async function listAttentionFeedItems(input: {
+  mode: "exclude" | "note";
+  limit: number;
+}) {
+  const db = await readDb();
+  const evidenceByEval = new Map<string, string>();
+  for (const ev of db.evaluation_evidence) {
+    if (!ev.content?.trim()) continue;
+    if (!evidenceByEval.has(ev.evaluation_id)) {
+      evidenceByEval.set(ev.evaluation_id, ev.content.trim());
+    }
+  }
+
+  const latest = latestEvaluations(
+    evaluationsWithActiveLinks(
+      db.compliance_evaluations,
+      db.clause_position_responsibilities,
+    ),
+  ).filter((e) => {
+    if (input.mode === "exclude") return isExcludedFromAverage(e);
+    if (isExcludedFromAverage(e)) return false;
+    return !!(e.comment?.trim() || evidenceByEval.get(e.id));
+  });
+
+  const clauseById = new Map(db.policy_clauses.map((c) => [c.id, c]));
+  const policyById = new Map(db.policies.map((p) => [p.id, p]));
+  const positionById = new Map(db.job_positions.map((p) => [p.id, p]));
+  const sectionById = new Map(
+    db.policy_sections.filter((s) => !s.is_deleted).map((s) => [s.id, s]),
+  );
+
+  return latest
+    .map((e) => {
+      const clause = clauseById.get(e.policy_clause_id);
+      if (!clause || clause.is_deleted) return null;
+      const policy = policyById.get(clause.policy_id);
+      if (!policy || policy.is_deleted) return null;
+      const position = positionById.get(e.job_position_id);
+      const section = clause.section_id
+        ? sectionById.get(clause.section_id)
+        : null;
+      const sectionLabel = section
+        ? `Хэсэг ${section.reference_number || ""} ${section.text || ""}`.trim()
+        : "Хэсэггүй";
+      return {
+        evaluationId: e.id,
+        policyId: policy.id,
+        policyName: policy.name,
+        sectionId: section?.id ?? "__orphan__",
+        sectionLabel,
+        clauseId: clause.id,
+        clauseRef: clause.reference_number,
+        clauseText: clause.text || "",
+        positionId: e.job_position_id,
+        positionName: position?.name ?? e.job_position_id,
+        score: e.score,
+        comment: e.comment,
+        evidence: evidenceByEval.get(e.id) ?? null,
+        evaluatedAt: e.evaluated_at,
+        href: `/policies/${policy.id}`,
+      };
+    })
+    .filter((x): x is NonNullable<typeof x> => !!x)
+    .sort(
+      (a, b) =>
+        new Date(b.evaluatedAt).getTime() - new Date(a.evaluatedAt).getTime(),
+    )
+    .slice(0, input.limit);
+}
+
+export async function updateEvaluationAttention(
+  evaluationId: string,
+  input: {
+    comment?: string | null;
+    evidence_text?: string | null;
+    exclude_from_average?: boolean;
+  },
+) {
+  let ok = false;
+  await updateDb((db) => {
+    const evaluation = db.compliance_evaluations.find(
+      (e) => e.id === evaluationId,
+    );
+    if (!evaluation) return;
+    const now = new Date().toISOString();
+    if (input.comment !== undefined) {
+      evaluation.comment = input.comment?.trim() || null;
+    }
+    if (input.exclude_from_average !== undefined) {
+      evaluation.exclude_from_average = input.exclude_from_average;
+    }
+    evaluation.updated_at = now;
+
+    if (input.evidence_text !== undefined) {
+      const text = input.evidence_text?.trim() || "";
+      const existing = db.evaluation_evidence.find(
+        (ev) => ev.evaluation_id === evaluationId,
+      );
+      if (text) {
+        if (existing) {
+          existing.content = text;
+          existing.title = existing.title || "Үнэлгээний нотлох баримт";
+        } else {
+          db.evaluation_evidence.push({
+            id: newId(),
+            evaluation_id: evaluationId,
+            evidence_type: "text",
+            title: "Үнэлгээний нотлох баримт",
+            content: text,
+            url: null,
+            file_path: null,
+            metadata: {},
+            created_at: now,
+          });
+        }
+      } else if (existing) {
+        existing.content = null;
+      }
+    }
+    ok = true;
+  });
+  return ok;
 }
 
 function normalizeOfficialCode(value: string | null | undefined) {
@@ -1470,6 +1715,21 @@ export async function getDataQualityWarnings(): Promise<DataQualityWarning[]> {
       message: "Нотлох баримтгүй үнэлгээ",
       entity_type: "compliance_evaluation",
       count: noEvidence.length,
+    });
+  }
+
+  const attentionLatest = latestEvaluations(
+    evaluationsWithActiveLinks(
+      db.compliance_evaluations,
+      db.clause_position_responsibilities,
+    ),
+  ).filter((e) => isExcludedFromAverage(e));
+  if (attentionLatest.length) {
+    warnings.push({
+      code: "evaluation_needs_attention",
+      message: "Дундажаас хассан / анхаарах үнэлгээ",
+      entity_type: "compliance_evaluation",
+      count: attentionLatest.length,
     });
   }
 

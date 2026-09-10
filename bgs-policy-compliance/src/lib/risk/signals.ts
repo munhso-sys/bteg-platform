@@ -3,6 +3,7 @@ import {
   getDb,
   latestEvaluations,
 } from "@/lib/db/repository";
+import { isExcludedFromAverage } from "@/lib/evaluation-attention";
 
 export type PolicyRiskSignal = {
   id: string;
@@ -57,6 +58,49 @@ export async function policyRiskSignals(): Promise<PolicyRiskSignal[]> {
   const items: PolicyRiskSignal[] = [];
 
   for (const e of latest) {
+    if (isExcludedFromAverage(e)) {
+      const clause = clauseById.get(e.policy_clause_id);
+      if (!clause || clause.is_deleted) continue;
+      const policy = policyById.get(clause.policy_id);
+      const position = positionById.get(e.job_position_id);
+      items.push({
+        id: `pol-attn-${e.id}`,
+        source: "policy",
+        sourceLabel: "Анхаарах тэмдэглэгээ",
+        title: clause.reference_number
+          ? `${clause.reference_number} · ${(clause.text || "").slice(0, 90)}`
+          : (clause.text || policy?.name || "Журмын заалт").slice(0, 110),
+        description: [
+          policy?.name,
+          "Дундажаас хассан",
+          e.comment,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        unit:
+          position?.heltes_name ||
+          position?.alba_name ||
+          position?.organization_name ||
+          "—",
+        owner: position?.name || "—",
+        severity: "high",
+        score: 85,
+        status: "open",
+        likelihood: 4,
+        impact: 4,
+        mitigation: {
+          summary:
+            e.comment?.trim() ||
+            "Role холбох боломжгүй / өөрчлөлт шаардлагатай — тайлбар шалгана уу",
+          progressPercent: Math.max(0, Math.min(100, e.score || 0)),
+          dueDate: e.period_end,
+          workStatus: "Яаралтай анхаарах",
+        },
+        href: policy ? `/policies/${policy.id}` : `/evaluations`,
+        updatedAt: e.updated_at || e.evaluated_at,
+      });
+      continue;
+    }
     if (!isAtRisk(e.status, e.score)) continue;
     const clause = clauseById.get(e.policy_clause_id);
     if (!clause || clause.is_deleted) continue;

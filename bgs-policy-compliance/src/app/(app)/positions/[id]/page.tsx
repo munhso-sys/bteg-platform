@@ -23,6 +23,7 @@ export default async function PositionDetailPage({
     heltesId?: string;
     albaId?: string;
     tab?: string;
+    policyId?: string;
   }>;
 }) {
   const { id } = await params;
@@ -66,6 +67,7 @@ export default async function PositionDetailPage({
             heltesId={sp.heltesId}
             albaId={sp.albaId}
             tab={sp.tab ?? "positions"}
+            policyId={sp.policyId}
           />
         </div>
       ) : null}

@@ -21,6 +21,7 @@ import {
 } from "@/lib/org-assign";
 import { withBasePath } from "@/lib/paths";
 import type { ResponsibilityType } from "@/lib/types";
+import { expandClauseIdsWithDescendants } from "@/lib/policy-kpis";
 import {
   OrgFolderSelect,
   type OrgTreeHeltes,
@@ -63,7 +64,12 @@ export function AssignResponsibilityForm({
   sections,
   lockedTarget,
 }: {
-  clauses: Array<{ id: string; label: string; sectionId?: string | null }>;
+  clauses: Array<{
+    id: string;
+    label: string;
+    sectionId?: string | null;
+    parentId?: string | null;
+  }>;
   tree: OrgAssignTree;
   policyId?: string;
   sections?: Array<{ id: string; label: string }>;
@@ -189,7 +195,7 @@ export function AssignResponsibilityForm({
         .filter((c) => (c.sectionId ?? null) === sid)
         .map((c) => c.id);
     }
-    return [target];
+    return expandClauseIdsWithDescendants(target, clauses);
   }, [target, clauses]);
 
   const heltesName =
@@ -313,7 +319,9 @@ export function AssignResponsibilityForm({
           ? "журмын бүх зүйлд"
           : target.startsWith("__section__:")
             ? "хэсгийн зүйлүүдэд"
-            : "зүйлд";
+            : targetClauseIds.length > 1
+              ? "зүйл болон дэд зүйлүүдэд"
+              : "зүйлд";
       setOk(`${okCount} холбоос (${scopeLabel}) хадгаллаа.`);
       router.refresh();
     } catch (err) {
@@ -329,14 +337,20 @@ export function AssignResponsibilityForm({
         <p className="rounded bg-slate-50 px-2 py-1.5 text-[11px] text-slate-600">
           Хамрах хүрээ:{" "}
           {lockedTarget === POLICY_TARGET
-            ? `Журмын бүх зүйл (${clauses.length})`
+            ? `Журмын бүх зүйл (${targetClauseIds.length})`
             : lockedTarget.startsWith("__section__:")
               ? `Хэсэг · ${
                   sections?.find(
                     (s) => s.id === lockedTarget.slice("__section__:".length),
                   )?.label ?? "—"
-                }`
-              : (clauses.find((c) => c.id === lockedTarget)?.label ?? "Зүйл")}
+                } (${targetClauseIds.length} зүйл)`
+              : `${
+                  clauses.find((c) => c.id === lockedTarget)?.label ?? "Зүйл"
+                }${
+                  targetClauseIds.length > 1
+                    ? ` + дэд зүйл (${targetClauseIds.length})`
+                    : ""
+                }`}
         </p>
       ) : (
         <select

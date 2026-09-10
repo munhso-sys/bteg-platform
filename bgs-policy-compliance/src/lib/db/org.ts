@@ -1,6 +1,10 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { avg } from "@/lib/utils";
+import {
+  isExcludedFromAverage,
+  scoresForAverage,
+} from "@/lib/evaluation-attention";
 import { getLocalDataDir, isReadOnlyFsError } from "@/lib/db/data-paths";
 import { ensureDataDir, updateDb } from "@/lib/db/local-store";
 import {
@@ -532,6 +536,7 @@ function scoreMaps(db: Awaited<ReturnType<typeof getDb>>) {
   const byPolicy = new Map<string, number[]>();
   const byPosition = new Map<string, number[]>();
   for (const e of latest) {
+    if (isExcludedFromAverage(e)) continue;
     const pid = clauseToPolicy.get(e.policy_clause_id);
     if (pid) {
       const list = byPolicy.get(pid) ?? [];
@@ -661,7 +666,9 @@ export async function listOrgUnitComplianceRows(): Promise<OrgUnitComplianceRow[
       if (!evals) continue;
       evaluationCount += evals.length;
       for (const e of evals) {
-        scores.push(e.score);
+        if (!isExcludedFromAverage(e)) {
+          scores.push(e.score);
+        }
         const policyId = clauseToPolicy.get(e.policy_clause_id);
         if (policyId) evaluatedPolicies.add(policyId);
       }
@@ -1373,6 +1380,7 @@ export async function getOrgPositionDetail(positionId: string) {
   const posScores = new Map<string, number[]>();
   for (const e of latest) {
     if (e.job_position_id !== positionId) continue;
+    if (isExcludedFromAverage(e)) continue;
     const pid = clauseToPolicy.get(e.policy_clause_id);
     if (!pid) continue;
     const list = posScores.get(pid) ?? [];
@@ -1417,7 +1425,9 @@ export async function getOrgPositionDetail(positionId: string) {
     policies: policies.sort((a, b) => a.policy.name.localeCompare(b.policy.name, "mn")),
     obligations,
     avg_score: avg(
-      latest.filter((e) => e.job_position_id === positionId).map((e) => e.score),
+      scoresForAverage(
+        latest.filter((e) => e.job_position_id === positionId),
+      ),
     ),
   };
 }

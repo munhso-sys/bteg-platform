@@ -19,6 +19,7 @@ import {
 import { StatusBadge, TableScroll } from "@/components/ui/primitives";
 import { ExportButtons } from "@/components/ui/ExportButtons";
 import { ConsolidatedViolationReport } from "@/components/runs/ConsolidatedViolationReport";
+import { inspectionApiFetch } from "@/lib/access/inspection-api-fetch";
 
 type Row = {
   answer: InspectionAnswer;
@@ -387,7 +388,7 @@ export function JointRunScoringForm({
         photoName: draft?.photoName ?? null,
       };
     });
-    const res = await fetch(`/api/runs/${runId}/answers`, {
+    const res = await inspectionApiFetch(`/api/runs/${runId}/answers`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -409,7 +410,14 @@ export function JointRunScoringForm({
     });
     setBusy(false);
     if (!res.ok) {
-      setMessage("Хадгалахад алдаа гарлаа");
+      const data = (await res.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      setMessage(
+        data?.error
+          ? `Хадгалахад алдаа: ${data.error}`
+          : `Хадгалахад алдаа гарлаа (${res.status})`,
+      );
       return;
     }
     const payload = (await res.json().catch(() => null)) as {

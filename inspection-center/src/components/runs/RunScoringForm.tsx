@@ -27,6 +27,8 @@ import {
   legalMergeMetaByQuestionId,
   sectionApprovedTotal,
 } from "@/lib/checklist-sheet";
+import { deriveComplianceStatus } from "@/lib/scoring";
+import { inspectionApiFetch } from "@/lib/access/inspection-api-fetch";
 
 type Row = {
   answer: InspectionAnswer;
@@ -165,7 +167,7 @@ export function RunScoringForm({
       const draft = drafts[answer.id];
       return draft ? [{ answerId: answer.id, ...draft }] : [];
     });
-    const res = await fetch(`/api/runs/${runId}/answers`, {
+    const res = await inspectionApiFetch(`/api/runs/${runId}/answers`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -179,7 +181,14 @@ export function RunScoringForm({
     });
     setBusy(false);
     if (!res.ok) {
-      setMessage("Хадгалахад алдаа гарлаа");
+      const data = (await res.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      setMessage(
+        data?.error
+          ? `Хадгалахад алдаа: ${data.error}`
+          : `Хадгалахад алдаа гарлаа (${res.status})`,
+      );
       return;
     }
     const payload = (await res.json().catch(() => null)) as {
@@ -201,14 +210,21 @@ export function RunScoringForm({
   async function resetAnswers() {
     setMessage("");
     setBusy(true);
-    const res = await fetch(`/api/runs/${runId}/answers`, {
+    const res = await inspectionApiFetch(`/api/runs/${runId}/answers`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ reset: true }),
     });
     setBusy(false);
     if (!res.ok) {
-      setMessage("Дахин тохируулахад алдаа гарлаа");
+      const data = (await res.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      setMessage(
+        data?.error
+          ? `Дахин тохируулахад алдаа: ${data.error}`
+          : `Дахин тохируулахад алдаа гарлаа (${res.status})`,
+      );
       return;
     }
     setDrafts(
@@ -335,6 +351,9 @@ export function RunScoringForm({
               </th>
               <th className="w-20 border border-[var(--border)] px-1 py-1.5">
                 {CHECKLIST_SHEET_HEADERS.received}
+                <div className="text-[10px] font-normal normal-case text-[var(--muted)]">
+                  хангаагүй оноо
+                </div>
               </th>
               <th className="w-20 border border-[var(--border)] px-1 py-1.5">
                 {CHECKLIST_SHEET_HEADERS.applicable}
@@ -381,6 +400,11 @@ export function RunScoringForm({
               const draft = drafts[answer.id];
               const received = draft?.receivedScore ?? 0;
               const applicable = draft?.isApplicable ?? true;
+              const liveStatus = deriveComplianceStatus(
+                applicable,
+                answer.approvedScore,
+                received,
+              );
 
               return (
                 <tr key={`q:${q.id}`}>
@@ -438,19 +462,16 @@ export function RunScoringForm({
                   <td className="border border-[var(--border)] px-1 py-1">
                     <StatusBadge
                       tone={
-                        answer.complianceStatus === "pass"
+                        liveStatus === "pass"
                           ? "ok"
-                          : answer.complianceStatus === "fail"
+                          : liveStatus === "fail"
                             ? "danger"
-                            : answer.complianceStatus === "partial"
+                            : liveStatus === "partial"
                               ? "warn"
                               : "neutral"
                       }
                     >
-                      {labelOf(
-                        COMPLIANCE_STATUS_LABELS,
-                        answer.complianceStatus,
-                      )}
+                      {labelOf(COMPLIANCE_STATUS_LABELS, liveStatus)}
                     </StatusBadge>
                   </td>
                 </tr>

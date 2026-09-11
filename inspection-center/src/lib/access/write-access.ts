@@ -32,25 +32,29 @@ export function isHostedOrProductionRuntime(
 }
 
 /**
- * Legacy bypass env names are recognized only so tests can prove they are ignored.
- * Unscoped writes are permanently disabled (IC-D05 hardening).
+ * Local-only escape for `next dev` (and optional explicit flags).
+ * Never honored on Vercel / NODE_ENV=production (IC-D05).
  */
 export function allowUnscopedInspectionWrites(
   env: NodeJS.ProcessEnv = process.env,
 ): boolean {
-  void env;
-  return false;
+  if (isHostedOrProductionRuntime(env)) return false;
+  if (env.NODE_ENV === "development") return true;
+  return (
+    env.INSPECTION_ALLOW_UNSCOPED_WRITES?.trim() === "1" ||
+    env.INSPECTION_DEV_ALLOW_UNSCOPED_WRITES?.trim() === "1"
+  );
 }
 
 /**
- * IC-D05: fail closed — missing/invalid embed must not grant write.
+ * IC-D05: fail closed on hosted runtimes — missing/invalid embed must not grant write.
  * Unit mode remains read-only. Signed non-unit scope may write.
+ * Local `next dev` allows unscoped writes for offline QA.
  */
 export function decideInspectionWriteAccess(
   scope: InspectionEmbedClaims | null | undefined,
   env: NodeJS.ProcessEnv = process.env,
 ): InspectionWriteDecision {
-  void env;
   if (isUnitScopedInspection(scope)) {
     return {
       allow: false,
@@ -62,6 +66,9 @@ export function decideInspectionWriteAccess(
   }
 
   if (!scope) {
+    if (allowUnscopedInspectionWrites(env)) {
+      return { allow: true };
+    }
     return {
       allow: false,
       reason: "missing_scope",
@@ -75,7 +82,7 @@ export function decideInspectionWriteAccess(
 
 /**
  * Admin destructive ops: require signed scope with role admin.
- * Null scope is never admin.
+ * Local unscoped escape (next dev only) may act as admin for data tools.
  */
 export function decideInspectionAdminAccess(
   scope: InspectionEmbedClaims | null | undefined,
@@ -84,7 +91,12 @@ export function decideInspectionAdminAccess(
   const write = decideInspectionWriteAccess(scope, env);
   if (!write.allow) return write;
 
-  if (!scope || scope.role !== "admin") {
+  if (!scope) {
+    // Only reachable via local unscoped escape
+    return { allow: true };
+  }
+
+  if (scope.role !== "admin") {
     return {
       allow: false,
       reason: "not_admin",
@@ -101,9 +113,8 @@ export function isInspectionAdminScope(
   scope: InspectionEmbedClaims | null | undefined,
   env: NodeJS.ProcessEnv = process.env,
 ): boolean {
-  void env;
   if (isUnitScopedInspection(scope)) return false;
-  if (!scope) return false;
+  if (!scope) return allowUnscopedInspectionWrites(env);
   return scope.role === "admin";
 }
 

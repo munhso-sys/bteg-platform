@@ -27,9 +27,12 @@ function claims(
   };
 }
 
+const hosted = { NODE_ENV: "production" } as unknown as NodeJS.ProcessEnv;
+const localDev = { NODE_ENV: "development" } as unknown as NodeJS.ProcessEnv;
+
 describe("IC-D05 fail-closed write access", () => {
-  it("null scope is denied (fail-closed)", () => {
-    const d = decideInspectionWriteAccess(null);
+  it("null scope is denied on hosted/production", () => {
+    const d = decideInspectionWriteAccess(null, hosted);
     assert.equal(d.allow, false);
     if (!d.allow) {
       assert.equal(d.reason, "missing_scope");
@@ -37,8 +40,15 @@ describe("IC-D05 fail-closed write access", () => {
     }
   });
 
+  it("null scope is allowed in local next dev", () => {
+    assert.equal(allowUnscopedInspectionWrites(localDev), true);
+    assert.equal(decideInspectionWriteAccess(null, localDev).allow, true);
+    assert.equal(isInspectionAdminScope(null, localDev), true);
+    assert.equal(decideInspectionAdminAccess(null, localDev).allow, true);
+  });
+
   it("unit scope is denied", () => {
-    const d = decideInspectionWriteAccess(claims({ mode: "unit" }));
+    const d = decideInspectionWriteAccess(claims({ mode: "unit" }), localDev);
     assert.equal(d.allow, false);
     if (!d.allow) {
       assert.equal(d.reason, "unit_readonly");
@@ -83,15 +93,16 @@ describe("IC-D05 fail-closed write access", () => {
     assert.equal(decideInspectionAdminAccess(scope).allow, false);
   });
 
-  it("null scope is never admin", () => {
-    assert.equal(isInspectionAdminScope(null), false);
-    assert.equal(decideInspectionAdminAccess(null).allow, false);
+  it("null scope is never admin on hosted", () => {
+    assert.equal(isInspectionAdminScope(null, hosted), false);
+    assert.equal(decideInspectionAdminAccess(null, hosted).allow, false);
   });
 
-  it("legacy unscoped flag is ignored even when set", () => {
+  it("legacy unscoped flag is ignored on production even when set", () => {
     const env = {
       INSPECTION_ALLOW_UNSCOPED_WRITES: "1",
       INSPECTION_DEV_ALLOW_UNSCOPED_WRITES: "1",
+      NODE_ENV: "production",
     } as unknown as NodeJS.ProcessEnv;
     assert.equal(allowUnscopedInspectionWrites(env), false);
     assert.equal(decideInspectionWriteAccess(null, env).allow, false);
@@ -110,6 +121,7 @@ describe("IC-D05 fail-closed write access", () => {
     const env = {
       INSPECTION_ALLOW_UNSCOPED_WRITES: "1",
       VERCEL: "1",
+      NODE_ENV: "development",
     } as unknown as NodeJS.ProcessEnv;
     assert.equal(isHostedOrProductionRuntime(env), true);
     assert.equal(decideInspectionWriteAccess(null, env).allow, false);
@@ -129,6 +141,15 @@ describe("IC-D05 fail-closed write access", () => {
       VERCEL_ENV: "production",
     } as unknown as NodeJS.ProcessEnv;
     assert.equal(decideInspectionWriteAccess(null, env).allow, false);
+  });
+
+  it("explicit flag allows unscoped on non-dev local (e.g. next start)", () => {
+    const env = {
+      NODE_ENV: "test",
+      INSPECTION_ALLOW_UNSCOPED_WRITES: "1",
+    } as unknown as NodeJS.ProcessEnv;
+    assert.equal(allowUnscopedInspectionWrites(env), true);
+    assert.equal(decideInspectionWriteAccess(null, env).allow, true);
   });
 
   it("scope resolution error denies", () => {

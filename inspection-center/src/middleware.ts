@@ -72,7 +72,8 @@ export async function middleware(request: NextRequest) {
   }
 
   if (token) {
-    if (claims?.mode === "unit" && !allowedForUnit(url.pathname)) {
+    const isApi = url.pathname.startsWith("/api/");
+    if (claims?.mode === "unit" && !isApi && !allowedForUnit(url.pathname)) {
       const dash = new URL("/dashboard", request.url);
       dash.searchParams.set("embed", token);
       const res = NextResponse.redirect(dash);
@@ -86,5 +87,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api).*)"],
+  // Include /api so cookie-bound embed is forwarded as x-inspection-embed
+  // (client fetch also sends the header when 3P cookies are blocked).
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

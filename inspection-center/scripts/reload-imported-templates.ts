@@ -1,7 +1,7 @@
 import {
   reloadTemplatesFromImport,
   readStore,
-} from "../src/lib/store/index.ts";
+} from "../src/lib/store";
 
 reloadTemplatesFromImport();
 const data = readStore();

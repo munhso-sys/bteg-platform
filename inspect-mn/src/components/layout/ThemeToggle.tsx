@@ -17,12 +17,16 @@ export function ThemeToggle({
   /** Icon-only button for dense headers */
   compact?: boolean;
 }) {
-  const [theme, setTheme] = useState<ThemeMode>(() => {
-    if (typeof window === "undefined") return "light";
-    return readStoredTheme();
-  });
+  // Always start with a stable SSR/client default to avoid hydration mismatch.
+  // Sync from localStorage only after mount.
+  const [theme, setTheme] = useState<ThemeMode>("light");
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    const stored = readStoredTheme();
+    setTheme(stored);
+    setReady(true);
+
     function onTheme(e: Event) {
       const detail = (e as CustomEvent<{ theme?: ThemeMode }>).detail;
       if (detail?.theme === "dark" || detail?.theme === "light") {
@@ -45,11 +49,13 @@ export function ThemeToggle({
       className={cn(
         "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md text-[var(--fg)] hover:bg-[var(--surface-muted)]",
         compact ? "p-2" : "px-2.5 py-2 text-xs",
+        !ready && "invisible",
         className,
       )}
       onClick={toggle}
       title={theme === "dark" ? "Light горим" : "Night горим"}
       aria-label="Appearance"
+      suppressHydrationWarning
     >
       {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
       {compact ? null : (

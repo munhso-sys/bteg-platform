@@ -48,6 +48,14 @@ export default async function RunDetailPage({
       (a, b) =>
         (a.question?.orderIndex ?? 0) - (b.question?.orderIndex ?? 0),
     );
+  const sheetSections = template
+    ? data.sections
+        .filter((s) => s.templateId === template.id)
+        .sort((a, b) => a.orderIndex - b.orderIndex)
+    : [];
+  const sheetTitle = template
+    ? `${template.code} ${template.title}`.trim()
+    : run.title;
 
   const runFindings = data.findings.filter((f) => f.runId === run.id);
   const answerMap = new Map(data.answers.map((answer) => [answer.id, answer]));
@@ -238,6 +246,8 @@ export default async function RunDetailPage({
               dueDate={run.dueDate}
               completedDate={run.completedDate}
               rows={rows}
+              sections={sheetSections}
+              sheetTitle={sheetTitle}
               readOnly={readOnly}
             />
           )}

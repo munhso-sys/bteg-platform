@@ -177,6 +177,11 @@ export interface InspectionTemplateQuestion {
   sectionId: string | null;
   questionNo: string;
   legalReference: string;
+  /**
+   * Consecutive questions with the same group id share one vertically merged
+   * legal-reference cell (Excel ХШ хуудас B-column merge).
+   */
+  legalMergeGroupId?: string | null;
   questionText: string;
   approvedScore: number;
   orderIndex: number;

@@ -1411,6 +1411,10 @@ export function upsertTemplateQuestion(
     sectionId: input.sectionId ?? existing?.sectionId ?? null,
     questionNo: input.questionNo ?? existing?.questionNo ?? String(orderIndex),
     legalReference: input.legalReference ?? existing?.legalReference ?? "",
+    legalMergeGroupId:
+      input.legalMergeGroupId !== undefined
+        ? input.legalMergeGroupId
+        : (existing?.legalMergeGroupId ?? null),
     questionText: input.questionText ?? existing?.questionText ?? "",
     approvedScore: Number(input.approvedScore ?? existing?.approvedScore ?? 0),
     orderIndex,
@@ -1425,6 +1429,134 @@ export function upsertTemplateQuestion(
       ? data.questions.map((row) => (row.id === question.id ? question : row))
       : [...data.questions, question],
   });
+}
+
+export function upsertTemplateSection(
+  input: Partial<InspectionTemplateSection> & { templateId: string; id?: string },
+) {
+  const data = readStore();
+  const existing = input.id
+    ? data.sections.find((s) => s.id === input.id)
+    : null;
+  const orderIndex =
+    input.orderIndex ??
+    existing?.orderIndex ??
+    data.sections
+      .filter((s) => s.templateId === input.templateId)
+      .reduce((max, s) => Math.max(max, s.orderIndex), 0) +
+      1;
+  const section: InspectionTemplateSection = {
+    id: existing?.id ?? input.id ?? randomUUID(),
+    templateId: input.templateId,
+    parentId: input.parentId ?? existing?.parentId ?? null,
+    sectionNo: input.sectionNo ?? existing?.sectionNo ?? String(orderIndex),
+    title: input.title ?? existing?.title ?? "",
+    orderIndex,
+  };
+  writeStore({
+    ...data,
+    sections: existing
+      ? data.sections.map((row) => (row.id === section.id ? section : row))
+      : [...data.sections, section],
+  });
+  return section;
+}
+
+export function deleteTemplateSection(sectionId: string) {
+  const data = readStore();
+  writeStore({
+    ...data,
+    sections: data.sections.filter((s) => s.id !== sectionId),
+    questions: data.questions.map((q) =>
+      q.sectionId === sectionId ? { ...q, sectionId: null } : q,
+    ),
+  });
+}
+
+/**
+ * Replace a template's section + question sheet in one write (Excel-like editor save).
+ * Questions and sections for this template are replaced; other templates untouched.
+ */
+export function replaceTemplateSheet(
+  templateId: string,
+  input: {
+    sections: Array<{
+      id: string;
+      title: string;
+      sectionNo?: string;
+      orderIndex: number;
+    }>;
+    questions: Array<{
+      id: string;
+      sectionId: string | null;
+      questionNo: string;
+      legalReference: string;
+      legalMergeGroupId?: string | null;
+      questionText: string;
+      approvedScore: number;
+      orderIndex: number;
+      active?: boolean;
+    }>;
+  },
+) {
+  const data = readStore();
+  const template = data.templates.find((t) => t.id === templateId);
+  if (!template) return false;
+
+  const now = new Date().toISOString();
+  const keepQuestionIds = new Set(input.questions.map((q) => q.id));
+  const removedQuestionIds = data.questions
+    .filter((q) => q.templateId === templateId && !keepQuestionIds.has(q.id))
+    .map((q) => q.id);
+
+  const nextSections: InspectionTemplateSection[] = input.sections.map((s) => ({
+    id: s.id,
+    templateId,
+    parentId: null,
+    sectionNo: s.sectionNo ?? String(s.orderIndex),
+    title: s.title,
+    orderIndex: s.orderIndex,
+  }));
+
+  const nextQuestions: InspectionTemplateQuestion[] = input.questions.map(
+    (q) => {
+      const existing = data.questions.find((row) => row.id === q.id);
+      return {
+        id: q.id,
+        templateId,
+        sectionId: q.sectionId,
+        questionNo: q.questionNo,
+        legalReference: q.legalReference,
+        legalMergeGroupId: q.legalMergeGroupId ?? null,
+        questionText: q.questionText,
+        approvedScore: Number(q.approvedScore) || 0,
+        orderIndex: q.orderIndex,
+        active: q.active ?? true,
+        sourceSheetName: existing?.sourceSheetName ?? "manual",
+        sourceCellRef: existing?.sourceCellRef,
+        rawText: existing?.rawText,
+      };
+    },
+  );
+
+  writeStore({
+    ...data,
+    templates: data.templates.map((t) =>
+      t.id === templateId ? { ...t, updatedAt: now, version: t.version + 1 } : t,
+    ),
+    sections: [
+      ...data.sections.filter((s) => s.templateId !== templateId),
+      ...nextSections,
+    ],
+    questions: [
+      ...data.questions.filter((q) => q.templateId !== templateId),
+      ...nextQuestions,
+    ],
+    answers: data.answers.filter(
+      (a) => !removedQuestionIds.includes(a.templateQuestionId),
+    ),
+  });
+  return true;
 }
 
 export function deleteTemplateQuestion(questionId: string) {

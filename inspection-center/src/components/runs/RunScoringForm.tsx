@@ -1,10 +1,11 @@
 "use client";
 
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
 import type {
   InspectionAnswer,
   InspectionTemplateQuestion,
+  InspectionTemplateSection,
   RunStatus,
 } from "@/lib/types";
 import {
@@ -15,6 +16,17 @@ import {
   type InspectionRunSaveStatus,
 } from "@/lib/types";
 import { StatusBadge, TableScroll } from "@/components/ui/primitives";
+import {
+  CHECKLIST_HEADER_ROW_CLASS,
+  CHECKLIST_QUESTION_CELL_CLASS,
+  CHECKLIST_SECTION_ROW_CLASS,
+  CHECKLIST_SHEET_HEADERS,
+  CHECKLIST_TOTAL_ROW_CLASS,
+  buildChecklistSheetRows,
+  grandApprovedTotal,
+  legalMergeMetaByQuestionId,
+  sectionApprovedTotal,
+} from "@/lib/checklist-sheet";
 
 type Row = {
   answer: InspectionAnswer;
@@ -27,6 +39,10 @@ function toSaveStatus(runStatus: RunStatus): InspectionRunSaveStatus {
   return "in_progress";
 }
 
+function cx(...parts: Array<string | false | null | undefined>) {
+  return parts.filter(Boolean).join(" ");
+}
+
 export function RunScoringForm({
   runId,
   runStatus,
@@ -34,6 +50,8 @@ export function RunScoringForm({
   dueDate,
   completedDate,
   rows,
+  sections = [],
+  sheetTitle,
   readOnly = false,
 }: {
   runId: string;
@@ -42,6 +60,8 @@ export function RunScoringForm({
   dueDate?: string | null;
   completedDate?: string | null;
   rows: Row[];
+  sections?: InspectionTemplateSection[];
+  sheetTitle?: string;
   readOnly?: boolean;
 }) {
   const router = useRouter();
@@ -67,6 +87,48 @@ export function RunScoringForm({
     ),
   );
 
+  const questions = useMemo(
+    () =>
+      rows
+        .map((r) => r.question)
+        .filter((q): q is InspectionTemplateQuestion => Boolean(q)),
+    [rows],
+  );
+
+  const answerByQuestionId = useMemo(() => {
+    const map = new Map<string, InspectionAnswer>();
+    for (const row of rows) {
+      if (row.question) map.set(row.question.id, row.answer);
+    }
+    return map;
+  }, [rows]);
+
+  const sheetRows = useMemo(
+    () => buildChecklistSheetRows(sections, questions),
+    [sections, questions],
+  );
+  const mergeMeta = useMemo(
+    () => legalMergeMetaByQuestionId(sheetRows),
+    [sheetRows],
+  );
+
+  const grandApproved = useMemo(
+    () => grandApprovedTotal(questions),
+    [questions],
+  );
+  const grandReceived = useMemo(() => {
+    let sum = 0;
+    for (const q of questions) {
+      const answer = answerByQuestionId.get(q.id);
+      if (!answer) continue;
+      const draft = drafts[answer.id];
+      const applicable = draft?.isApplicable ?? answer.isApplicable;
+      if (!applicable) continue;
+      sum += Number(draft?.receivedScore ?? answer.receivedScore) || 0;
+    }
+    return sum;
+  }, [questions, answerByQuestionId, drafts]);
+
   function setDraft(
     answerId: string,
     patch: { isApplicable?: boolean; receivedScore?: number },
@@ -80,6 +142,19 @@ export function RunScoringForm({
           patch.receivedScore ?? current[answerId]?.receivedScore ?? 0,
       },
     }));
+  }
+
+  function sectionReceivedTotal(sectionId: string): number {
+    let sum = 0;
+    for (const q of questions.filter((item) => item.sectionId === sectionId)) {
+      const answer = answerByQuestionId.get(q.id);
+      if (!answer) continue;
+      const draft = drafts[answer.id];
+      const applicable = draft?.isApplicable ?? answer.isApplicable;
+      if (!applicable) continue;
+      sum += Number(draft?.receivedScore ?? answer.receivedScore) || 0;
+    }
+    return sum;
   }
 
   async function saveAll() {
@@ -158,7 +233,8 @@ export function RunScoringForm({
       <div className="mb-3 flex flex-wrap items-end gap-2">
         <label className="block text-sm">
           <span className="mb-1 block font-medium">Хадгалах төлөв</span>
-          <select className="select min-w-48"
+          <select
+            className="select min-w-48"
             value={status}
             disabled={locked}
             onChange={(event) =>
@@ -174,7 +250,8 @@ export function RunScoringForm({
         </label>
         <label className="block text-sm">
           <span className="mb-1 block font-medium">Шалгалт эхлүүлсэн</span>
-          <input className="input min-w-40"
+          <input
+            className="input min-w-40"
             type="date"
             value={startedDate}
             disabled={locked}
@@ -183,7 +260,8 @@ export function RunScoringForm({
         </label>
         <label className="block text-sm">
           <span className="mb-1 block font-medium">Дуусгах хугацаа</span>
-          <input className="input min-w-40"
+          <input
+            className="input min-w-40"
             type="date"
             value={finishDueDate}
             disabled={locked}
@@ -192,7 +270,8 @@ export function RunScoringForm({
         </label>
         <label className="block text-sm">
           <span className="mb-1 block font-medium">Дуусгасан хугацаа</span>
-          <input className="input min-w-40"
+          <input
+            className="input min-w-40"
             type="date"
             value={finishedDate}
             disabled={locked}
@@ -201,18 +280,22 @@ export function RunScoringForm({
         </label>
         {!readOnly ? (
           <>
-        <button
-          type="button" className="btn btn-primary"
-          disabled={locked}
-          onClick={() => void saveAll()}>
-          Хадгалах
-        </button>
-        <button
-          type="button" className="btn"
-          disabled={locked}
-          onClick={() => void resetAnswers()}>
-          Дахин тохируулах
-        </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={locked}
+              onClick={() => void saveAll()}
+            >
+              Хадгалах
+            </button>
+            <button
+              type="button"
+              className="btn"
+              disabled={locked}
+              onClick={() => void resetAnswers()}
+            >
+              Дахин тохируулах
+            </button>
           </>
         ) : (
           <p className="text-xs text-[var(--muted)]">
@@ -220,78 +303,174 @@ export function RunScoringForm({
           </p>
         )}
       </div>
-      <TableScroll size="md" maxHeightClass="max-h-[36rem]">
-        <table>
+
+      <TableScroll size="md" maxHeightClass="max-h-[40rem]">
+        <table className="w-full border-collapse text-sm">
           <thead>
-            <tr>
-              <th className="col-narrow-sm">№</th>
-              <th className="col-text-primary">Асуулт</th>
-              <th className="col-narrow-sm">Батлагдсан</th>
-              <th className="col-narrow-sm">Авсан</th>
-              <th className="col-narrow-sm">Хамааралтай</th>
-              <th className="col-narrow">Төлөв</th>
+            {sheetTitle ? (
+              <tr>
+                <th
+                  colSpan={7}
+                  className={cx(
+                    "border border-[var(--border)] px-2 py-2 text-left font-semibold",
+                    CHECKLIST_HEADER_ROW_CLASS,
+                  )}
+                >
+                  {sheetTitle}
+                </th>
+              </tr>
+            ) : null}
+            <tr className={CHECKLIST_HEADER_ROW_CLASS}>
+              <th className="w-12 border border-[var(--border)] px-1 py-1.5">
+                {CHECKLIST_SHEET_HEADERS.no}
+              </th>
+              <th className="min-w-[10rem] border border-[var(--border)] px-1 py-1.5">
+                {CHECKLIST_SHEET_HEADERS.legal}
+              </th>
+              <th className="min-w-[12rem] border border-[var(--border)] px-1 py-1.5">
+                {CHECKLIST_SHEET_HEADERS.question}
+              </th>
+              <th className="w-20 border border-[var(--border)] px-1 py-1.5">
+                {CHECKLIST_SHEET_HEADERS.approved}
+              </th>
+              <th className="w-20 border border-[var(--border)] px-1 py-1.5">
+                {CHECKLIST_SHEET_HEADERS.received}
+              </th>
+              <th className="w-20 border border-[var(--border)] px-1 py-1.5">
+                {CHECKLIST_SHEET_HEADERS.applicable}
+              </th>
+              <th className="w-24 border border-[var(--border)] px-1 py-1.5">
+                {CHECKLIST_SHEET_HEADERS.status}
+              </th>
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ answer, question }) => (
-              <tr key={answer.id}>
-                <td className="col-narrow-sm tabular-nums font-medium">
-                  {question?.questionNo ?? "—"}
-                </td>
-                <td
-                  className="col-text-primary"
-                  title={[question?.questionText, question?.legalReference]
-                    .filter(Boolean)
-                    .join(" — ")}
-                >
-                  <span className="cell-ellipsis text-sm">
-                    {question?.questionText ?? "—"}
-                  </span>
-                </td>
-                <td className="col-narrow-sm tabular-nums font-semibold">
-                  {answer.approvedScore}
-                </td>
-                <td className="col-narrow-sm">
-                  <input
-                    className="input w-20"
-                    type="number"
-                    min={0}
-                    value={drafts[answer.id]?.receivedScore ?? 0}
-                    disabled={locked}
-                    onChange={(event) => {
-                      const value = Number(event.target.value);
-                      if (Number.isNaN(value)) return;
-                      setDraft(answer.id, { receivedScore: value });
-                    }}
-                  />
-                </td>
-                <td className="col-narrow-sm">
-                  <input
-                    type="checkbox"
-                    checked={drafts[answer.id]?.isApplicable ?? true}
-                    disabled={locked}
-                    onChange={(event) => {
-                      setDraft(answer.id, { isApplicable: event.target.checked });
-                    }}
-                  />
-                </td>
-                <td className="col-narrow">
-                  <StatusBadge
-                    tone={
-                      answer.complianceStatus === "pass"
-                        ? "ok"
-                        : answer.complianceStatus === "fail"
-                          ? "danger"
-                          : answer.complianceStatus === "partial"
-                            ? "warn"
-                            : "neutral"
-                    }
+            {sheetRows.map((row) => {
+              if (row.kind === "section") {
+                return (
+                  <tr
+                    key={`s:${row.section.id}`}
+                    className={CHECKLIST_SECTION_ROW_CLASS}
                   >
-                    {labelOf(COMPLIANCE_STATUS_LABELS, answer.complianceStatus)}
-                  </StatusBadge>
-                </td>
-              </tr>
-            ))}
+                    <td
+                      colSpan={3}
+                      className="border border-[var(--border)] px-2 py-1.5 font-semibold"
+                    >
+                      {row.section.title}
+                    </td>
+                    <td className="border border-[var(--border)] px-2 py-1.5 text-right tabular-nums font-semibold">
+                      {sectionApprovedTotal(row.section.id, questions)}
+                    </td>
+                    <td className="border border-[var(--border)] px-2 py-1.5 text-right tabular-nums font-semibold">
+                      {sectionReceivedTotal(row.section.id)}
+                    </td>
+                    <td
+                      colSpan={2}
+                      className="border border-[var(--border)]"
+                    />
+                  </tr>
+                );
+              }
+
+              const q = row.question;
+              const answer = answerByQuestionId.get(q.id);
+              if (!answer) return null;
+              const meta = mergeMeta.get(q.id);
+              const showLegal = !meta?.skip;
+              const rowSpan = meta?.rowSpan ?? 1;
+              const draft = drafts[answer.id];
+              const received = draft?.receivedScore ?? 0;
+              const applicable = draft?.isApplicable ?? true;
+
+              return (
+                <tr key={`q:${q.id}`}>
+                  <td className="border border-[var(--border)] px-2 py-1 text-center tabular-nums font-medium">
+                    {q.questionNo}
+                  </td>
+                  {showLegal ? (
+                    <td
+                      rowSpan={rowSpan}
+                      className={cx(
+                        "border border-[var(--border)] px-2 py-1 align-top text-xs whitespace-pre-wrap",
+                        rowSpan > 1 && "bg-[#FFF2CC]/60 dark:bg-amber-950/30",
+                      )}
+                    >
+                      {q.legalReference || "—"}
+                    </td>
+                  ) : null}
+                  <td
+                    className={cx(
+                      "border border-[var(--border)] px-2 py-1 text-sm",
+                      CHECKLIST_QUESTION_CELL_CLASS,
+                    )}
+                  >
+                    {q.questionText || "—"}
+                  </td>
+                  <td className="border border-[var(--border)] px-2 py-1 text-right tabular-nums font-semibold">
+                    {answer.approvedScore}
+                  </td>
+                  <td className="border border-[var(--border)] px-1 py-1">
+                    <input
+                      className="input w-20"
+                      type="number"
+                      min={0}
+                      value={received}
+                      disabled={locked}
+                      onChange={(event) => {
+                        const value = Number(event.target.value);
+                        if (Number.isNaN(value)) return;
+                        setDraft(answer.id, { receivedScore: value });
+                      }}
+                    />
+                  </td>
+                  <td className="border border-[var(--border)] px-2 py-1 text-center">
+                    <input
+                      type="checkbox"
+                      checked={applicable}
+                      disabled={locked}
+                      onChange={(event) => {
+                        setDraft(answer.id, {
+                          isApplicable: event.target.checked,
+                        });
+                      }}
+                    />
+                  </td>
+                  <td className="border border-[var(--border)] px-1 py-1">
+                    <StatusBadge
+                      tone={
+                        answer.complianceStatus === "pass"
+                          ? "ok"
+                          : answer.complianceStatus === "fail"
+                            ? "danger"
+                            : answer.complianceStatus === "partial"
+                              ? "warn"
+                              : "neutral"
+                      }
+                    >
+                      {labelOf(
+                        COMPLIANCE_STATUS_LABELS,
+                        answer.complianceStatus,
+                      )}
+                    </StatusBadge>
+                  </td>
+                </tr>
+              );
+            })}
+            <tr className={CHECKLIST_TOTAL_ROW_CLASS}>
+              <td
+                colSpan={3}
+                className="border border-[var(--border)] px-2 py-2"
+              >
+                Нийт оноо
+              </td>
+              <td className="border border-[var(--border)] px-2 py-2 text-right tabular-nums">
+                {grandApproved}
+              </td>
+              <td className="border border-[var(--border)] px-2 py-2 text-right tabular-nums">
+                {grandReceived}
+              </td>
+              <td colSpan={2} className="border border-[var(--border)]" />
+            </tr>
           </tbody>
         </table>
       </TableScroll>

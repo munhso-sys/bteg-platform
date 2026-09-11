@@ -161,8 +161,24 @@ export function extractChecklistTemplate(
   const sections: InspectionTemplateSection[] = [];
   const questions: InspectionTemplateQuestion[] = [];
   let currentSectionId: string | null = null;
-  let orderIndex = 0;
+  let sheetOrder = 0;
   let sectionOrder = 0;
+  let questionSeq = 0;
+
+  // Excel vertical merges on legal column (B / index 1)
+  const merges = (sheet["!merges"] ?? []) as Array<{
+    s: { r: number; c: number };
+    e: { r: number; c: number };
+  }>;
+  const legalMergeIdByRow = new Map<number, string>();
+  for (const m of merges) {
+    if (m.s.c !== 1 || m.e.c !== 1) continue;
+    if (m.e.r <= m.s.r) continue;
+    const groupId = randomUUID();
+    for (let r = m.s.r; r <= m.e.r; r++) {
+      legalMergeIdByRow.set(r, groupId);
+    }
+  }
 
   for (let r = start; r < rows.length; r++) {
     const row = rows[r] ?? [];
@@ -173,11 +189,15 @@ export function extractChecklistTemplate(
 
     if (!no && !legal && !questionText) continue;
 
+    // Grand total footer
+    if (/^нийт/i.test(no) || /^нийт оноо/i.test(no)) continue;
+
     const isNumericNo = /^\d+(\.\d+)*$/.test(no);
 
-    // Section header: non-numeric № cell with little/no question, or text-only first cell spanning
+    // Section header: non-numeric № cell with little/no question
     if (no && !isNumericNo && !questionText) {
       sectionOrder += 1;
+      sheetOrder += 1;
       const sectionId = randomUUID();
       sections.push({
         id: sectionId,
@@ -185,35 +205,52 @@ export function extractChecklistTemplate(
         parentId: null,
         sectionNo: String(sectionOrder),
         title: no,
-        orderIndex: sectionOrder,
+        orderIndex: sheetOrder,
       });
       currentSectionId = sectionId;
       continue;
     }
 
     if (!isNumericNo && !questionText && legal) {
-      // Rare: legal-only section-like rows
       continue;
     }
 
     if (!isNumericNo && !questionText) continue;
 
-    orderIndex += 1;
-    const qNo = isNumericNo ? no : String(orderIndex);
+    sheetOrder += 1;
+    questionSeq += 1;
+    const qNo = isNumericNo ? no : String(questionSeq);
+    const mergeGroup = legalMergeIdByRow.get(r) ?? null;
     questions.push({
       id: randomUUID(),
       templateId,
       sectionId: currentSectionId,
       questionNo: qNo,
       legalReference: legal,
+      legalMergeGroupId: mergeGroup,
       questionText: questionText || legal || `Question ${qNo}`,
       approvedScore: score,
-      orderIndex,
+      orderIndex: sheetOrder,
       active: true,
       sourceSheetName: sheetName,
       sourceCellRef: `${colLetter(0)}${r + 1}:${colLetter(4)}${r + 1}`,
       rawText: [no, legal, questionText].filter(Boolean).join(" | "),
     });
+  }
+
+  // Propagate legal text within each merge group from the first non-empty cell.
+  const byGroup = new Map<string, InspectionTemplateQuestion[]>();
+  for (const q of questions) {
+    const g = q.legalMergeGroupId;
+    if (!g) continue;
+    const list = byGroup.get(g) ?? [];
+    list.push(q);
+    byGroup.set(g, list);
+  }
+  for (const list of byGroup.values()) {
+    const legal =
+      list.map((q) => q.legalReference).find((t) => t.trim()) ?? "";
+    for (const q of list) q.legalReference = legal;
   }
 
   return { template, sections, questions };

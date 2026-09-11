@@ -7,7 +7,7 @@ import {
 import type {
   InspectionTemplateQuestion,
   InspectionTemplateSection,
-} from "../types";
+} from "./types";
 
 function q(
   partial: Partial<InspectionTemplateQuestion> & {

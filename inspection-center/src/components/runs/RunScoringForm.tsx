@@ -320,8 +320,12 @@ export function RunScoringForm({
         )}
       </div>
 
-      <TableScroll size="md" maxHeightClass="max-h-[40rem]">
-        <table className="w-full border-collapse text-sm">
+      <TableScroll
+        size="md"
+        maxHeightClass="max-h-[40rem]"
+        className="checklist-sheet-scroll"
+      >
+        <table className="checklist-sheet-table w-full text-sm">
           <thead>
             {sheetTitle ? (
               <tr>
@@ -415,11 +419,14 @@ export function RunScoringForm({
                     <td
                       rowSpan={rowSpan}
                       className={cx(
-                        "border border-[var(--border)] px-2 py-1 align-top text-xs whitespace-pre-wrap",
-                        rowSpan > 1 && "bg-[#FFF2CC]/60 dark:bg-amber-950/30",
+                        "checklist-legal-cell border border-[var(--border)] px-2 py-1 align-top text-xs whitespace-pre-wrap",
+                        rowSpan > 1 &&
+                          "checklist-legal-cell--merged bg-[#FFF2CC]/60 dark:bg-amber-950/30",
                       )}
                     >
-                      {q.legalReference || "—"}
+                      <div className="checklist-legal-sticky">
+                        {q.legalReference || "—"}
+                      </div>
                     </td>
                   ) : null}
                   <td

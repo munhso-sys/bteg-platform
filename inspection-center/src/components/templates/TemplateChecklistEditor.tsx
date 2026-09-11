@@ -1,6 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+  type ChangeEvent,
+  type TextareaHTMLAttributes,
+} from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowDown,
@@ -31,6 +40,50 @@ import {
   type ChecklistSheetRow,
 } from "@/lib/checklist-sheet";
 import { TableScroll } from "@/components/ui/primitives";
+
+/** Textarea height follows content (compact empty / short rows). */
+function AutoGrowTextarea({
+  className,
+  value,
+  onChange,
+  ...props
+}: Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "value" | "onChange"> & {
+  value: string;
+  onChange: (event: ChangeEvent<HTMLTextAreaElement>) => void;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  const fitHeight = () => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "0px";
+    el.style.height = `${Math.max(el.scrollHeight, 28)}px`;
+  };
+
+  useLayoutEffect(() => {
+    fitHeight();
+  }, [value]);
+
+  useEffect(() => {
+    const onResize = () => fitHeight();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  return (
+    <textarea
+      {...props}
+      ref={ref}
+      rows={1}
+      value={value}
+      className={cx("checklist-sheet-textarea", className)}
+      onChange={(event) => {
+        onChange(event);
+        requestAnimationFrame(fitHeight);
+      }}
+    />
+  );
+}
 
 type DraftSection = InspectionTemplateSection;
 type DraftQuestion = InspectionTemplateQuestion;
@@ -521,8 +574,15 @@ export function TemplateChecklistEditor({
         ) : null}
       </div>
 
-      <TableScroll size="lg" maxHeightClass="max-h-[40rem]" className="rounded-md border border-[var(--border)]">
-        <table id="questions-table" className="w-full border-collapse text-sm">
+      <TableScroll
+        size="lg"
+        maxHeightClass="max-h-[40rem]"
+        className="checklist-sheet-scroll rounded-md border border-[var(--border)]"
+      >
+        <table
+          id="questions-table"
+          className="checklist-sheet-table w-full text-sm"
+        >
           <thead>
             <tr>
               <th
@@ -548,7 +608,7 @@ export function TemplateChecklistEditor({
               <th className="w-24 border border-[var(--border)] px-1 py-1.5">
                 {CHECKLIST_SHEET_HEADERS.approved}
               </th>
-              <th className="w-36 border border-[var(--border)] px-1 py-1.5">
+              <th className="w-px min-w-[2.6rem] whitespace-nowrap border border-[var(--border)] px-0.5 py-1.5 text-[10px] lg:min-w-[3.7rem]">
                 Үйлдэл
               </th>
             </tr>
@@ -577,7 +637,7 @@ export function TemplateChecklistEditor({
                     <td className="border border-[var(--border)] px-2 py-1.5 text-right tabular-nums font-semibold">
                       {total}
                     </td>
-                    <td className="border border-[var(--border)] px-1 py-1">
+                    <td className="w-px whitespace-nowrap border border-[var(--border)] px-0.5 py-0.5 align-top">
                       <RowActions
                         locked={locked}
                         onInsertQuestion={() => insertQuestionAt(rowIndex + 1)}
@@ -605,21 +665,23 @@ export function TemplateChecklistEditor({
                     <td
                       rowSpan={rowSpan}
                       className={cx(
-                        "border border-[var(--border)] px-1 py-1 align-top",
-                        rowSpan > 1 && "bg-[#FFF2CC]/60 dark:bg-amber-950/30",
+                        "checklist-legal-cell border border-[var(--border)] px-1 py-1 align-top",
+                        rowSpan > 1 &&
+                          "checklist-legal-cell--merged bg-[#FFF2CC]/60 dark:bg-amber-950/30",
                       )}
                     >
-                      <textarea
-                        className="textarea min-h-16 w-full text-xs"
-                        value={q.legalReference}
-                        disabled={locked}
-                        onChange={(e) =>
-                          updateQuestion(q.id, {
-                            legalReference: e.target.value,
-                          })
-                        }
-                        placeholder="Хууль / заалт"
-                      />
+                      <div className="checklist-legal-sticky">
+                        <AutoGrowTextarea
+                          value={q.legalReference}
+                          disabled={locked}
+                          onChange={(e) =>
+                            updateQuestion(q.id, {
+                              legalReference: e.target.value,
+                            })
+                          }
+                          placeholder="Хууль / заалт"
+                        />
+                      </div>
                     </td>
                   ) : null}
                   <td
@@ -628,8 +690,7 @@ export function TemplateChecklistEditor({
                       CHECKLIST_QUESTION_CELL_CLASS,
                     )}
                   >
-                    <textarea
-                      className="textarea min-h-12 w-full text-xs"
+                    <AutoGrowTextarea
                       value={q.questionText}
                       disabled={locked}
                       onChange={(e) =>
@@ -655,37 +716,21 @@ export function TemplateChecklistEditor({
                       }}
                     />
                   </td>
-                  <td className="border border-[var(--border)] px-1 py-1">
-                    <div className="flex flex-wrap gap-0.5">
-                      <RowActions
-                        locked={locked}
-                        onInsertQuestion={() => insertQuestionAt(rowIndex + 1)}
-                        onInsertSection={() => insertSectionAt(rowIndex + 1)}
-                        onUp={() => moveRow(rowIndex, -1)}
-                        onDown={() => moveRow(rowIndex, 1)}
-                        onRemove={() => removeAt(rowIndex)}
-                      />
-                      <button
-                        type="button"
-                        className="btn px-1.5 py-1"
-                        title="Доорх мөртэй хууль/заалт нэгтгэх"
-                        disabled={locked}
-                        onClick={() => mergeLegalWithNext(q.id)}
-                      >
-                        <Combine size={14} />
-                      </button>
-                      {q.legalMergeGroupId ? (
-                        <button
-                          type="button"
-                          className="btn px-1.5 py-1"
-                          title="Нэгтгэлийг салгах"
-                          disabled={locked}
-                          onClick={() => unmergeLegal(q.id)}
-                        >
-                          <Split size={14} />
-                        </button>
-                      ) : null}
-                    </div>
+                  <td className="w-px whitespace-nowrap border border-[var(--border)] px-0.5 py-0.5 align-top">
+                    <RowActions
+                      locked={locked}
+                      onInsertQuestion={() => insertQuestionAt(rowIndex + 1)}
+                      onInsertSection={() => insertSectionAt(rowIndex + 1)}
+                      onUp={() => moveRow(rowIndex, -1)}
+                      onDown={() => moveRow(rowIndex, 1)}
+                      onRemove={() => removeAt(rowIndex)}
+                      onMergeLegal={() => mergeLegalWithNext(q.id)}
+                      onUnmergeLegal={
+                        q.legalMergeGroupId
+                          ? () => unmergeLegal(q.id)
+                          : undefined
+                      }
+                    />
                   </td>
                 </tr>
               );
@@ -709,6 +754,9 @@ export function TemplateChecklistEditor({
   );
 }
 
+const ROW_TOOL_BTN =
+  "checklist-row-tool inline-flex size-[18px] shrink-0 items-center justify-center rounded-[3px] border border-[var(--border)] bg-[var(--card)] p-0 leading-none text-[var(--fg)] hover:bg-[var(--surface-muted)] disabled:cursor-not-allowed disabled:opacity-40";
+
 function RowActions({
   locked,
   onInsertQuestion,
@@ -716,6 +764,8 @@ function RowActions({
   onUp,
   onDown,
   onRemove,
+  onMergeLegal,
+  onUnmergeLegal,
 }: {
   locked: boolean;
   onInsertQuestion: () => void;
@@ -723,54 +773,82 @@ function RowActions({
   onUp: () => void;
   onDown: () => void;
   onRemove: () => void;
+  onMergeLegal?: () => void;
+  onUnmergeLegal?: () => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-0.5">
+    <div
+      className="checklist-row-tools"
+      role="group"
+      aria-label="Мөрийн үйлдлүүд"
+    >
       <button
         type="button"
-        className="btn px-1.5 py-1"
+        className={ROW_TOOL_BTN}
         title="Доор асуулт оруулах"
         disabled={locked}
         onClick={onInsertQuestion}
       >
-        <Plus size={14} />
+        <Plus size={11} strokeWidth={2.25} />
       </button>
       <button
         type="button"
-        className="btn px-1.5 py-1"
+        className={ROW_TOOL_BTN}
         title="Доор хэсэг оруулах"
         disabled={locked}
         onClick={onInsertSection}
       >
-        <FolderPlus size={14} />
+        <FolderPlus size={11} strokeWidth={2.25} />
       </button>
       <button
         type="button"
-        className="btn px-1.5 py-1"
+        className={ROW_TOOL_BTN}
         title="Дээш"
         disabled={locked}
         onClick={onUp}
       >
-        <ArrowUp size={14} />
+        <ArrowUp size={11} strokeWidth={2.25} />
       </button>
       <button
         type="button"
-        className="btn px-1.5 py-1"
+        className={ROW_TOOL_BTN}
         title="Доош"
         disabled={locked}
         onClick={onDown}
       >
-        <ArrowDown size={14} />
+        <ArrowDown size={11} strokeWidth={2.25} />
       </button>
       <button
         type="button"
-        className="btn px-1.5 py-1"
+        className={ROW_TOOL_BTN}
         title="Устгах"
         disabled={locked}
         onClick={onRemove}
       >
-        <Trash2 size={14} />
+        <Trash2 size={11} strokeWidth={2.25} />
       </button>
+      {onMergeLegal ? (
+        <button
+          type="button"
+          className={ROW_TOOL_BTN}
+          title="Доорх мөртэй хууль/заалт нэгтгэх"
+          disabled={locked}
+          onClick={onMergeLegal}
+        >
+          <Combine size={11} strokeWidth={2.25} />
+        </button>
+      ) : null}
+      {onUnmergeLegal ? (
+        <button
+          type="button"
+          className={ROW_TOOL_BTN}
+          title="Нэгтгэлийг салгах"
+          disabled={locked}
+          onClick={onUnmergeLegal}
+        >
+          <Split size={11} strokeWidth={2.25} />
+        </button>
+      ) : null}
     </div>
   );
 }

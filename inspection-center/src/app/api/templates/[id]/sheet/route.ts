@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { requireInspectionWriteAccess } from "@/lib/access/scope";
-import { replaceTemplateSheet } from "@/lib/store";
+import { flushPendingStoreWrites, replaceTemplateSheet } from "@/lib/store";
 
 type SheetBody = {
   sections?: Array<{
@@ -49,6 +49,7 @@ export async function PUT(
         { status: 404 },
       );
     }
+    await flushPendingStoreWrites();
     revalidatePath(`/templates/${templateId}`);
     revalidatePath("/templates");
     revalidatePath("/runs");

@@ -99,7 +99,11 @@ export type LegalMergeMeta = {
   skip: boolean;
 };
 
-/** Compute vertical merge spans for legal column (consecutive same group id). */
+/** Compute vertical merge spans for legal column.
+ * Prefer explicit `legalMergeGroupId`; otherwise infer Excel-like merges from
+ * consecutive question rows that share the same legal text, or empty cells
+ * continuing a non-empty legal above (section rows break the block).
+ */
 export function legalMergeMetaByQuestionId(
   rows: ChecklistSheetRow[],
 ): Map<string, LegalMergeMeta> {
@@ -114,23 +118,30 @@ export function legalMergeMetaByQuestionId(
     }
     const q = row.question;
     const groupId = q.legalMergeGroupId?.trim() || null;
-    if (!groupId) {
-      map.set(q.id, {
-        anchorQuestionId: q.id,
-        rowSpan: 1,
-        skip: false,
-      });
-      i += 1;
-      continue;
-    }
-    // Only merge across adjacent question rows (no section between).
+    const anchorLegal = (q.legalReference ?? "").trim();
+
     let j = i + 1;
-    while (j < rows.length && rows[j]!.kind === "question") {
-      const next = (rows[j] as Extract<ChecklistSheetRow, { kind: "question" }>)
-        .question;
-      if ((next.legalMergeGroupId?.trim() || null) !== groupId) break;
-      j += 1;
+    if (groupId) {
+      while (j < rows.length && rows[j]!.kind === "question") {
+        const next = (
+          rows[j] as Extract<ChecklistSheetRow, { kind: "question" }>
+        ).question;
+        if ((next.legalMergeGroupId?.trim() || null) !== groupId) break;
+        j += 1;
+      }
+    } else if (anchorLegal) {
+      // Infer merge: same legal text, or empty continuation (Excel merged B cells).
+      while (j < rows.length && rows[j]!.kind === "question") {
+        const next = (
+          rows[j] as Extract<ChecklistSheetRow, { kind: "question" }>
+        ).question;
+        if (next.legalMergeGroupId?.trim()) break;
+        const nextLegal = (next.legalReference ?? "").trim();
+        if (nextLegal && nextLegal !== anchorLegal) break;
+        j += 1;
+      }
     }
+
     const span = j - i;
     for (let k = i; k < j; k++) {
       const id = (rows[k] as Extract<ChecklistSheetRow, { kind: "question" }>)

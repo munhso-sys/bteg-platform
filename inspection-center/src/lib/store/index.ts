@@ -46,8 +46,7 @@ import {
   mapRiskLevel,
 } from "@/lib/scoring";
 import {
-  loadOrgRemoteRow,
-  loadRemoteRow,
+  loadStoreRemoteRow,
   REMOTE_KEYS,
   saveRemotePayload,
 } from "@/lib/store/remote";
@@ -183,12 +182,8 @@ function queueRemoteWrite(
       memory.remoteWriteScheduled?.delete(key);
       if (latest === undefined) return;
       const organizationId = await resolveStoreOrganizationId();
-      if (!organizationId) {
-        console.warn(
-          `[store] refused unscoped remote write for ${key} (P0-03)`,
-        );
-        return;
-      }
+      // Org id preferred; saveRemotePayload falls back to legacy app_data_store
+      // when org_app_data_store is missing (Production) or write fails.
       await saveRemotePayload(key, latest, organizationId);
     })
     .catch((error) => {
@@ -314,27 +309,22 @@ export async function ensureStoreHydrated() {
     }
 
     const organizationId = await resolveStoreOrganizationId();
-    const remoteLoad = organizationId
-      ? Promise.all([
-          loadOrgRemoteRow<InspectionCenterData>(
-            organizationId,
-            REMOTE_KEYS.store,
-          ),
-          loadOrgRemoteRow<AnnualPlanRow[]>(
-            organizationId,
-            REMOTE_KEYS.annualPlans,
-          ),
-          loadOrgRemoteRow<AnnualPlanTypeTarget[]>(
-            organizationId,
-            REMOTE_KEYS.annualPlanTypes,
-          ),
-        ])
-      : Promise.all([
-          // Legacy read-only fallback when no unit scope (admin full mode).
-          loadRemoteRow<InspectionCenterData>(REMOTE_KEYS.store),
-          loadRemoteRow<AnnualPlanRow[]>(REMOTE_KEYS.annualPlans),
-          loadRemoteRow<AnnualPlanTypeTarget[]>(REMOTE_KEYS.annualPlanTypes),
-        ]);
+    // Org partition first; falls back to legacy app_data_store when
+    // org_app_data_store is missing (Production) or has no row yet.
+    const remoteLoad = Promise.all([
+      loadStoreRemoteRow<InspectionCenterData>(
+        REMOTE_KEYS.store,
+        organizationId,
+      ),
+      loadStoreRemoteRow<AnnualPlanRow[]>(
+        REMOTE_KEYS.annualPlans,
+        organizationId,
+      ),
+      loadStoreRemoteRow<AnnualPlanTypeTarget[]>(
+        REMOTE_KEYS.annualPlanTypes,
+        organizationId,
+      ),
+    ]);
 
     const timed = await Promise.race([
       remoteLoad.then((rows) => ({ ok: true as const, rows })),
@@ -370,9 +360,7 @@ export async function ensureStoreHydrated() {
       (!remoteStore ||
         Boolean(localStoreStamp && localStoreStamp > remoteStore.updatedAt))
     ) {
-      if (organizationId) {
-        await saveRemotePayload(REMOTE_KEYS.store, memory.store, organizationId);
-      }
+      await saveRemotePayload(REMOTE_KEYS.store, memory.store, organizationId);
     } else if (!memory.store) {
       memory.store = diskStore
         ? normalizeStoreData(diskStore)
@@ -396,13 +384,11 @@ export async function ensureStoreHydrated() {
       (!remotePlans ||
         Boolean(localPlansStamp && localPlansStamp > remotePlans.updatedAt))
     ) {
-      if (organizationId) {
-        await saveRemotePayload(
-          REMOTE_KEYS.annualPlans,
-          memory.annualPlans,
-          organizationId,
-        );
-      }
+      await saveRemotePayload(
+        REMOTE_KEYS.annualPlans,
+        memory.annualPlans,
+        organizationId,
+      );
     }
 
     const localTypesStamp = newestStamp(
@@ -421,13 +407,11 @@ export async function ensureStoreHydrated() {
       (!remoteTypes ||
         Boolean(localTypesStamp && localTypesStamp > remoteTypes.updatedAt))
     ) {
-      if (organizationId) {
-        await saveRemotePayload(
-          REMOTE_KEYS.annualPlanTypes,
-          memory.annualPlanTypes,
-          organizationId,
-        );
-      }
+      await saveRemotePayload(
+        REMOTE_KEYS.annualPlanTypes,
+        memory.annualPlanTypes,
+        organizationId,
+      );
     }
 
     memory.hydratedAt = Date.now();
@@ -489,32 +473,24 @@ export async function flushPlanRemoteWrites(
   if (plansPayload !== undefined) {
     memory.pendingRemotePayload?.delete(REMOTE_KEYS.annualPlans);
     const organizationId = await resolveStoreOrganizationId();
-    if (organizationId) {
-      writes.push(
-        saveRemotePayload(
-          REMOTE_KEYS.annualPlans,
-          plansPayload,
-          organizationId,
-        ),
-      );
-    } else {
-      console.warn("[store] refused unscoped annualPlans flush (P0-03)");
-    }
+    writes.push(
+      saveRemotePayload(
+        REMOTE_KEYS.annualPlans,
+        plansPayload,
+        organizationId,
+      ),
+    );
   }
   if (typesPayload !== undefined) {
     memory.pendingRemotePayload?.delete(REMOTE_KEYS.annualPlanTypes);
     const organizationId = await resolveStoreOrganizationId();
-    if (organizationId) {
-      writes.push(
-        saveRemotePayload(
-          REMOTE_KEYS.annualPlanTypes,
-          typesPayload,
-          organizationId,
-        ),
-      );
-    } else {
-      console.warn("[store] refused unscoped annualPlanTypes flush (P0-03)");
-    }
+    writes.push(
+      saveRemotePayload(
+        REMOTE_KEYS.annualPlanTypes,
+        typesPayload,
+        organizationId,
+      ),
+    );
   }
 
   if (writes.length === 0) return;

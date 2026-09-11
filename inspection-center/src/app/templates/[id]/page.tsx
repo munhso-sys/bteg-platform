@@ -7,6 +7,7 @@ import { Panel, StatusBadge } from "@/components/ui/primitives";
 import { TemplateChecklistEditor } from "@/components/templates/TemplateChecklistEditor";
 import {
   getTemplateQuestions,
+  flushPendingStoreWrites,
   readStore,
   replaceTemplateSheet,
   upsertTemplate,
@@ -55,6 +56,7 @@ async function saveSheetAction(
   "use server";
   const ok = replaceTemplateSheet(templateId, payload);
   if (!ok) return { ok: false as const, error: "Хуудас олдсонгүй" };
+  await flushPendingStoreWrites();
   revalidatePath(`/templates/${templateId}`);
   revalidatePath("/templates");
   revalidatePath("/runs");

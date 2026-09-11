@@ -20,7 +20,8 @@ export type RemoteRow<T> = {
 
 /**
  * P0-03: Prefer org-partitioned store when organizationId is known.
- * Legacy global app_data_store mega-row is fallback/read-only migration aid only.
+ * Legacy global app_data_store mega-row is fallback when org table is missing
+ * (Production may not have org_app_data_store yet).
  */
 export async function loadOrgRemoteRow<T>(
   organizationId: string,
@@ -81,7 +82,7 @@ export async function saveOrgRemotePayload(
   return true;
 }
 
-/** @deprecated P0-03 — global mega-row; do not write multi-tenant business data here. */
+/** Global mega-row read (legacy / Production until org_app_data_store is live). */
 export async function loadRemoteRow<T>(
   key: RemoteKey,
 ): Promise<RemoteRow<T> | null> {
@@ -106,14 +107,53 @@ export async function loadRemoteRow<T>(
   };
 }
 
+/**
+ * Load org row when scoped; if missing/unavailable, fall back to legacy mega-row.
+ */
+export async function loadStoreRemoteRow<T>(
+  key: RemoteKey,
+  organizationId?: string | null,
+): Promise<RemoteRow<T> | null> {
+  const org = organizationId?.trim();
+  if (org) {
+    const orgRow = await loadOrgRemoteRow<T>(org, key);
+    if (orgRow) return orgRow;
+  }
+  return loadRemoteRow<T>(key);
+}
+
 export async function loadRemotePayload<T>(key: RemoteKey): Promise<T | null> {
   const row = await loadRemoteRow<T>(key);
   return row?.payload ?? null;
 }
 
+async function saveLegacyRemotePayload(key: RemoteKey, payload: unknown) {
+  if (!isSupabaseConfigured()) return false;
+  const client = createServerSupabaseClient();
+  if (!client) return false;
+
+  const updatedAt = new Date().toISOString();
+  const { error } = await client.from("app_data_store").upsert(
+    {
+      key,
+      payload,
+      updated_at: updatedAt,
+    },
+    { onConflict: "key" },
+  );
+
+  if (error) {
+    console.warn(`[store:remote] legacy save failed (${key}):`, error.message);
+    return false;
+  }
+  return true;
+}
+
 /**
  * Writes prefer org-scoped table when organizationId provided.
- * Unscoped writes to the legacy mega-key are refused (P0-03).
+ * If org_app_data_store is missing (Production) or org write fails, fall back
+ * to legacy app_data_store so template merges and other edits persist.
+ * Unscoped writes also use legacy until org partition is mandatory everywhere.
  */
 export async function saveRemotePayload(
   key: RemoteKey,
@@ -122,10 +162,11 @@ export async function saveRemotePayload(
 ) {
   const org = organizationId?.trim();
   if (org) {
-    return saveOrgRemotePayload(org, key, payload);
+    const ok = await saveOrgRemotePayload(org, key, payload);
+    if (ok) return true;
+    console.warn(
+      `[store:remote] org save failed for ${org}/${key}; falling back to global app_data_store`,
+    );
   }
-  console.warn(
-    `[store:remote] refused unscoped mega-key write for ${key} (P0-03)`,
-  );
-  return false;
+  return saveLegacyRemotePayload(key, payload);
 }

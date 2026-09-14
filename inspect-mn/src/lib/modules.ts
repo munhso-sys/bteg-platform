@@ -9,6 +9,7 @@ import {
   FlaskConical,
   ListTodo,
   Megaphone,
+  Network,
   Settings,
   ShieldAlert,
   LayoutDashboard,
@@ -69,6 +70,14 @@ export const MODULES: PlatformModule[] = [
     description: "Судалгаа, хөгжүүлэлт, сургалт, санал асуулга",
     group: "duty",
     icon: FlaskConical,
+  },
+  {
+    id: "process",
+    href: "/process",
+    label: "Процесс",
+    description: "PFD процесс мод — журам, шалгалт, зөрчил, эрсдэл, дуу хоолойн суурь",
+    group: "duty",
+    icon: Network,
   },
   {
     id: "employee-voice",

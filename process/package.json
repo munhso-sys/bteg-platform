@@ -1,0 +1,39 @@
+{
+  "name": "process-center",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3004",
+    "build": "next build",
+    "start": "next start -p 3004",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test:store": "npx tsx --test src/lib/store.test.ts",
+    "import:samples": "npx tsx scripts/import-samples.ts",
+    "upload:samples": "npx tsx scripts/upload-samples-remote.ts"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.12.4",
+    "@supabase/supabase-js": "^2.112.3",
+    "@xyflow/react": "^12.8.2",
+    "bpmn-js": "^18.28.0",
+    "lucide-react": "^1.31.0",
+    "next": "16.3.0",
+    "pdfjs-dist": "^6.3.289",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "xlsx": "^0.18.5",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.0",
+    "tailwindcss": "^4",
+    "tsx": "^4.23.12",
+    "typescript": "^5"
+  }
+}

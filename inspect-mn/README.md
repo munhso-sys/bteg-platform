@@ -1,6 +1,6 @@
 # Inspect-MN Platform Portal
 
-Дотоод үйл ажиллагааны портал (`inspect-mn`). Local-д гурван sibling Next.js аппыг **iframe**-ээр embed хийнэ; production дээр мөн адил Vercel origin-ууд руу холбогдоно. Энэ нь нэг апп дотор бүх модуль ажиллах setup **биш**.
+Дотоод үйл ажиллагааны портал (`inspect-mn`). Local-д дөрвөн sibling Next.js аппыг **iframe**-ээр embed хийнэ; production дээр мөн адил Vercel origin-ууд руу холбогдоно. Энэ нь нэг апп дотор бүх модуль ажиллах setup **биш**.
 
 ## Ports
 
@@ -10,6 +10,7 @@
 | Хяналт шалгалт | `inspection-center` | 3001 | `NEXT_PUBLIC_INSPECT_URL=http://localhost:3001` |
 | Журмын биелэлт | `bgs-policy-compliance` | 3002 | `NEXT_PUBLIC_POLICY_URL=http://localhost:3002` |
 | Судалгаа хөгжүүлэлт | `development` | 3003 | `NEXT_PUBLIC_DEVELOPMENT_URL=http://localhost:3003` |
+| Процесс | `process` | 3004 | `NEXT_PUBLIC_PROCESS_URL=http://localhost:3004` |
 
 ## Local development
 
@@ -26,7 +27,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Sidebar modules
 
-Портал sidebar-т **12** модуль (`src/lib/modules.ts`). Гурван ҮҮРЭГ embed-д sibling апп хэрэгтэй; бусад нь портал process дотор ажиллана.
+Портал sidebar-т модулиуд (`src/lib/modules.ts`). Дөрвөн ҮҮРЭГ embed-д sibling апп хэрэгтэй; бусад нь портал process дотор ажиллана.
 
 | Route | Menu | Group |
 |-------|------|-------|
@@ -35,6 +36,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | `/policy-compliance` | Журмын биелэлт | ҮҮРЭГ (iframe → :3002) |
 | `/guidance` | Удирдамж | ҮҮРЭГ |
 | `/development` | Судалгаа хөгжүүлэлт | ҮҮРЭГ (iframe → :3003) |
+| `/process` | Процесс | ҮҮРЭГ (iframe → :3004) |
 | `/employee-voice` | Ажилтны дуу хоолой | ҮР ДҮН |
 | `/risk-management` | Эрсдэлийн удирдлага | ҮР ДҮН |
 | `/report-analysis` | Тайлан шинжилгээ | ҮР ДҮН |
@@ -76,6 +78,7 @@ Portal-only for local:
 | `NEXT_PUBLIC_INSPECT_URL` | Local duty | Default `http://localhost:3001` |
 | `NEXT_PUBLIC_POLICY_URL` | Local duty | Default `http://localhost:3002` |
 | `NEXT_PUBLIC_DEVELOPMENT_URL` | Local duty | Default `http://localhost:3003` |
+| `NEXT_PUBLIC_PROCESS_URL` | Local duty | Default `http://localhost:3004` |
 | `SMARTMINE_SUPABASE_URL` | For SmartMine | Separate SmartMine project if used |
 | `SMARTMINE_SUPABASE_SERVICE_ROLE_KEY` | For SmartMine | Server-only |
 | `SMARTMINE_ORGANIZATION_ID` | Optional | Org scope for SmartMine |

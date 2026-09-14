@@ -255,7 +255,7 @@ function BottomNav({
 }) {
   const pathname = usePathname();
   const primary = modules.filter((m) =>
-    ["inspection", "policy-compliance", "development", "guidance"].includes(
+    ["inspection", "policy-compliance", "development", "process", "guidance"].includes(
       m.id,
     ),
   );

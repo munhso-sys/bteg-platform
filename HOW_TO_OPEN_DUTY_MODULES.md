@@ -1,6 +1,6 @@
 # How to open duty modules (local)
 
-Local portal embeds three sibling Next.js apps via iframe. Production embeds the same apps on their Vercel origins. This is **not** a single-app “all modules inside inspect-mn” setup.
+Local portal embeds four sibling Next.js apps via iframe. Production embeds the same apps on their Vercel origins. This is **not** a single-app “all modules inside inspect-mn” setup.
 
 ## Ports
 
@@ -10,6 +10,7 @@ Local portal embeds three sibling Next.js apps via iframe. Production embeds the
 | Хяналт шалгалт | `inspection-center` | 3001 | `NEXT_PUBLIC_INSPECT_URL=http://localhost:3001` |
 | Журмын биелэлт | `bgs-policy-compliance` | 3002 | `NEXT_PUBLIC_POLICY_URL=http://localhost:3002` |
 | Судалгаа хөгжүүлэлт | `development` | 3003 | `NEXT_PUBLIC_DEVELOPMENT_URL=http://localhost:3003` |
+| Процесс | `process` | 3004 | `NEXT_PUBLIC_PROCESS_URL=http://localhost:3004` |
 
 ## Start
 

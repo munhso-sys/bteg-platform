@@ -160,6 +160,11 @@ export interface InspectionTemplate {
   version: number;
   createdAt: string;
   updatedAt: string;
+  /**
+   * Optional link to Process module `ProcessNode.id` (PFD backbone).
+   * Expand-only field — older rows omit it.
+   */
+  processId?: string | null;
 }
 
 export interface InspectionTemplateSection {
@@ -289,6 +294,18 @@ export interface InspectionFinding {
    * Нэг асуулт дээр олон нэгжийн зөрчлийг тусад нь холбоно.
    */
   jointUnitKey?: string | null;
+  /**
+   * Optional Process module link (`ProcessNode.id`) for NC / finding aggregation.
+   */
+  processId?: string | null;
+  /** Root-cause category when findingType is nonconformity (Process analytics). */
+  rootCauseCategory?:
+    | "PROCESS_GAP"
+    | "HUMAN_ERROR"
+    | "EQUIPMENT_FAILURE"
+    | "ENVIRONMENTAL"
+    | null;
+  rootCauseDescription?: string | null;
   status: FindingStatus;
   createdAt: string;
   updatedAt: string;

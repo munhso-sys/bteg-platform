@@ -1,4 +1,4 @@
-# Starts the 3 duty module apps for the platform portal embed (local only).
+# Starts the 4 duty module apps for the platform portal embed (local only).
 # Resolves paths from this repo root — works on any machine clone.
 $ErrorActionPreference = "Stop"
 
@@ -10,7 +10,8 @@ if (-not (Test-Path (Join-Path $root "inspect-mn"))) {
 $apps = @(
   @{ Name = "inspection-center"; Rel = "inspection-center"; Port = 3001 },
   @{ Name = "bgs-policy-compliance"; Rel = "bgs-policy-compliance"; Port = 3002 },
-  @{ Name = "development"; Rel = "development"; Port = 3003 }
+  @{ Name = "development"; Rel = "development"; Port = 3003 },
+  @{ Name = "process"; Rel = "process"; Port = 3004 }
 )
 
 foreach ($app in $apps) {
@@ -29,5 +30,5 @@ Write-Host "Then start portal:"
 Write-Host "  cd `"$portal`""
 Write-Host "  npm run dev"
 Write-Host ""
-Write-Host "Open http://localhost:3000 - sidebar: inspection / policy / development"
+Write-Host "Open http://localhost:3000 - sidebar: inspection / policy / development / process"
 Write-Host "Duty modules require matching POLICY_EMBED_SECRET / INSPECTION_EMBED_SECRET on portal + modules."

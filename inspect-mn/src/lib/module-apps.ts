@@ -1,4 +1,8 @@
-export type DutyModuleId = "inspection" | "policy-compliance" | "development";
+export type DutyModuleId =
+  | "inspection"
+  | "policy-compliance"
+  | "development"
+  | "process";
 
 export type DutyModuleApp = {
   id: DutyModuleId;
@@ -44,6 +48,19 @@ export function getDutyModuleApps(): Record<DutyModuleId, DutyModuleApp> {
       ),
       entryPath: "/dashboard",
     },
+    process: {
+      id: "process",
+      href: "/process",
+      label: "Процесс",
+      // Production Vercel project; override via NEXT_PUBLIC_PROCESS_URL.
+      origin: origin(
+        "NEXT_PUBLIC_PROCESS_URL",
+        process.env.VERCEL
+          ? "https://platform-process.vercel.app"
+          : "http://localhost:3004",
+      ),
+      entryPath: "/processes",
+    },
   };
 }
 
@@ -71,8 +88,10 @@ export function isDutyRoute(pathname: string) {
     pathname === "/inspection" ||
     pathname === "/policy-compliance" ||
     pathname === "/development" ||
+    pathname === "/process" ||
     pathname.startsWith("/inspection/") ||
     pathname.startsWith("/policy-compliance/") ||
-    pathname.startsWith("/development/")
+    pathname.startsWith("/development/") ||
+    pathname.startsWith("/process/")
   );
 }

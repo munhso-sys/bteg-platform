@@ -50,6 +50,8 @@ portal.NEXT_PUBLIC_INSPECT_URL = portal.NEXT_PUBLIC_INSPECT_URL || "http://local
 portal.NEXT_PUBLIC_POLICY_URL = portal.NEXT_PUBLIC_POLICY_URL || "http://localhost:3002";
 portal.NEXT_PUBLIC_DEVELOPMENT_URL =
   portal.NEXT_PUBLIC_DEVELOPMENT_URL || "http://localhost:3003";
+portal.NEXT_PUBLIC_PROCESS_URL =
+  portal.NEXT_PUBLIC_PROCESS_URL || "http://localhost:3004";
 
 const policySecret = ensureSecret(portal, "POLICY_EMBED_SECRET");
 ensureSecret(portal, "INSPECTION_EMBED_SECRET");
@@ -94,11 +96,16 @@ const devPath = path.join(root, "development", ".env.local");
 const development = { ...parseEnv(devPath), ...pickPublic() };
 writeEnv(devPath, development, ["# Local Development — synced from portal public keys"]);
 
+const processPath = path.join(root, "process", ".env.local");
+const processEnv = { ...parseEnv(processPath), ...pickPublic() };
+writeEnv(processPath, processEnv, ["# Local Process — synced from portal public keys"]);
+
 const report = {
   portalSiteUrl: portal.NEXT_PUBLIC_SITE_URL,
   inspectUrl: portal.NEXT_PUBLIC_INSPECT_URL,
   policyUrl: portal.NEXT_PUBLIC_POLICY_URL,
   developmentUrl: portal.NEXT_PUBLIC_DEVELOPMENT_URL,
+  processUrl: portal.NEXT_PUBLIC_PROCESS_URL,
   hasSupabaseUrl: Boolean(portal.NEXT_PUBLIC_SUPABASE_URL),
   hasAnon: Boolean(portal.NEXT_PUBLIC_SUPABASE_ANON_KEY || portal.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY),
   hasServiceRole: Boolean(portal.SUPABASE_SERVICE_ROLE_KEY),

@@ -149,6 +149,7 @@ export async function buildManagementOverview(
     inspection,
     policy,
     development,
+    processMod,
   ] = await Promise.all([
     admin.from("user_profiles").select("status, role_id"),
     admin
@@ -175,6 +176,7 @@ export async function buildManagementOverview(
     probeModule("inspection"),
     probeModule("policy-compliance"),
     probeModule("development"),
+    probeModule("process"),
   ]);
 
   const profiles = profilesRes.data ?? [];
@@ -201,7 +203,7 @@ export async function buildManagementOverview(
     ? normalizeSessionSettings(sessionRes.data.payload)
     : DEFAULT_SESSION_SETTINGS;
 
-  const modules = [inspection, policy, development];
+  const modules = [inspection, policy, development, processMod];
   const onlineCount = modules.filter((m) => m.online).length;
   const grantsActive = grantsRes.data?.length ?? 0;
 
@@ -220,7 +222,7 @@ export async function buildManagementOverview(
   }
   conclusions.push(
     onlineCount === modules.length
-      ? "Үүргийн 3 модуль бүгд онлайн."
+      ? "Үүргийн 4 модуль бүгд онлайн."
       : `Үүргийн модуль: ${onlineCount}/${modules.length} онлайн.`,
   );
   if (!supabase.ok) {

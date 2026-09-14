@@ -1,0 +1,81 @@
+@import "tailwindcss";
+@import "@xyflow/react/dist/style.css";
+@import "bpmn-js/dist/assets/diagram-js.css";
+@import "bpmn-js/dist/assets/bpmn-js.css";
+@import "bpmn-js/dist/assets/bpmn-font/css/bpmn.css";
+
+:root {
+  --background: #f4f6f8;
+  --foreground: #1a2332;
+  --fg: #1a2332;
+  --muted: #5b6b7c;
+  --border: #d7dee7;
+  --brand: #0f766e;
+  --brand-dark: #0d9488;
+  --sidebar: #134e4a;
+  --sidebar-fg: #f8fafc;
+  --card: #ffffff;
+  --panel: #ffffff;
+  --danger: #e11d48;
+  --health-green: #15803d;
+  --health-yellow: #ca8a04;
+  --health-red: #dc2626;
+  --health-neutral: #64748b;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: "Segoe UI", "Noto Sans", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  background-image:
+    linear-gradient(180deg, rgba(15, 118, 110, 0.05), transparent 200px),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 23px,
+      rgba(26, 35, 50, 0.015) 24px
+    );
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.dark {
+  --background: #0f172a;
+  --foreground: #e2e8f0;
+  --fg: #e2e8f0;
+  --muted: #94a3b8;
+  --border: #334155;
+  --card: #1e293b;
+  --panel: #1e293b;
+  --sidebar: #042f2e;
+}
+
+.react-flow__node-process {
+  font-size: 12px;
+}

@@ -16,6 +16,21 @@ type PermissionSeed = {
 
 const SEED_PERMISSIONS: PermissionSeed[] = [
   {
+    id: "module.process.view",
+    label: "Процесс харах",
+    module: "process",
+    description:
+      "PFD процессын зураг, зангилаа, аналитик (журам, шалгалт, зөрчил, эрсдэл) харах",
+    backfillFrom: "module.inspection.view",
+  },
+  {
+    id: "module.process.edit",
+    label: "Процесс засварлах",
+    module: "process",
+    description: "Процессын зангилаа үүсгэх, засварлах, холбоос удирдах",
+    backfillFrom: "module.inspection.edit",
+  },
+  {
     id: "module.smartmine.view",
     label: "SmartMine харах",
     module: "smartmine",

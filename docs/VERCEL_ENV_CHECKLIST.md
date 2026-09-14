@@ -20,6 +20,7 @@ Apply to **platform-portal**, **platform-inspection-center**, and **platform-pol
 | `NEXT_PUBLIC_INSPECT_URL` | Inspection Vercel origin |
 | `NEXT_PUBLIC_POLICY_URL` | Policy Vercel origin |
 | `NEXT_PUBLIC_DEVELOPMENT_URL` | Development Vercel origin |
+| `NEXT_PUBLIC_PROCESS_URL` | Process Vercel origin |
 | `POLICY_EMBED_SECRET_PREVIOUS` | Optional rotation window |
 | `INSPECTION_EMBED_SECRET_PREVIOUS` | Optional rotation window |
 

@@ -20,6 +20,8 @@ export type PermissionId =
   | "module.inspection.unit_findings.view"
   | "module.development.view"
   | "module.development.edit"
+  | "module.process.view"
+  | "module.process.edit"
   | "module.guidance.view"
   | "module.guidance.edit"
   | "module.voice.view"
@@ -52,6 +54,7 @@ export const MODULE_VIEW_PERMISSION: Record<string, PermissionId> = {
   "policy-compliance": "module.policy.view",
   guidance: "module.guidance.view",
   development: "module.development.view",
+  process: "module.process.view",
   "employee-voice": "module.voice.view",
   "risk-management": "module.results.view",
   "report-analysis": "module.results.view",

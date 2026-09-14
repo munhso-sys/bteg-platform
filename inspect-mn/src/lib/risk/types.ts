@@ -23,6 +23,8 @@ export type RiskSignal = {
   };
   href: string;
   updatedAt: string;
+  /** Optional Process module link for per-node risk heatmap. */
+  processId?: string | null;
 };
 
 export type RiskSourceSummary = {

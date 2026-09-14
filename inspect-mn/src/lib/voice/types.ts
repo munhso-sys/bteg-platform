@@ -63,6 +63,10 @@ export type EmployeeVoiceItem = {
   notifyRisk: boolean;
   notifyResearch: boolean;
   surveyTopic: string;
+  /**
+   * Optional Process module link (`ProcessNode.id`) for employee-voice → process map.
+   */
+  processId?: string | null;
   createdAt: string;
   updatedAt: string;
 };

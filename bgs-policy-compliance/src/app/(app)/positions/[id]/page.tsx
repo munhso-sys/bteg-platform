@@ -1,15 +1,18 @@
 import { notFound, redirect } from "next/navigation";
-import { ScoreTrendChart } from "@/components/charts/charts";
+import { PositionScoreTrendPanel } from "@/components/charts/position-score-trend-panel";
 import { ContextBackLink } from "@/components/policies/policy-back-link";
-import { PageHeader, Panel, ScoreChip, KpiCard } from "@/components/ui/primitives";
-import { RESPONSIBILITY_LABELS } from "@/lib/constants";
+import { PositionsSubnav } from "@/components/positions/positions-subnav";
+import { CollapsiblePanel } from "@/components/ui/collapsible-panel";
+import { PageHeader, Panel, ScoreChip } from "@/components/ui/primitives";
 import { getPositionDetail } from "@/lib/db/repository";
 import { getPolicyScope } from "@/lib/access/scope";
 import { isPositionScoped } from "@/lib/access/embed";
-import { JobDescriptionForm } from "./job-description-form";
+import { buildPositionScoreTrend } from "@/lib/score-trend";
+import { JobDescriptionEditDialog } from "./job-description-edit-dialog";
+import { JobDescriptionEvaluateForm } from "./job-description-evaluate-form";
 import { JobDescriptionView } from "./job-description-view";
+import { PositionObligationsSection } from "./position-obligations-section";
 import { PositionObligationsTree } from "./position-obligations-tree";
-import { QuickEvaluateForm } from "./quick-evaluate-form";
 
 export const dynamic = "force-dynamic";
 
@@ -50,16 +53,17 @@ export default async function PositionDetailPage({
   const detail = await getPositionDetail(id);
   if (!detail) notFound();
 
-  const trend = [...detail.evaluations]
-    .reverse()
-    .slice(-20)
-    .map((e) => ({
-      at: e.evaluated_at.slice(0, 10),
-      score: e.score,
-    }));
+  const { points: trendPoints, snapshot: trendSnapshot } =
+    buildPositionScoreTrend({
+      complianceEvaluations: detail.evaluations,
+      descriptionEvaluations: detail.descriptionEvaluations,
+    });
+
+  const tScore = detail.descriptionEvaluation?.score ?? null;
 
   return (
-    <div>
+    <div className="min-w-0">
+      {!readOnly ? <PositionsSubnav /> : null}
       {!readOnly ? (
         <div className="mb-3">
           <ContextBackLink
@@ -81,59 +85,111 @@ export default async function PositionDetailPage({
         actions={<ScoreChip score={detail.avgScore} />}
       />
 
-      <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
-        <KpiCard label="Зүйл" value={detail.counts.clauses} />
-        <KpiCard label="Журам" value={detail.counts.policies} />
-        <KpiCard label="Гүйцэтгэх" value={detail.counts.implementation} />
-        <KpiCard label="Хянах" value={detail.counts.monitoring} />
-        <KpiCard label="Баталгаажуулах" value={detail.counts.verification} />
-        <KpiCard label="Нэвтрүүлэх" value={detail.counts.deployment} />
-      </div>
+      {/* Шалгах preview-тэй ижил: нэг багана — tablet/phone дээр хажуугийн багана шахагдахгүй */}
+      <div className="space-y-3">
+        <PositionObligationsSection
+          obligations={detail.obligations}
+          counts={detail.counts}
+        />
 
-      <div className={readOnly ? "space-y-3" : "grid gap-3 lg:grid-cols-[1fr_320px]"}>
-        <div className="space-y-3">
-          <Panel title="Журмын үүрэг">
-            <PositionObligationsTree rows={detail.obligations} />
-          </Panel>
+        <CollapsiblePanel
+          title="Нэгжийн хамрах хүрээний журам"
+          defaultOpen={false}
+          badge={
+            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-slate-700">
+              {detail.orgScope.policyCount}
+            </span>
+          }
+        >
+          <div className="mb-3 space-y-2 rounded border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs text-slate-600">
+            <p className="leading-relaxed">{detail.orgScope.reasonSummary}</p>
+            {detail.orgScope.reasonBreakdown.length > 0 ? (
+              <ul className="list-disc space-y-0.5 pl-4">
+                {detail.orgScope.reasonBreakdown.map((r) => (
+                  <li key={r.type}>
+                    <span className="font-medium text-slate-800">{r.label}</span>
+                    {" — "}
+                    {r.policyCount} журам
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <p className="text-[11px] text-slate-500">
+              Эдгээр нь KPI «журам/заалт» тоонд орохгүй · зөвхөн лавлагаа.
+            </p>
+          </div>
+          {detail.orgScope.obligations.length === 0 ? (
+            <p className="text-sm text-slate-500">
+              Нэгжийн хамрах хүрээнд нэмэлт журам алга.
+            </p>
+          ) : (
+            <div className="min-w-0 overflow-x-auto">
+              <PositionObligationsTree rows={detail.orgScope.obligations} />
+            </div>
+          )}
+        </CollapsiblePanel>
 
-          <Panel title="Онооны хандлага">
-            {trend.length === 0 ? (
-              <p className="text-sm text-slate-500">Үнэлгээ байхгүй.</p>
+        <Panel title="Онооны хандлага">
+          <PositionScoreTrendPanel
+            points={trendPoints}
+            snapshot={trendSnapshot}
+          />
+        </Panel>
+
+        <CollapsiblePanel
+          title="Ажлын байрны тодорхойлолт (АБТ)"
+          defaultOpen={false}
+          badge={
+            detail.description ? (
+              <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800">
+                Бий
+              </span>
             ) : (
-              <ScoreTrendChart data={trend} />
-            )}
-          </Panel>
-
-          <Panel title="Ажлын байрны тодорхойлолт (АБТ)">
+              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-900">
+                Алга
+              </span>
+            )
+          }
+        >
+          <div className="space-y-3">
+            {!readOnly ? (
+              <div className="flex justify-end">
+                <JobDescriptionEditDialog
+                  positionId={id}
+                  initial={detail.description}
+                />
+              </div>
+            ) : null}
             {detail.description ? (
               <JobDescriptionView description={detail.description} />
             ) : (
               <p className="text-sm text-slate-500">
-                Ажлын байрны тодорхойлолт байхгүй.
+                Ажлын байрны тодорхойлолт байхгүй. «АБТ засварлах» дарж
+                Загвар.docx бүтцээр үүсгэнэ үү.
               </p>
             )}
-          </Panel>
-        </div>
+          </div>
+        </CollapsiblePanel>
 
         {!readOnly ? (
-          <div className="space-y-3">
-            <Panel title="Түргэн үнэлгээ">
-              <QuickEvaluateForm
-                positionId={id}
-                obligations={detail.obligations.map((o) => ({
-                  clause_id: o.link.policy_clause_id,
-                  type: o.link.responsibility_type,
-                  label: `${o.clause?.reference_number || "—"} · ${RESPONSIBILITY_LABELS[o.link.responsibility_type]}`,
-                }))}
-              />
-            </Panel>
-            <Panel title="АБТ засварлах">
-              <JobDescriptionForm
-                positionId={id}
-                initial={detail.description}
-              />
-            </Panel>
-          </div>
+          <CollapsiblePanel
+            title="Т-үнэлгээ (АБТ)"
+            defaultOpen={false}
+            badge={
+              tScore != null ? (
+                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-slate-800">
+                  {tScore}
+                </span>
+              ) : (
+                <span className="text-[10px] text-slate-500">—</span>
+              )
+            }
+          >
+            <JobDescriptionEvaluateForm
+              positionId={id}
+              initial={detail.descriptionEvaluation}
+            />
+          </CollapsiblePanel>
         ) : null}
       </div>
     </div>

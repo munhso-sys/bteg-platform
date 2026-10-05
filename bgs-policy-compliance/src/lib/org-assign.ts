@@ -140,6 +140,18 @@ export type PositionListRow = {
   link_count: number;
 };
 
+/** Read-only review list metrics (Шалгах subpage). */
+export type PositionReviewRow = PositionListRow & {
+  /** Ж-үнэлгээ — personal link evaluations average */
+  policy_avg_score: number | null;
+  /** Холбогдсон журмын тоо — unique policies via active personal links */
+  policy_count: number;
+  /** Заалтын тоо — unique clauses via active personal links */
+  clause_count: number;
+  /** Т-үнэлгээ — АБТ үнэлгээний сүүлийн оноо (0–100) */
+  description_score: number | null;
+};
+
 export function orgPath(heltesId: string, albaId?: string, rest?: string) {
   const base = `/org/heltes/${encodeURIComponent(heltesId)}`;
   if (!albaId) return base;

@@ -10,7 +10,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { StatusBadge, TableScroll } from "@/components/ui/primitives";
-import { ACTION_STATUS_LABELS, labelOf } from "@/lib/types";
+import { ACTION_STATUS_LABELS, formatInspectedPlaceText, labelOf } from "@/lib/types";
 import {
   FINDING_RISK_LABELS,
   type CorrectiveActionRow,
@@ -202,6 +202,11 @@ function PlanLeafRow({
           {row.findingTitle}
         </div>
       </td>
+      <td className="max-w-0 align-top text-xs text-[var(--muted)]">
+        <span className="line-clamp-3 break-words">
+          {formatInspectedPlaceText(row.performers) || "—"}
+        </span>
+      </td>
       <td className="align-top">
         <StatusBadge tone={riskTone(row.riskLabel)}>
           {labelOf(FINDING_RISK_LABELS, row.riskLabel)} · {row.riskScore}%
@@ -276,6 +281,11 @@ function ArchiveLeafRow({
           {row.findingTitle}
         </div>
       </td>
+      <td className="max-w-0 align-top text-xs text-[var(--muted)]">
+        <span className="line-clamp-3 break-words">
+          {formatInspectedPlaceText(row.performers) || "—"}
+        </span>
+      </td>
       <td className="align-top">
         <StatusBadge tone={riskTone(row.riskLabel)}>
           {labelOf(FINDING_RISK_LABELS, row.riskLabel)} · {row.riskScore}%
@@ -335,7 +345,7 @@ function renderNodes(
   onDelete: ((formData: FormData) => void | Promise<void>) | undefined,
 ): ReactNode[] {
   const rows: ReactNode[] = [];
-  const colSpan = 6;
+  const colSpan = 7;
   for (const node of nodes) {
     if (isFolder(node)) {
       const open = expanded.has(node.key);
@@ -452,20 +462,22 @@ export function ActionPlanTreeTable({
           <thead>
             {mode === "archive" ? (
               <tr>
-                <th className="w-[32%]">ХШ хуудас / асуулт / зөрчил</th>
-                <th className="w-[14%]">Эрсдэл</th>
-                <th className="w-[24%]">Арга хэмжээ</th>
-                <th className="w-[12%]">Дууссан</th>
-                <th className="w-[12%]">Хариуцагч</th>
+                <th className="w-[28%]">ХШ хуудас / асуулт / зөрчил</th>
+                <th className="w-[12%]">Байгууллага</th>
+                <th className="w-[12%]">Эрсдэл</th>
+                <th className="w-[20%]">Арга хэмжээ</th>
+                <th className="w-[10%]">Дууссан</th>
+                <th className="w-[10%]">Хариуцагч</th>
                 <th className="w-[8%]">Үйлдэл</th>
               </tr>
             ) : (
               <tr>
-                <th className="w-[28%]">ХШ хуудас / асуулт / зөрчил</th>
-                <th className="w-[14%]">Эрсдэл</th>
-                <th className="w-[22%]">Авах арга хэмжээ</th>
-                <th className="w-[14%]">Хугацаа</th>
-                <th className="w-[14%]">Явц / хариуцагч</th>
+                <th className="w-[24%]">ХШ хуудас / асуулт / зөрчил</th>
+                <th className="w-[12%]">Байгууллага</th>
+                <th className="w-[12%]">Эрсдэл</th>
+                <th className="w-[18%]">Авах арга хэмжээ</th>
+                <th className="w-[12%]">Хугацаа</th>
+                <th className="w-[12%]">Явц / хариуцагч</th>
                 <th className="w-[8%]">Засвар</th>
               </tr>
             )}
@@ -474,7 +486,7 @@ export function ActionPlanTreeTable({
             {roots.length === 0 ? (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={7}
                   className="py-8 text-center text-sm text-[var(--muted)]"
                 >
                   {emptyMessage}

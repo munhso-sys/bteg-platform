@@ -85,6 +85,19 @@ const SEED_PERMISSIONS: PermissionSeed[] = [
       "Журам, заалтын ялгаа, зөрчил, дутуу болон давхардлыг эшлэлтэй шалгах",
     backfillFrom: "module.tools.view",
   },
+  {
+    id: "module.glossary.view",
+    label: "Толь бичиг харах",
+    module: "glossary",
+    description: "Нэр томъёоны англи, монгол нэршил болон тайлбар харах",
+    backfillFrom: "module.tools.view",
+  },
+  {
+    id: "module.glossary.edit",
+    label: "Толь бичиг засварлах",
+    module: "glossary",
+    description: "Нэр томъёо болон толь бичгийн үндсэн мэдээлэл нэмэх, засварлах",
+  },
 ];
 
 async function ensurePermissions(admin: SupabaseClient) {

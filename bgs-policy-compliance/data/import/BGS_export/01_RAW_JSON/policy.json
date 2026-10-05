@@ -1,0 +1,513 @@
+[
+  {
+    "id": "41ff5200-8ec5-41c3-bbfb-cdf752810cfd",
+    "name": "ЦАГ АГААРЫН ОНЦГОЙ НӨХЦӨЛД АЖИЛЛАХ ЖУРАМ reg_111",
+    "approved_date": "2025-10-17",
+    "reference_code": "???????",
+    "is_deleted": false
+  },
+  {
+    "id": "eb12c8d7-cbe7-48b2-8d74-6eace255425f",
+    "name": "АЯЛАЛЫН ҮЕД ДАГАЖ МӨРДӨХ ЖУРАМ reg_42",
+    "approved_date": "2025-09-05",
+    "reference_code": "04/15 ХАВСРАЛТ-1",
+    "is_deleted": false
+  },
+  {
+    "id": "3e4777b4-3f6b-454c-aed8-4794ec0309ef",
+    "name": "БАЯНГОЛ УУРХАЙН АЖИЛТНУУДЫН АЖЛЫН ЦАГ АШИГЛАЛТАНД ХЯНАЛТ ТАВИХ-reg 117",
+    "approved_date": "2025-09-05",
+    "reference_code": "4/16 ХАВСРАЛТ-1",
+    "is_deleted": false
+  },
+  {
+    "id": "14cff15a-eff9-4416-98cf-336c6c071f98",
+    "name": "ХАБЭА-Н ХЯНАЛТ, ШАЛГАЛТ ЯВУУЛАХ ЖУРАМ reg_72",
+    "approved_date": "2025-08-05",
+    "reference_code": "04/14",
+    "is_deleted": false
+  },
+  {
+    "id": "d4ebf07d-d292-440a-9cc9-10998bbe6e0a",
+    "name": "ЦООЖ ПАЙЗНЫ СИСТЕМ АШИГЛАЛТЫН ЖУРАМ reg_92",
+    "approved_date": "2025-07-06",
+    "reference_code": "04/10-",
+    "is_deleted": false
+  },
+  {
+    "id": "4565e72a-a5ec-40fc-8cf5-2435f3b6b3d6",
+    "name": "УДИРДЛАГЫН ДЭРГЭДЭХ ЗАХИРГААНЫ ЗӨВЛӨЛИЙН ХУРЛЫГ ЗОХИОН БАЙГУУЛАХ ЖУРАМ-reg 87",
+    "approved_date": "2025-07-05",
+    "reference_code": "????",
+    "is_deleted": false
+  },
+  {
+    "id": "a193efa2-cab3-4da7-ace6-9abc42cef6ff",
+    "name": "УУРХАЙН БҮСЭД СУУДЛЫН АВТОМАШИН ЖОЛООДОХ ЭРХ ОЛГОХ ЖУРАМ-reg 135",
+    "approved_date": "2025-07-05",
+    "reference_code": "04/11 2-р хавсралт",
+    "is_deleted": false
+  },
+  {
+    "id": "589b3d89-a90e-4c08-8c71-e4309ac8599b",
+    "name": "БҮРТГЭЛ ХЯНАЛТЫН АЛБАНЫ ҮЙЛ АЖИЛЛАГААНЫ ЖУРАМ - reg 84",
+    "approved_date": "2025-06-29",
+    "reference_code": "04/09 1-р хавсралт ???",
+    "is_deleted": false
+  },
+  {
+    "id": "05d90792-f72f-4fe7-9d5f-3d1828d4ce65",
+    "name": "ДРОН АШИГЛАХ ЖУРАМ",
+    "approved_date": "2025-06-12",
+    "reference_code": "7-Apr",
+    "is_deleted": false
+  },
+  {
+    "id": "688298c0-5248-427c-95ca-06a38b424ce6",
+    "name": "МЭДЭЭЛЛИЙН АЮУЛГҮЙ БАЙДЛЫГ ХАНГАХ ЖУРАМ-reg 74",
+    "approved_date": "2025-06-11",
+    "reference_code": "04/08 1-р хавсралт ???",
+    "is_deleted": false
+  },
+  {
+    "id": "fe41c506-d7e3-4d83-a33f-e8d7b0a47871",
+    "name": "ДОТООД ХЯНАЛТ ШАЛГАЛТЫГ ЗОХИОН БАЙГУУЛАХ ЖУРАМ reg_80",
+    "approved_date": "2025-03-15",
+    "reference_code": "04/03 Хавсралт-1",
+    "is_deleted": false
+  },
+  {
+    "id": "a722e743-7170-490e-962e-bdab4afb69e9",
+    "name": "ЁС ЗҮЙН ХОРООНЫ АЖИЛЛАХ ЖУРАМ-reg_124",
+    "approved_date": "2025-03-14",
+    "reference_code": "04/04 ХАВСРАЛТ-1",
+    "is_deleted": false
+  },
+  {
+    "id": "8bae8a98-5cb5-4ad8-a42f-cfacea43e425",
+    "name": "АЖЛЫН ХУВЦАС, ХАМГААЛАХ ХЭРЭГСЭЛ ОЛГОХ ЖУРАМ- reg 110",
+    "approved_date": "2025-03-09",
+    "reference_code": "04/05 1-р хавсралт",
+    "is_deleted": false
+  },
+  {
+    "id": "c764b8b1-b2b0-4782-a915-1284442f4f4e",
+    "name": "ХАБЭА-Н ЗААВАРЧИЛГАА ӨГӨХ ЖУРАМ- reg 134",
+    "approved_date": "2025-02-23",
+    "reference_code": "04/02 1-р хавсралт",
+    "is_deleted": false
+  },
+  {
+    "id": "14a3d3c1-027a-4c5c-a7ba-2ed8d19dc60d",
+    "name": "ХӨДӨЛМӨРИЙН АЮУЛГҮЙ БАЙДАЛ, ЭРҮҮЛ АХУЙН НИЙТЛЭГ ЖУРАМ reg_115",
+    "approved_date": "2024-12-06",
+    "reference_code": "04/34",
+    "is_deleted": false
+  },
+  {
+    "id": "aa142d35-8f94-4342-a217-b2215b9673ee",
+    "name": "ТЕХНИК, ТОНОГ ТӨХӨӨРӨМЖИЙН ЗАСВАР АШИГЛАЛТЫН ЖУРАМ reg_67",
+    "approved_date": "2024-11-17",
+    "reference_code": "04/33",
+    "is_deleted": false
+  },
+  {
+    "id": "24e1130a-f735-4163-bbba-fdb3a5fee955",
+    "name": "ЭДИЙН ЗАСГИЙН АЛБАНЫ ҮЙЛ АЖИЛЛАГААНЫ ЖУРАМ -reg 99",
+    "approved_date": "2024-11-02",
+    "reference_code": "04/30 1-р хавсралт",
+    "is_deleted": false
+  },
+  {
+    "id": "cc507189-5553-48e1-89ed-b0e3610fefdc",
+    "name": "КЕМПЭД МӨРДӨХ ЖУРАМ reg_98",
+    "approved_date": "2024-10-09",
+    "reference_code": "24/21",
+    "is_deleted": false
+  },
+  {
+    "id": "18d11e6a-e7a0-423b-9b9f-542eae879685",
+    "name": "АЖИЛТНЫ МЭРГЭЖИЛ, УР ЧАДВАРЫН ТҮВШИН ТОГТООХ ЖУРАМ-reg 76",
+    "approved_date": "2024-10-06",
+    "reference_code": "27-Apr",
+    "is_deleted": false
+  },
+  {
+    "id": "39f237d4-7a3d-4136-8b56-7ed130d76d21",
+    "name": "БАЯЖУУЛАЛТЫН АЛБАНЫ ҮЙЛ АЖИЛЛАГААНД ДАГАЖ МӨРДӨХ ЖУРАМ",
+    "approved_date": "2024-09-04",
+    "reference_code": "?",
+    "is_deleted": false
+  },
+  {
+    "id": "701c2ce7-6d75-49b0-9d1c-2f95937f9b74",
+    "name": "АВТОКРАНААР ӨРГӨХ, АЧАА ШИЛЖҮҮЛЭХ АЖЛЫН АЮУЛГҮЙ АЖИЛЛАГААНЫ ЖУРАМ -reg 77 Үнэлгээ холбосон",
+    "approved_date": "2024-08-18",
+    "reference_code": "04/21 1-р хавсралт ",
+    "is_deleted": false
+  },
+  {
+    "id": "3c4f475c-3029-47de-92cd-f57afa7288c2",
+    "name": "ТЕХНОЛОГИЙН ДЭЭЖ АВАХ ЖУРАМ",
+    "approved_date": "2024-07-19",
+    "reference_code": "23-Apr",
+    "is_deleted": false
+  },
+  {
+    "id": "a78f589a-3ccf-4570-9ea1-63a54d20310b",
+    "name": "ТЕХНИКИЙН КОМИССЫН АЖИЛЛАХ ЖУРАМ - reg 96",
+    "approved_date": "2024-07-14",
+    "reference_code": "04/22 1-р хавсралт",
+    "is_deleted": false
+  },
+  {
+    "id": "34827be1-d1a5-427f-a7d6-25812dd7d42b",
+    "name": "ГЕОТЕХНИКИЙН АЛБАНЫ ЖУРАМ ",
+    "approved_date": "2024-06-04",
+    "reference_code": "?1",
+    "is_deleted": false
+  },
+  {
+    "id": "b993c84d-e78c-4863-a397-0b02e951f281",
+    "name": "ГАЗАР ХӨНДӨХ ЗӨВШӨӨРӨЛ ОЛГОХ ЖУРАМ-reg 140 үнэлгээ холбосон",
+    "approved_date": "2024-05-29",
+    "reference_code": "04/18 1-р хавсралт",
+    "is_deleted": false
+  },
+  {
+    "id": "7fbcceb5-f3fe-460c-85a2-a8ffdf10cdef",
+    "name": "ХҮНИЙ НӨӨЦИЙН БҮРДҮҮЛЭЛТ СОНГОН ШАЛГАРУУЛАЛТЫН ЖУРАМ-reg 128",
+    "approved_date": "2024-04-25",
+    "reference_code": "14-Apr",
+    "is_deleted": false
+  },
+  {
+    "id": "23a0d342-b023-46e8-bafe-86fc24cbae42",
+    "name": "ҮЙЛДВЭРЛЭЛИЙН ОСОЛ, ХУРЦ ХОРДЛОГЫГ СУДЛАН БҮРТГЭХ ДҮРЭМ reg_70",
+    "approved_date": "2024-04-18",
+    "reference_code": "04/07 Хавсралт-1",
+    "is_deleted": false
+  },
+  {
+    "id": "91bfdfc4-ecef-456f-ae4c-9b1c85bc2238",
+    "name": "АЖЛЫН БАЙРНЫ ТОХИРГОО ХИЙЛГЭХ КОМИСС АЖИЛЛАХ ЖУРАМ reg_71",
+    "approved_date": "2024-04-06",
+    "reference_code": "04/10",
+    "is_deleted": false
+  },
+  {
+    "id": "ce950120-4c95-4e67-a388-92a21651968f",
+    "name": "БАЙГАЛЬ ОРЧНЫ ХЭЛТСИЙН ҮЙЛ АЖИЛЛАГААНЫ  ЖУРАМ-reg 141",
+    "approved_date": "2024-04-04",
+    "reference_code": "??????",
+    "is_deleted": false
+  },
+  {
+    "id": "0521b402-5f51-4890-93c0-7c6a66c8c01b",
+    "name": "ХАБЭА-ИЙН ҮЙЛ АЖИЛЛАГААНЫ ЖУРАМ- reg 97 Үнэлгээ холбосон",
+    "approved_date": "2024-04-02",
+    "reference_code": "04/09 1-р хавсралт",
+    "is_deleted": false
+  },
+  {
+    "id": "1932bf9c-b309-44e5-aa23-38ab7ea6bd37",
+    "name": "ЦАЛИН ОЛГОХ ТУХАЙ ЖУРАМ- reg 127",
+    "approved_date": "2024-01-04",
+    "reference_code": "24/02",
+    "is_deleted": false
+  },
+  {
+    "id": "5bce2606-a7ee-402c-b596-a8cfa241ea4a",
+    "name": "ХӨДӨЛМӨРИЙН ЭРҮҮЛ АХУЙН ТУХАЙ ЖУРАМ reg-73",
+    "approved_date": "2023-11-12",
+    "reference_code": "04/26 Хавсралт-1",
+    "is_deleted": false
+  },
+  {
+    "id": "7b9eb1fb-87bf-459e-bee1-a73c5e043371",
+    "name": "ХӨДӨЛМӨРИЙН ДОТООД ЖУРАМ-reg 66",
+    "approved_date": "2023-11-12",
+    "reference_code": "??/??",
+    "is_deleted": false
+  },
+  {
+    "id": "ac7c88bf-cffb-408d-a27b-67a117e9f77e",
+    "name": "ЯАРАЛТАЙ ТУСЛАМЖИЙН НЭГЖИЙН ЖУРАМ - reg 89 Үнэлгээ холбосон",
+    "approved_date": "2023-09-17",
+    "reference_code": "18-Apr",
+    "is_deleted": false
+  },
+  {
+    "id": "77a0679d-3e96-4a11-83ad-496ec92821c0",
+    "name": "ҮЙЛДВЭРЛЭЛИЙН ХЭЛТСИЙН ҮЙЛ АЖИЛЛАГААНЫ ЖУРАМ\n",
+    "approved_date": "2023-07-22",
+    "reference_code": "13-Apr",
+    "is_deleted": false
+  },
+  {
+    "id": "576f3425-dbb8-4756-8be1-ce12d53ebf30",
+    "name": "АХМАДЫН ЗӨВЛӨЛИЙН АЖИЛЛАХ ЖУРАМ",
+    "approved_date": "2023-06-25",
+    "reference_code": "23/29 Хавсралт 2",
+    "is_deleted": false
+  },
+  {
+    "id": "aa719440-48bf-474a-acdc-49e3acb4c03b",
+    "name": "АХМАДЫН САН БАЙГУУЛАН АЖИЛЛАХ ЖУРАМ",
+    "approved_date": "2023-06-25",
+    "reference_code": "23/29 Хавсралт 1",
+    "is_deleted": false
+  },
+  {
+    "id": "fe20175d-676b-4b20-b340-65315983d4e5",
+    "name": "ТӨЛӨВЛӨЛТ ХЯНАЛТЫН АЛБАНЫ ЖУРАМ",
+    "approved_date": "2023-04-04",
+    "reference_code": "04/07 2-р хавсралт",
+    "is_deleted": false
+  },
+  {
+    "id": "07c9fc32-5efc-4b2e-abc1-2f818c4bdce7",
+    "name": "ЦАХИЛГААНЫ АЛБАНЫ ҮЙЛ АЖИЛЛАГААНЫ ЖУРАМ",
+    "approved_date": "2023-04-04",
+    "reference_code": "04/07 -р хавсралт",
+    "is_deleted": false
+  },
+  {
+    "id": "3b84c84c-1a60-4227-b20a-83e820680303",
+    "name": "ӨРӨМДЛӨГ ТЭСЭЛГЭЭНИЙ АЖЛЫН ЖУРАМ",
+    "approved_date": "2023-04-04",
+    "reference_code": "04/07 4-р хавсралт",
+    "is_deleted": false
+  },
+  {
+    "id": "94fb980f-1d54-41a5-92c8-793d27703532",
+    "name": "ГЕОЛОГИ ЧАНАРЫН АЛБАНЫ ЖУРАМ",
+    "approved_date": "2023-04-04",
+    "reference_code": "04/07 6-р хавсралт",
+    "is_deleted": false
+  },
+  {
+    "id": "a63c94b1-b3d5-42b4-8ba1-0587588c35a4",
+    "name": "МАРКШЕЙДЕРИЙН АЛБАНЫ ЖУРАМ",
+    "approved_date": "2023-04-04",
+    "reference_code": "04/07 3-р хавсралт",
+    "is_deleted": false
+  },
+  {
+    "id": "93536a06-df96-4cca-9f08-33f790bf12eb",
+    "name": "ХҮНИЙ НӨӨЦИЙН АЛБАНЫ ҮЙЛ АЖИЛЛАГААНЫ ЖУРАМ- reg 129",
+    "approved_date": "2023-03-30",
+    "reference_code": "6-Apr",
+    "is_deleted": false
+  },
+  {
+    "id": "2a08a680-e8b8-4a1c-9898-132fd42d5a81",
+    "name": "ЦАХИМ ШУУДАН АШИГЛАХ, БАРИМТ БИЧИГ ИЛГЭЭХ, ХҮЛЭЭН АВАХ ЖУРАМ-reg 78",
+    "approved_date": "2023-03-28",
+    "reference_code": "?04/04",
+    "is_deleted": false
+  },
+  {
+    "id": "02d1fcfd-0c05-4499-b907-4c33882c4e70",
+    "name": "СЭЛБЭГ ХЭРЭГСЭЛ, ТОС ТОСОЛГООНЫ МАТЕРИАЛЫН ЗОХИСТОЙ НӨӨЦ БҮРДҮҮЛЭХ, ЗАХИАЛГА ХИЙХ, ОРЛОГОД АВАХ, ЗАРЛАГА ГАРГАХ ТУХАЙ ЖУРАМ",
+    "approved_date": "2023-02-24",
+    "reference_code": "23-May",
+    "is_deleted": false
+  },
+  {
+    "id": "7c08649b-6bcf-410f-a044-a1174a32ea02",
+    "name": "АЮУЛЫГ МЭДЭЭЛЭХ ХУУДСЫГ АШИГЛАХ ЖУРАМ-reg 104 Үнэлгээ холбосон",
+    "approved_date": "2022-10-29",
+    "reference_code": "04/25 1-р хавсралт",
+    "is_deleted": false
+  },
+  {
+    "id": "0df254a8-33dc-4d86-9675-68c6fa0c90e7",
+    "name": "УУРХАЙН ГАЛЫН АЮУЛГҮЙ БАЙДЛЫГ ХАНГАХ НЭГДСЭН ЖУРАМ- reg 102 Үнэлгээ холбосон",
+    "approved_date": "2022-10-11",
+    "reference_code": "04/27 1-р хавсралт",
+    "is_deleted": false
+  },
+  {
+    "id": "21e545c9-754c-4888-bd4e-a48b6bb682c6",
+    "name": "ХАБЭА-Н СУРГАЛТ ЯВУУЛАХ, ШАЛГАЛТ АВАХ ЖУРАМ- reg 103 Үнэлгээ холбосон",
+    "approved_date": "2022-10-11",
+    "reference_code": "04/06 1-р хавсралт",
+    "is_deleted": false
+  },
+  {
+    "id": "0e224cdd-8ce3-40d1-96ec-c24249c5b644",
+    "name": "ГАЛЫН АЮУЛГҮЙ БАЙДЛЫГ ХАНГАХ НЭГДСЭН ЖУРАМ -reg 83 үнэлгээ холбосон",
+    "approved_date": "2022-10-11",
+    "reference_code": "04/27 1-р хавсралт ?",
+    "is_deleted": false
+  },
+  {
+    "id": "98b73e66-3579-468c-bf4c-fd519f30c3fe",
+    "name": "УУРХАЙН ЗАМЫН ХӨДӨЛГӨӨНИЙ ЖУРАМ-reg 101",
+    "approved_date": "2022-10-11",
+    "reference_code": "25-Apr",
+    "is_deleted": false
+  },
+  {
+    "id": "a7e5f522-d7b9-4746-ac48-952135c19a36",
+    "name": "БАЯНГОЛ УУРХАЙН БҮСЭД МӨРДӨХ АСГАРАЛТЫН ЖУРАМ -reg 136 үнэлгээ холбосон",
+    "approved_date": "2022-08-03",
+    "reference_code": "22-Apr",
+    "is_deleted": false
+  },
+  {
+    "id": "17625748-303a-49a0-a460-e96446b9bc7a",
+    "name": "ЧӨЛӨӨ ОЛГОХ ТУХАЙ ЖУРАМ-reg 132",
+    "approved_date": "2022-03-21",
+    "reference_code": "22/09",
+    "is_deleted": false
+  },
+  {
+    "id": "1b38ab21-af7b-4934-b1e8-ad87ecc0eb1e",
+    "name": "САХИЛГЫН ШИЙТГЭЛ НОГДУУЛАХ, ТҮҮНД ГОМДОЛ ГАРГАХ ТУХАЙ ЖУРАМ- reg 121",
+    "approved_date": "2022-03-21",
+    "reference_code": "22/01???",
+    "is_deleted": false
+  },
+  {
+    "id": "08b16be3-cad3-458b-a49c-5a543df9786c",
+    "name": "ЭЭЛЖ СОЛИЛЦОХ ҮЕД АЖИЛ ХҮЛЭЭЛЦЭХ ЖУРАМ-reg 31",
+    "approved_date": "2022-02-18",
+    "reference_code": "3-Apr",
+    "is_deleted": false
+  },
+  {
+    "id": "82732800-c8d3-4a4c-af59-e0656c077e87",
+    "name": "ХЯНАЛТЫН ТОНОГ ТӨХӨӨРӨМЖ АШИГЛАХ ЖУРАМ-reg 133 үнэлгээ холбосон",
+    "approved_date": "2021-12-31",
+    "reference_code": "22/01 6-р хавсралт",
+    "is_deleted": false
+  },
+  {
+    "id": "9a174b93-88ed-4cfe-9017-6ccdcf6bfdb9",
+    "name": "АЖИЛТНЫ МЭДЭЭЛЛИЙГ ЦУГЛУУЛАХ, БОЛОВСРУУЛАХ, АШИГЛАХ ЖУРАМ-reg 120",
+    "approved_date": "2021-12-31",
+    "reference_code": "22/01??",
+    "is_deleted": false
+  },
+  {
+    "id": "e732b58c-77cf-4ddd-86c6-fb8bdd27ed2a",
+    "name": "НУУЦ ХАДГАЛАХ, НУУЦТАЙ ХАРЬЦАХ ЖУРАМ- reg 126",
+    "approved_date": "2021-12-31",
+    "reference_code": "22/01????",
+    "is_deleted": false
+  },
+  {
+    "id": "83b428ed-ce2f-40eb-829b-539dd8b9f42c",
+    "name": "АЖИЛ ЭРХЛЭЛТ ХӨДӨЛМӨРИЙН ХАРИЛЦААНД ДАРАМТ, ХҮЧИРХИЙЛЭЛ, БЭЛГИЙН ДАРАМТААС УРЬДЧИЛАН СЭРГИЙЛЭХ, ГАРГАСАН ГОМДЛЫГ ШИЙДВЭРЛЭХ ЖУРАМ-REG-116",
+    "approved_date": "2021-12-31",
+    "reference_code": "22/01",
+    "is_deleted": false
+  },
+  {
+    "id": "bd026083-38b7-4620-b690-eb7d9618ae7a",
+    "name": "АЛБАН ТОМИЛОЛТЫН ЖУРАМ-reg 118",
+    "approved_date": "2021-12-31",
+    "reference_code": "22/01?",
+    "is_deleted": false
+  },
+  {
+    "id": "7c51f551-1efc-43dc-aa3e-0e8216ad8709",
+    "name": "АВТО ТЭЭВРИЙН АЛБАНЫ ҮЙЛ АЖИЛЛАГААНЫ ЖУРАМ reg_65",
+    "approved_date": "2021-06-02",
+    "reference_code": "04/11",
+    "is_deleted": false
+  },
+  {
+    "id": "7a6b4467-8e3f-4054-b561-b5f9134c91ec",
+    "name": "АВТОМАШИН ЭЗЭМШИГЧ ДАГАЖ МӨРДӨХ ЖУРАМ- reg 105 Үнэлгээ холбосон",
+    "approved_date": "2021-05-04",
+    "reference_code": "04/08 1-р хавсралт",
+    "is_deleted": false
+  },
+  {
+    "id": "cd06f6a0-fec6-46a3-87fa-0834208e1414",
+    "name": "ХӨДӨЛМӨРИЙН АЮУЛГҮЙ БАЙДАЛ, ЭРҮҮЛ АХУЙН ЗӨВЛӨЛИЙН ЖУРАМ-reg 112",
+    "approved_date": "2021-03-10",
+    "reference_code": "04/05 1-р хавсралт ?",
+    "is_deleted": false
+  },
+  {
+    "id": "4ddb70fe-2d77-4efa-a4a5-f963aea63317",
+    "name": "БАЯНГОЛ УУРХАЙН КАРЬЕРТ ТҮЛШ ТҮГЭЭХ ЖУРАМ -reg 81",
+    "approved_date": "2021-03-07",
+    "reference_code": "????????",
+    "is_deleted": false
+  },
+  {
+    "id": "37100197-a368-4f34-9be0-3bbdaaf4b452",
+    "name": "БАЯНГОЛ УУРХАЙН ШАЛГАН НЭВТРҮҮЛЭХ ПОСТООР НЭВТРЭХ ҮЕД ДАГАЖ МӨРДӨХ ЖУРАМ -reg 114",
+    "approved_date": "2021-03-03",
+    "reference_code": "04/03 1-р хавсралт",
+    "is_deleted": false
+  },
+  {
+    "id": "2ff3265b-b356-4318-89a7-1308cc0a8c8c",
+    "name": "ШАГНАЛЫН ЖУРАМ reg_93",
+    "approved_date": "2020-11-24",
+    "reference_code": "01",
+    "is_deleted": false
+  },
+  {
+    "id": "615bc5c3-0d2c-4e2f-9aa4-0b65352e0425",
+    "name": "БАЯНГОЛ УУРХАЙД РАДИО ХОЛБОО ЗОХИОН БАЙГУУЛАХ, ГАР БОЛОН СУУРИН СТАНЦ АШИГЛАХ ЖУРАМ -reg 142 Үнэлгээ холбосон",
+    "approved_date": "2020-09-30",
+    "reference_code": "04/19 1-р хавсралт",
+    "is_deleted": false
+  },
+  {
+    "id": "a0eca52a-7fbf-403a-b325-38068fb2de6c",
+    "name": "ХИМИЙН БОДИСЫГ ХАДГАЛАХ, АШИГЛАХ ЖУРАМ reg_91",
+    "approved_date": "2020-09-15",
+    "reference_code": "04/17 Хавсралт-1",
+    "is_deleted": false
+  },
+  {
+    "id": "6a24a743-a18c-4b15-b4d3-49e2e6c09e50",
+    "name": "ХИМИЙН ЛАБОРАТОРЫН ГАЛЫН АЮУЛГҮЙ БАЙДЛЫГ ХАНГАХ ЖУРАМ -reg 94 Үнэлгээ холбосон",
+    "approved_date": "2020-09-14",
+    "reference_code": "04/17 2-р хавсралт",
+    "is_deleted": false
+  },
+  {
+    "id": "215b720e-ff4d-4d68-b14d-938b0cbccd5e",
+    "name": " ЁС ЗҮЙН ДҮРЭМ\n",
+    "approved_date": "2020-08-21",
+    "reference_code": "04/04 Хавсралт 1",
+    "is_deleted": false
+  },
+  {
+    "id": "5dcaef9b-b325-4985-b608-e4b3031a5946",
+    "name": "ҮЙЛ АЖИЛЛАГААНЫ ЯВЦАД ИЛЭРСЭН СОЁЛЫН ОЛДВОРЫН ҮЕД АЖИЛЛАХ ЖУРАМ- reg 138 үнэлгээ холбосон",
+    "approved_date": "2020-03-14",
+    "reference_code": "04/03-1 2-р хавсралт",
+    "is_deleted": false
+  },
+  {
+    "id": "0b479c22-1f96-406d-a73b-c55c75950e8b",
+    "name": "ХӨРС ХАМГААЛАХ, ХӨРСНИЙ ДОРОЙТОЛ, ЭВДРЭЛЭЭС УРЬДЧИЛАН СЭРГИЙЛЭХ, ХЯНАЛТ ТАВИХ ЖУРАМ-reg 137 үнэлгээ холбосон",
+    "approved_date": "2020-03-14",
+    "reference_code": "04/03-1 1-р хавсралт ",
+    "is_deleted": false
+  },
+  {
+    "id": "9cdd4a23-b084-45e2-a148-03bd61a24311",
+    "name": "АСГАРСАН БОДИСЫГ АЮУЛГҮЙЖҮҮЛЭХ ЖУРАМ-reg 139 үнэлгээ холбосон",
+    "approved_date": "2020-03-14",
+    "reference_code": "04/03-1 3-р хавсралт",
+    "is_deleted": false
+  },
+  {
+    "id": "b8a6b191-4d56-4402-880b-d3cb6e01de43",
+    "name": "БАЯНГОЛ УУРХАЙН ЛАБОРАТОРИД АШИГЛАСАН ХИМИЙН БОДИСЫН ХАЯГДЛЫГ ХАДГАЛАХ, ТЭЭВЭРЛЭХ, УСТГАХ ЖУРАМ reg_82",
+    "approved_date": "2019-04-10",
+    "reference_code": "04/06 Хавсралт-1",
+    "is_deleted": false
+  }
+]

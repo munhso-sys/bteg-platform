@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Bot,
+  BookOpen,
   ClipboardCheck,
   Factory,
   FileBarChart2,
@@ -126,6 +127,14 @@ export const MODULES: PlatformModule[] = [
     description: "Журам, заалтын ялгаа, зөрчил, дутуу болон давхардлыг эшлэлтэй шалгах",
     group: "tools",
     icon: FileSearch,
+  },
+  {
+    id: "glossary",
+    href: "/glossary",
+    label: "Толь бичиг",
+    description: "Нэр томъёоны англи, монгол нэршил болон тайлбар",
+    group: "tools",
+    icon: BookOpen,
   },
   {
     id: "settings",

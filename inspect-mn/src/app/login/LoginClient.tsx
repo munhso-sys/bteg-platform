@@ -21,7 +21,9 @@ export default function LoginClient() {
     authError ||
       (reason === "idle"
         ? "Идэвхгүй байсан тул системээс автоматаар гарлаа. Дахин нэвтэрнэ үү."
-        : ""),
+        : reason === "inactive"
+          ? "Таны нэвтрэх эрх түр хаагдсан байна. Админтай холбогдоно уу."
+          : ""),
   );
   const [loading, setLoading] = useState(false);
 
@@ -41,7 +43,25 @@ export default function LoginClient() {
         setError(
           signInError.message === "Invalid login credentials"
             ? "Имэйл эсвэл нууц үг буруу байна."
-            : signInError.message,
+            : /banned|user.?banned|disabled/i.test(signInError.message)
+              ? "Таны нэвтрэх эрх түр хаагдсан байна. Админтай холбогдоно уу."
+              : signInError.message,
+        );
+        return;
+      }
+
+      // Profile Inactive/suspended → block even if Auth ban did not apply yet.
+      const accessRes = await fetch("/api/me/access", { cache: "no-store" });
+      const accessData = (await accessRes.json().catch(() => null)) as {
+        ok?: boolean;
+        profile?: { status?: string } | null;
+        error?: string;
+      } | null;
+      const status = accessData?.profile?.status;
+      if (!accessRes.ok || status !== "active") {
+        await supabase.auth.signOut();
+        setError(
+          "Таны нэвтрэх эрх түр хаагдсан эсвэл идэвхгүй байна. Админтай холбогдоно уу.",
         );
         return;
       }

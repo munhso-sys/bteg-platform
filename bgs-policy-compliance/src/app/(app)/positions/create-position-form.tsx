@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 import { OTHER_ALBA_ID, OTHER_HELTES_ID, type OrgAssignTree } from "@/lib/org-assign";
 import { withBasePath } from "@/lib/paths";
 
-export function CreatePositionForm({ tree }: { tree: OrgAssignTree }) {
+export function CreatePositionForm({
+  tree,
+  onCreated,
+}: {
+  tree: OrgAssignTree;
+  onCreated?: () => void;
+}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +49,7 @@ export function CreatePositionForm({ tree }: { tree: OrgAssignTree }) {
         throw new Error(data?.error || `Алдаа (${res.status})`);
       }
       const data = (await res.json()) as { id: string };
+      onCreated?.();
       router.push(`/positions/${data.id}`);
       router.refresh();
     } catch (err) {

@@ -55,7 +55,8 @@ function buildRow(input: {
     runCompletedDate: run?.completedDate ?? "",
     inspectedByOrg: run?.inspectedByOrg ?? "",
     performers: (run?.performers ?? []).filter(
-      (row) => row.name.trim() || row.position.trim(),
+      (row) =>
+        (row.place ?? "").trim() || row.name.trim() || row.position.trim(),
     ),
     targetOrgUnitId: finding.targetOrgUnitId || run?.targetOrgUnitId || "",
     targetDepartmentId:

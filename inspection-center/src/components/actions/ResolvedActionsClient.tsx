@@ -157,21 +157,28 @@ export function ResolvedActionsClient({
                 </dl>
                 <div>
                   <div className="mb-1 text-xs text-[var(--muted)]">
-                    Гүйцэтгэсэн ажилтан (нэр / албан тушаал)
+                    Хяналт шалгалт хийсэн (байгууллага / албан тушаал / нэр)
                   </div>
                   {archiveDetail.performers.length > 0 ? (
                     <ul className="space-y-1 rounded border border-[var(--border)] bg-slate-50 px-3 py-2 text-sm">
                       {archiveDetail.performers.map((person, index) => (
-                        <li key={`${person.name}-${index}`}>
-                          <span className="font-medium">
-                            {person.name || "—"}
-                          </span>
+                        <li key={`${person.place}-${person.name}-${index}`}>
+                          {person.place ? (
+                            <span className="font-medium">{person.place}</span>
+                          ) : null}
+                          {person.place && (person.position || person.name)
+                            ? " · "
+                            : null}
                           {person.position ? (
                             <span className="text-[var(--muted)]">
-                              {" "}
-                              · {person.position}
+                              {person.position}
                             </span>
                           ) : null}
+                          {person.position && person.name ? " — " : null}
+                          <span className="font-medium">
+                            {person.name ||
+                              (!person.place && !person.position ? "—" : "")}
+                          </span>
                         </li>
                       ))}
                     </ul>

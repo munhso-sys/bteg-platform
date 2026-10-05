@@ -80,9 +80,15 @@ export default async function ClauseDetailPage({
     );
     return {
       id: l.id,
+      policy_clause_id: l.policy_clause_id,
       job_position_id: l.job_position_id,
       responsibility_type: l.responsibility_type,
       notes: l.notes,
+      weight: l.weight ?? 1,
+      required_evidence: l.required_evidence ?? null,
+      process_id: l.process_id ?? null,
+      location_id: l.location_id ?? null,
+      asset_id: l.asset_id ?? null,
       positionName: pos?.name ?? l.job_position_id,
       organizationName:
         org?.organizationName || (pos?.organization_name ?? "").trim(),

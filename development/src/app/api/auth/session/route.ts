@@ -1,18 +1,36 @@
 import { NextResponse } from "next/server";
-import { createUserServerClient } from "@/lib/supabase/server";
+import {
+  createSessionCookieClient,
+  createUserServerClient,
+} from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-/** Establish a Supabase session cookie from portal-posted tokens (not from rd_uid). */
-export async function POST(request: Request) {
-  const supabase = await createUserServerClient();
+/** Probe whether cookies or an Authorization Bearer already authenticate. */
+export async function GET(request: Request) {
+  const authHeader = request.headers.get("authorization");
+  const supabase = await createUserServerClient(request);
   if (!supabase) {
     return NextResponse.json(
-      { ok: false, error: "Supabase is not configured" },
+      { ok: false, authenticated: false, error: "Supabase is not configured" },
       { status: 503 },
     );
   }
+  const jwt = authHeader?.toLowerCase().startsWith("bearer ")
+    ? authHeader.slice(7).trim()
+    : undefined;
+  const {
+    data: { user },
+  } = jwt ? await supabase.auth.getUser(jwt) : await supabase.auth.getUser();
+  return NextResponse.json({
+    ok: true,
+    authenticated: Boolean(user),
+    userId: user?.id ?? null,
+  });
+}
 
+/** Establish a Supabase session cookie from portal-posted tokens (not from rd_uid). */
+export async function POST(request: Request) {
   let body: { access_token?: string; refresh_token?: string };
   try {
     body = (await request.json()) as {
@@ -32,6 +50,17 @@ export async function POST(request: Request) {
     );
   }
 
+  // Placeholder response — cookie writes attach to this object, then we return it
+  // with the final JSON body via a cloned Set-Cookie set.
+  const cookieResponse = NextResponse.json({ ok: true });
+  const supabase = await createSessionCookieClient(cookieResponse);
+  if (!supabase) {
+    return NextResponse.json(
+      { ok: false, error: "Supabase is not configured" },
+      { status: 503 },
+    );
+  }
+
   const { data, error } = await supabase.auth.setSession({
     access_token,
     refresh_token,
@@ -43,17 +72,26 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json({
+  const response = NextResponse.json({
     ok: true,
     userId: data.session.user.id,
   });
+  for (const cookie of cookieResponse.cookies.getAll()) {
+    response.cookies.set(cookie);
+  }
+  return response;
 }
 
 export async function DELETE() {
-  const supabase = await createUserServerClient();
+  const cookieResponse = NextResponse.json({ ok: true });
+  const supabase = await createSessionCookieClient(cookieResponse);
   if (!supabase) {
     return NextResponse.json({ ok: true });
   }
   await supabase.auth.signOut();
-  return NextResponse.json({ ok: true });
+  const response = NextResponse.json({ ok: true });
+  for (const cookie of cookieResponse.cookies.getAll()) {
+    response.cookies.set(cookie);
+  }
+  return response;
 }

@@ -193,6 +193,17 @@ function FolderHeader({
   );
 }
 
+export type PoliciesTableMode = "manage" | "review";
+
+function orgFolderLabel(
+  tree: OrgAssignTree,
+  org: OrgAssign | null,
+): string {
+  const meta = resolveLabels(tree, org);
+  if (meta.heltesId === OTHER_HELTES_ID) return meta.heltes;
+  return `${meta.heltes} / ${meta.alba}`;
+}
+
 function StatusSectionTable({
   sectionKey,
   rows,
@@ -204,6 +215,7 @@ function StatusSectionTable({
   onMetaSaved,
   onStatusChanged,
   onDelete,
+  mode,
 }: {
   sectionKey: string;
   rows: PolicyTableRow[];
@@ -215,8 +227,11 @@ function StatusSectionTable({
   onMetaSaved: (updated: PolicyMetaUpdate) => void;
   onStatusChanged: (policyId: string, next: PolicyStatus) => void;
   onDelete: (policy: Policy) => void;
+  mode: PoliciesTableMode;
 }) {
   const groups = useMemo(() => buildOrgTree(rows, tree), [rows, tree]);
+  const review = mode === "review";
+  const colSpan = review ? 6 : 8;
 
   let counter = 0;
   const body: React.ReactNode[] = [];
@@ -227,7 +242,7 @@ function StatusSectionTable({
     const hOpen = open.has(hKey);
     body.push(
       <tr key={`h-${hKey}`}>
-        <td colSpan={8} className="p-0">
+        <td colSpan={colSpan} className="p-0">
           <FolderHeader
             open={hOpen}
             onToggle={() => toggle(hKey)}
@@ -245,7 +260,7 @@ function StatusSectionTable({
       const aOpen = open.has(aKey);
       body.push(
         <tr key={`a-${aKey}`}>
-          <td colSpan={8} className="p-0">
+          <td colSpan={colSpan} className="p-0">
             <FolderHeader
               open={aOpen}
               onToggle={() => toggle(aKey)}
@@ -261,6 +276,9 @@ function StatusSectionTable({
       for (const row of alba.items) {
         counter += 1;
         const p = row.policy;
+        const href = review
+          ? `/policies/${p.id}/preview`
+          : `/policies/${p.id}?from=policies`;
         body.push(
           <tr
             key={p.id}
@@ -270,20 +288,23 @@ function StatusSectionTable({
               {counter}
             </td>
             <td className="py-1.5 pr-2 align-top">
-              <Link
-                href={`/policies/${p.id}?from=policies`}
-                className="font-medium hover:underline"
-              >
+              <Link href={href} className="font-medium hover:underline">
                 {truncate(p.name, 80)}
               </Link>
             </td>
             <td className="py-1.5 pr-2 align-top">
-              <PolicyOrgAssignControls
-                policyId={p.id}
-                initialHeltesId={row.org?.heltesId ?? OTHER_HELTES_ID}
-                initialAlbaId={row.org?.albaId ?? OTHER_ALBA_ID}
-                tree={tree}
-              />
+              {review ? (
+                <span className="text-xs text-slate-600">
+                  {orgFolderLabel(tree, row.org)}
+                </span>
+              ) : (
+                <PolicyOrgAssignControls
+                  policyId={p.id}
+                  initialHeltesId={row.org?.heltesId ?? OTHER_HELTES_ID}
+                  initialAlbaId={row.org?.albaId ?? OTHER_ALBA_ID}
+                  tree={tree}
+                />
+              )}
             </td>
             <td className="py-1.5 pr-2 align-top font-mono text-xs">
               {p.reference_code || "—"}
@@ -294,32 +315,36 @@ function StatusSectionTable({
             <td className="py-1.5 pr-2 align-top tabular-nums">
               {row.clauseCount}
             </td>
-            <td className="py-1.5 pr-2 align-top">
-              <div className="flex items-center gap-1">
-                <PolicyStatusMenu
-                  policyId={p.id}
-                  policyName={p.name}
-                  currentStatus={p.status as PolicyStatus}
-                  onChanged={(next) => onStatusChanged(p.id, next)}
-                />
-                <PolicyEditButton
-                  policyId={p.id}
-                  onMetaSaved={onMetaSaved}
-                />
-              </div>
-            </td>
-            <td className="py-1.5 pr-2 align-top text-right">
-              <button
-                type="button"
-                disabled={pending || deletingId === p.id}
-                title="Устгах"
-                aria-label="Устгах"
-                onClick={() => onDelete(p)}
-                className="rounded border border-slate-200 p-1.5 text-slate-500 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"
-              >
-                <Trash2 size={14} />
-              </button>
-            </td>
+            {review ? null : (
+              <>
+                <td className="py-1.5 pr-2 align-top">
+                  <div className="flex items-center gap-1">
+                    <PolicyStatusMenu
+                      policyId={p.id}
+                      policyName={p.name}
+                      currentStatus={p.status as PolicyStatus}
+                      onChanged={(next) => onStatusChanged(p.id, next)}
+                    />
+                    <PolicyEditButton
+                      policyId={p.id}
+                      onMetaSaved={onMetaSaved}
+                    />
+                  </div>
+                </td>
+                <td className="py-1.5 pr-2 align-top text-right">
+                  <button
+                    type="button"
+                    disabled={pending || deletingId === p.id}
+                    title="Устгах"
+                    aria-label="Устгах"
+                    onClick={() => onDelete(p)}
+                    className="rounded border border-slate-200 p-1.5 text-slate-500 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </td>
+              </>
+            )}
           </tr>,
         );
       }
@@ -328,7 +353,12 @@ function StatusSectionTable({
 
   return (
     <div className="soft-scroll max-h-[420px] overflow-auto rounded border border-slate-200">
-      <table className="w-full min-w-[980px] text-left text-sm">
+      <table
+        className={cn(
+          "w-full text-left text-sm",
+          review ? "min-w-[720px]" : "min-w-[980px]",
+        )}
+      >
         <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
           <tr>
             <th className="px-2 py-1.5 pr-2">#</th>
@@ -337,8 +367,12 @@ function StatusSectionTable({
             <th className="py-1.5 pr-2">Код</th>
             <th className="py-1.5 pr-2">Батлагдсан</th>
             <th className="py-1.5 pr-2">Зүйл</th>
-            <th className="py-1.5 pr-2">Төлөв / Засвар</th>
-            <th className="py-1.5 pr-2 text-right">Устгах</th>
+            {review ? null : (
+              <>
+                <th className="py-1.5 pr-2">Төлөв / Засвар</th>
+                <th className="py-1.5 pr-2 text-right">Устгах</th>
+              </>
+            )}
           </tr>
         </thead>
         <tbody>{body}</tbody>
@@ -350,9 +384,11 @@ function StatusSectionTable({
 export function PoliciesTable({
   initialRows,
   tree,
+  mode = "manage",
 }: {
   initialRows: PolicyTableRow[];
   tree: OrgAssignTree;
+  mode?: PoliciesTableMode;
 }) {
   const router = useRouter();
   const [rows, setRows] = useState(initialRows);
@@ -498,6 +534,7 @@ export function PoliciesTable({
                 onMetaSaved={handleMetaSaved}
                 onStatusChanged={handleStatusChanged}
                 onDelete={(p) => void handleDelete(p)}
+                mode={mode}
               />
             )}
           </Panel>

@@ -99,6 +99,7 @@ function emptyDb(): LocalDatabase {
     policy_clauses: [],
     job_positions: [],
     job_descriptions: [],
+    job_description_evaluations: [],
     policy_scope_targets: [],
     clause_position_responsibilities: [],
     compliance_evaluations: [],

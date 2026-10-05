@@ -32,6 +32,8 @@ export function ContextBackLink({
   tab,
   policyId,
   label,
+  fallbackHref,
+  fallbackLabel,
 }: {
   from?: string | null;
   heltesId?: string | null;
@@ -39,17 +41,25 @@ export function ContextBackLink({
   tab?: string | null;
   policyId?: string | null;
   label?: string;
+  /** Used when no `from` context is provided (e.g. Шалгах preview). */
+  fallbackHref?: string;
+  fallbackLabel?: string;
 }) {
-  const href = contextBackHref({ from, heltesId, albaId, tab, policyId });
+  const hasContext = Boolean(from);
+  const href = hasContext
+    ? contextBackHref({ from, heltesId, albaId, tab, policyId })
+    : (fallbackHref ?? contextBackHref({ from, heltesId, albaId, tab, policyId }));
   const text =
     label ??
-    (from === "policy" && policyId
-      ? "Журмын үнэлгээ рүү буцах"
-      : from === "org"
-        ? "Хэлтэс рүү буцах"
-        : from === "positions"
-          ? "Ажлын байр руу буцах"
-          : "Журмууд руу буцах");
+    (!hasContext && fallbackLabel
+      ? fallbackLabel
+      : from === "policy" && policyId
+        ? "Журмын үнэлгээ рүү буцах"
+        : from === "org"
+          ? "Хэлтэс рүү буцах"
+          : from === "positions"
+            ? "Ажлын байр руу буцах"
+            : "Журмууд руу буцах");
 
   return (
     <Link

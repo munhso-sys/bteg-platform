@@ -21,7 +21,6 @@ import {
 } from "@/lib/org-assign";
 import { withBasePath } from "@/lib/paths";
 import type { ResponsibilityType } from "@/lib/types";
-import { expandClauseIdsWithDescendants } from "@/lib/policy-kpis";
 import {
   OrgFolderSelect,
   type OrgTreeHeltes,
@@ -195,7 +194,8 @@ export function AssignResponsibilityForm({
         .filter((c) => (c.sectionId ?? null) === sid)
         .map((c) => c.id);
     }
-    return expandClauseIdsWithDescendants(target, clauses);
+    // Single clause: one link only (do not fan out to descendants).
+    return [target];
   }, [target, clauses]);
 
   const heltesName =
@@ -252,8 +252,9 @@ export function AssignResponsibilityForm({
     setOk(null);
     const fd = new FormData(e.currentTarget);
     const responsibility_type = String(fd.get("responsibility_type") || "");
-    const weight = Number(fd.get("weight") || 1);
-    const required_evidence = (fd.get("required_evidence") as string) || null;
+    const process_id = String(fd.get("process_id") || "").trim() || null;
+    const location_id = String(fd.get("location_id") || "").trim() || null;
+    const asset_id = String(fd.get("asset_id") || "").trim() || null;
 
     try {
       if (!targetClauseIds.length) {
@@ -290,8 +291,9 @@ export function AssignResponsibilityForm({
           policy_clause_id,
           job_position_id,
           responsibility_type,
-          weight,
-          required_evidence,
+          process_id,
+          location_id,
+          asset_id,
           notes: scopeNotes,
         })),
       );
@@ -319,9 +321,7 @@ export function AssignResponsibilityForm({
           ? "журмын бүх зүйлд"
           : target.startsWith("__section__:")
             ? "хэсгийн зүйлүүдэд"
-            : targetClauseIds.length > 1
-              ? "зүйл болон дэд зүйлүүдэд"
-              : "зүйлд";
+            : "зүйлд";
       setOk(`${okCount} холбоос (${scopeLabel}) хадгаллаа.`);
       router.refresh();
     } catch (err) {
@@ -346,10 +346,6 @@ export function AssignResponsibilityForm({
                 } (${targetClauseIds.length} зүйл)`
               : `${
                   clauses.find((c) => c.id === lockedTarget)?.label ?? "Зүйл"
-                }${
-                  targetClauseIds.length > 1
-                    ? ` + дэд зүйл (${targetClauseIds.length})`
-                    : ""
                 }`}
         </p>
       ) : (
@@ -421,16 +417,19 @@ export function AssignResponsibilityForm({
         ))}
       </select>
       <input
-        name="weight"
-        type="number"
-        step="0.1"
-        defaultValue={1}
-        className="w-full rounded border border-slate-300 px-2 py-1.5"
+        name="process_id"
+        placeholder="Process ID (job_process_id)"
+        className="w-full rounded border border-slate-300 px-2 py-1.5 font-mono text-xs"
       />
       <input
-        name="required_evidence"
-        placeholder="Шаардлагатай нотлох баримт"
-        className="w-full rounded border border-slate-300 px-2 py-1.5"
+        name="location_id"
+        placeholder="Location ID (job_location_id)"
+        className="w-full rounded border border-slate-300 px-2 py-1.5 font-mono text-xs"
+      />
+      <input
+        name="asset_id"
+        placeholder="Asset ID (job_asset_id)"
+        className="w-full rounded border border-slate-300 px-2 py-1.5 font-mono text-xs"
       />
       {error ? <p className="text-xs text-rose-600">{error}</p> : null}
       {ok ? <p className="text-xs text-emerald-700">{ok}</p> : null}

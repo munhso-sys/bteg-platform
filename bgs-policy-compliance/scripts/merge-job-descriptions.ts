@@ -25,6 +25,20 @@ function pickLonger(a: string | null | undefined, b: string | null | undefined) 
   return bb.length > aa.length ? bb : aa;
 }
 
+function pickTextOrList(
+  a: string | string[] | null | undefined,
+  b: string | string[] | null | undefined,
+): string | string[] | null {
+  const len = (v: string | string[] | null | undefined) => {
+    if (v == null) return 0;
+    if (Array.isArray(v)) return v.join("\n").length;
+    return String(v).length;
+  };
+  if (!len(a)) return b ?? null;
+  if (!len(b)) return a ?? null;
+  return len(b) > len(a) ? (b ?? null) : (a ?? null);
+}
+
 function pickArray(a: unknown, b: unknown): unknown[] {
   const aa = Array.isArray(a) ? a : [];
   const bb = Array.isArray(b) ? b : [];
@@ -115,8 +129,11 @@ function mergeJd(prev: JobDescription | undefined, next: JobDescription): JobDes
       prev.professional_skills,
       next.professional_skills,
     ),
-    authority: pickLonger(prev.authority, next.authority),
-    responsibilities: pickLonger(prev.responsibilities, next.responsibilities),
+    authority: pickTextOrList(prev.authority, next.authority),
+    responsibilities: pickTextOrList(
+      prev.responsibilities,
+      next.responsibilities,
+    ),
     relevant_laws: pickArray(prev.relevant_laws, next.relevant_laws),
     job_condition: pickLonger(prev.job_condition, next.job_condition),
     resources: pickLonger(prev.resources, next.resources),

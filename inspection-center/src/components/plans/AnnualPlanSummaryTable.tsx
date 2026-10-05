@@ -11,7 +11,11 @@ import type {
   InspectionRun,
   InspectionScoreSnapshot,
 } from "@/lib/types";
-import { RUN_STATUS_LABELS, normalizeRunExecutionStatus } from "@/lib/types";
+import {
+  RUN_STATUS_LABELS,
+  formatInspectedPlaceText,
+  normalizeRunExecutionStatus,
+} from "@/lib/types";
 
 type SummaryMetric = Exclude<AnnualPlanMetric, "regular">;
 type ExecutionStatus = "completed" | "in_progress" | "planned" | "cancelled";
@@ -296,6 +300,7 @@ export function AnnualPlanSummaryTable({
             count: totalCount(row),
             executionStatus: statusFor(row, runs, today),
             result: resultFor(row, runs, scores),
+            inspectedBy: formatInspectedPlaceText(run?.performers),
             runHref: run
               ? `/runs/${run.id}`
               : readOnly
@@ -310,6 +315,7 @@ export function AnnualPlanSummaryTable({
           count: 1,
           executionStatus: runStatusFor(run),
           result: resultForRun(run, scores),
+          inspectedBy: formatInspectedPlaceText(run.performers),
           runHref: `/runs/${run.id}`,
         })),
       ]
@@ -409,13 +415,14 @@ export function AnnualPlanSummaryTable({
                 <th className="col-narrow-sm">Тоо, ш</th>
                 <th className="col-narrow">Гүйцэтгэл</th>
                 <th className="w-10"></th>
+                <th className="col-text">Байгууллага</th>
                 <th className="col-text">Гарсан үр дүн</th>
               </tr>
             </thead>
             <tbody>
               {details.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-sm text-[var(--muted)]">
+                  <td colSpan={7} className="text-sm text-[var(--muted)]">
                     Энэ үзүүлэлтэд тохирох мөр алга.
                   </td>
                 </tr>
@@ -445,6 +452,14 @@ export function AnnualPlanSummaryTable({
                       >
                         <PlayCircle aria-hidden="true" className="h-4 w-4" />
                       </Link>
+                    </td>
+                    <td
+                      className="col-text text-sm text-[var(--muted)]"
+                      title={row.inspectedBy || undefined}
+                    >
+                      <span className="cell-ellipsis">
+                        {row.inspectedBy || "—"}
+                      </span>
                     </td>
                     <td className="col-text text-sm text-[var(--muted)]" title={row.result}>
                       <span className="cell-ellipsis">{row.result}</span>

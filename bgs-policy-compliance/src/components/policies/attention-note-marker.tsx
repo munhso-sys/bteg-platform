@@ -14,6 +14,8 @@ export function AttentionNoteMarker({
   compact,
   readOnly,
   variant = "exclude",
+  positionName,
+  roleLabel,
 }: {
   evaluationId?: string | null;
   comment?: string | null;
@@ -22,6 +24,10 @@ export function AttentionNoteMarker({
   readOnly?: boolean;
   /** exclude = дундажаас хассан; note = дундажид орсон тайлбар/баримт */
   variant?: "exclude" | "note";
+  /** Which workplace this marker belongs to */
+  positionName?: string | null;
+  /** Which RACI role this marker belongs to */
+  roleLabel?: string | null;
 }) {
   const router = useRouter();
   const panelId = useId();
@@ -135,15 +141,29 @@ export function AttentionNoteMarker({
         aria-expanded={open}
         aria-controls={panelId}
         title={
-          isExclude
-            ? "Дундажаас хассан · анхаарах"
-            : "Тайлбар/баримт · дундажид орно"
+          [
+            isExclude
+              ? "Дундажаас хассан · анхаарах"
+              : "Тайлбар/баримт · дундажид орно",
+            positionName,
+            roleLabel,
+          ]
+            .filter(Boolean)
+            .join(" · ")
         }
-        aria-label={isExclude ? "Анхаарах тэмдэглэгээ" : "Тайлбар тэмдэглэгээ"}
+        aria-label={
+          [
+            isExclude ? "Анхаарах тэмдэглэгээ" : "Тайлбар тэмдэглэгээ",
+            positionName,
+            roleLabel,
+          ]
+            .filter(Boolean)
+            .join(" · ")
+        }
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "inline-flex items-center gap-1 rounded border",
-          compact ? "px-1 py-0.5 text-[10px]" : "px-1.5 py-0.5 text-[11px]",
+          "inline-flex h-6 min-w-6 items-center justify-center gap-0.5 rounded border",
+          compact ? "px-1.5 text-[10px]" : "px-1.5 py-0.5 text-[11px]",
           isExclude
             ? "border-amber-500/50 bg-amber-500/15 text-amber-900 hover:bg-amber-500/25 dark:text-amber-100"
             : "border-sky-500/50 bg-sky-500/15 text-sky-900 hover:bg-sky-500/25 dark:text-sky-100",
@@ -183,6 +203,27 @@ export function AttentionNoteMarker({
             ? "Дундажаас хассан · анхаарах"
             : "Тайлбар / баримт · дундажид орно"}
         </div>
+
+        {positionName || roleLabel ? (
+          <div className="mb-2 rounded border border-[var(--border)]/70 bg-[var(--surface-muted)]/60 px-2 py-1.5 text-[11px] text-[var(--fg)]">
+            {positionName ? (
+              <div>
+                <span className="text-[10px] uppercase text-[var(--muted)]">
+                  Ажлын байр
+                </span>
+                <div className="truncate font-medium">{positionName}</div>
+              </div>
+            ) : null}
+            {roleLabel ? (
+              <div className={positionName ? "mt-1" : undefined}>
+                <span className="text-[10px] uppercase text-[var(--muted)]">
+                  Үүрэг
+                </span>
+                <div className="truncate font-medium">{roleLabel}</div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {editing && evaluationId && !readOnly ? (
           <div className="space-y-1.5">

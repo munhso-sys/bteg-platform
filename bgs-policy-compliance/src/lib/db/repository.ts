@@ -8,6 +8,7 @@ import type {
   DataQualityWarning,
   EvaluationEvidence,
   JobDescription,
+  JobDescriptionEvaluation,
   JobPosition,
   Policy,
   PolicyClause,
@@ -17,6 +18,40 @@ import type {
 
 export async function getDb() {
   return readDb();
+}
+
+/** Compare regulation reference numbers (1 < 1.2 < 1.10 < 2); empty refs go last. */
+export function compareReferenceNumbers(
+  a: string | null | undefined,
+  b: string | null | undefined,
+): number {
+  const aRef = a?.trim() ?? "";
+  const bRef = b?.trim() ?? "";
+  if (!aRef && !bRef) return 0;
+  if (!aRef) return 1;
+  if (!bRef) return -1;
+  return aRef.localeCompare(bRef, undefined, { numeric: true, sensitivity: "base" });
+}
+
+function compareByRegulationOrder(
+  a: { sort_order: number; reference_number: string | null },
+  b: { sort_order: number; reference_number: string | null },
+): number {
+  const byRef = compareReferenceNumbers(a.reference_number, b.reference_number);
+  if (byRef !== 0) return byRef;
+  return a.sort_order - b.sort_order;
+}
+
+/** Place `item` among siblings by reference number and rewrite sort_order 0..n. */
+function reindexByReferenceOrder<T extends { sort_order: number; reference_number: string | null }>(
+  siblings: T[],
+  item: T,
+) {
+  const ordered = siblings.includes(item) ? [...siblings] : [...siblings, item];
+  ordered.sort(compareByRegulationOrder);
+  ordered.forEach((row, index) => {
+    row.sort_order = index;
+  });
 }
 
 export function buildClauseTree(
@@ -35,13 +70,7 @@ export function buildClauseTree(
     byParent.set(key, list);
   }
   for (const list of byParent.values()) {
-    list.sort((a, b) => {
-      const ao = a.sort_order - b.sort_order;
-      if (ao !== 0) return ao;
-      return (a.reference_number ?? "").localeCompare(b.reference_number ?? "", undefined, {
-        numeric: true,
-      });
-    });
+    list.sort(compareByRegulationOrder);
   }
 
   const respByClause = new Map<string, ClausePositionResponsibility[]>();
@@ -65,7 +94,7 @@ export function buildClauseTree(
   const rootIds = new Set(roots.map((r) => r.id));
 
   return roots
-    .sort((a, b) => a.sort_order - b.sort_order)
+    .sort(compareByRegulationOrder)
     .map((c) => ({
       ...c,
       children: walk(c.id).filter((ch) => !rootIds.has(ch.id) || ch.parent_id === c.id),
@@ -279,7 +308,8 @@ export async function listPolicies(q?: string) {
     items = items.filter(
       (p) =>
         p.name.toLowerCase().includes(s) ||
-        (p.reference_code ?? "").toLowerCase().includes(s),
+        (p.reference_code ?? "").toLowerCase().includes(s) ||
+        (p.official_code ?? "").toLowerCase().includes(s),
     );
   }
   return items.sort((a, b) => (b.approved_date ?? "").localeCompare(a.approved_date ?? ""));
@@ -291,7 +321,7 @@ export async function getPolicyDetail(id: string) {
   if (!policy) return null;
   const sections = db.policy_sections
     .filter((s) => s.policy_id === id && !s.is_deleted)
-    .sort((a, b) => a.sort_order - b.sort_order);
+    .sort(compareByRegulationOrder);
   const clauses = db.policy_clauses.filter((c) => c.policy_id === id && !c.is_deleted);
   const clauseIds = new Set(clauses.map((c) => c.id));
   const responsibilities = db.clause_position_responsibilities.filter(
@@ -377,7 +407,7 @@ export async function listPositions(q?: string) {
 
 export async function getPositionDetail(id: string) {
   const { resolveJobPositionRef } = await import("@/lib/access/resolve-position");
-  const { listOrgVisiblePolicyIdsForPosition } = await import("@/lib/db/org");
+  const { listOrgScopeVisibilityForPosition } = await import("@/lib/db/org");
   const resolved = await resolveJobPositionRef(id);
   const positionId = resolved?.id ?? id;
   const db = await readDb();
@@ -385,31 +415,36 @@ export async function getPositionDetail(id: string) {
   if (!position) return null;
   const description =
     db.job_descriptions.find((d) => d.job_position_id === positionId) ?? null;
+  if (!Array.isArray(db.job_description_evaluations)) {
+    db.job_description_evaluations = [];
+  }
+  const descriptionEvaluations = [...db.job_description_evaluations]
+    .filter((e) => e.job_position_id === positionId)
+    .sort(
+      (a, b) =>
+        new Date(b.evaluated_at).getTime() -
+        new Date(a.evaluated_at).getTime(),
+    );
+  const descriptionEvaluation = descriptionEvaluations[0] ?? null;
   const links = db.clause_position_responsibilities.filter(
     (r) => r.job_position_id === positionId && r.is_active,
   );
-  const clauseIds = new Set(links.map((l) => l.policy_clause_id));
-  const clauses = db.policy_clauses.filter((c) => clauseIds.has(c.id) && !c.is_deleted);
-  const policyIds = new Set(clauses.map((c) => c.policy_id));
+  const linkedClauseIdSet = new Set(links.map((l) => l.policy_clause_id));
+  const linkedClauses = db.policy_clauses.filter(
+    (c) => linkedClauseIdSet.has(c.id) && !c.is_deleted,
+  );
+  const linkedClauseIds = new Set(linkedClauses.map((c) => c.id));
+  const linkedPolicyIds = new Set(
+    linkedClauses
+      .map((c) => c.policy_id)
+      .filter((pid) => db.policies.some((p) => p.id === pid && !p.is_deleted)),
+  );
 
-  // Org-wide / heltes / alba assigned policies → all clauses visible
-  const orgVisible = await listOrgVisiblePolicyIdsForPosition(positionId);
-  for (const pid of orgVisible) {
-    policyIds.add(pid);
-  }
-  const orgOnlyClauseIds = new Set<string>();
-  if (orgVisible.size) {
-    for (const c of db.policy_clauses) {
-      if (c.is_deleted || !orgVisible.has(c.policy_id)) continue;
-      if (!clauseIds.has(c.id)) {
-        clauseIds.add(c.id);
-        orgOnlyClauseIds.add(c.id);
-        clauses.push(c);
-      }
-    }
-  }
-
-  const policies = db.policies.filter((p) => policyIds.has(p.id) && !p.is_deleted);
+  // «Журмын үүрэг» = зөвхөн энэ ажлын байрт идэвхтэй холбогдсон
+  // clause_position_responsibilities.
+  const policies = db.policies.filter(
+    (p) => linkedPolicyIds.has(p.id) && !p.is_deleted,
+  );
   const activeKeys = activeResponsibilityKeys(links);
   const evals = db.compliance_evaluations
     .filter(
@@ -421,7 +456,7 @@ export async function getPositionDetail(id: string) {
   const latest = latestEvaluations(evals);
 
   const obligations = links.map((link) => {
-    const clause = clauses.find((c) => c.id === link.policy_clause_id);
+    const clause = linkedClauses.find((c) => c.id === link.policy_clause_id);
     const policy = policies.find((p) => p.id === clause?.policy_id);
     const evaluation = latest.find(
       (e) =>
@@ -431,40 +466,64 @@ export async function getPositionDetail(id: string) {
     return { link, clause, policy, evaluation };
   });
 
-  // Synthetic read-only obligations for org-scoped clauses without personal links
-  for (const clauseId of orgOnlyClauseIds) {
-    const clause = clauses.find((c) => c.id === clauseId);
-    if (!clause) continue;
-    const policy = policies.find((p) => p.id === clause.policy_id);
-    obligations.push({
+  // Org-scope: separate list (байгууллага/хэлтэс/албаны хамрах хүрээ)
+  const orgVis = await listOrgScopeVisibilityForPosition(positionId);
+  const orgOnlyClauses = db.policy_clauses.filter(
+    (c) =>
+      !c.is_deleted &&
+      orgVis.policyIds.has(c.policy_id) &&
+      !linkedClauseIds.has(c.id),
+  );
+  const orgPolicyIds = new Set(orgOnlyClauses.map((c) => c.policy_id));
+  const orgPolicies = db.policies.filter(
+    (p) => orgPolicyIds.has(p.id) && !p.is_deleted,
+  );
+  const orgScopeObligations = orgOnlyClauses.map((clause) => {
+    const policy = orgPolicies.find((p) => p.id === clause.policy_id);
+    return {
       link: {
-        id: `org-scope:${clauseId}`,
-        policy_clause_id: clauseId,
+        id: `org-scope:${clause.id}`,
+        policy_clause_id: clause.id,
         job_position_id: positionId,
-        responsibility_type: "IMPLEMENTATION",
+        responsibility_type: "IMPLEMENTATION" as const,
         is_checked: true,
         is_active: true,
         weight: 1,
         required_evidence: null,
+        process_id: null,
+        location_id: null,
+        asset_id: null,
         notes: "Байгууллагын/нэгжийн нийтлэг хамрах хүрээ",
       },
       clause,
       policy,
       evaluation: undefined,
-    });
-  }
+    };
+  });
 
   return {
     position,
     description,
+    descriptionEvaluation,
+    descriptionEvaluations,
     obligations,
+    orgScope: {
+      unitLabel: orgVis.unitLabel,
+      reasonSummary: orgVis.reasonSummary,
+      reasonBreakdown: orgVis.reasonBreakdown,
+      obligations: orgScopeObligations,
+      policyCount: orgPolicyIds.size,
+      clauseCount: orgOnlyClauses.length,
+    },
     policies,
     evaluations: evals,
     latestEvaluations: latest,
     avgScore: avg(scoresForAverage(latest)),
     counts: {
-      clauses: clauseIds.size,
-      policies: policyIds.size,
+      clauses: linkedClauseIds.size,
+      policies: linkedPolicyIds.size,
+      visibleClauses: linkedClauseIds.size + orgOnlyClauses.length,
+      visiblePolicies: linkedPolicyIds.size + orgPolicyIds.size,
       implementation: links.filter((l) => l.responsibility_type === "IMPLEMENTATION").length,
       monitoring: links.filter((l) => l.responsibility_type === "MONITORING").length,
       verification: links.filter((l) => l.responsibility_type === "VERIFICATION").length,
@@ -704,6 +763,9 @@ export async function createEvaluation(input: {
         is_active: true,
         weight: 1,
         required_evidence: null,
+        process_id: null,
+        location_id: null,
+        asset_id: null,
         notes: "Үнэлгээний үед автоматаар үүсгэсэн",
       });
     }
@@ -836,6 +898,14 @@ export async function updateClause(
     if (input.text !== undefined) c.text = input.text.trim();
     if (input.reference_number !== undefined) {
       c.reference_number = input.reference_number?.trim() || null;
+      const siblings = db.policy_clauses.filter(
+        (x) =>
+          !x.is_deleted &&
+          x.policy_id === c.policy_id &&
+          (x.parent_id ?? null) === (c.parent_id ?? null) &&
+          (x.section_id ?? null) === (c.section_id ?? null),
+      );
+      reindexByReferenceOrder(siblings, c);
     }
     updated = c;
   });
@@ -870,6 +940,7 @@ export async function addClause(input: {
   await updateDb((db) => {
     const siblings = db.policy_clauses.filter(
       (c) =>
+        !c.is_deleted &&
         c.policy_id === input.policy_id &&
         (c.parent_id ?? null) === (input.parent_id ?? null) &&
         (c.section_id ?? null) === (input.section_id ?? null),
@@ -879,12 +950,13 @@ export async function addClause(input: {
       policy_id: input.policy_id,
       section_id: input.section_id ?? null,
       parent_id: input.parent_id ?? null,
-      reference_number: input.reference_number ?? null,
+      reference_number: input.reference_number?.trim() || null,
       text: input.text,
       sort_order: siblings.length,
       is_deleted: false,
     };
     db.policy_clauses.push(created);
+    reindexByReferenceOrder(siblings, created);
   });
   return created!;
 }
@@ -896,16 +968,19 @@ export async function addSection(input: {
 }) {
   let created: PolicySection | null = null;
   await updateDb((db) => {
-    const siblings = db.policy_sections.filter((s) => s.policy_id === input.policy_id);
+    const siblings = db.policy_sections.filter(
+      (s) => s.policy_id === input.policy_id && !s.is_deleted,
+    );
     created = {
       id: newId(),
       policy_id: input.policy_id,
       text: input.text ?? null,
-      reference_number: input.reference_number ?? null,
+      reference_number: input.reference_number?.trim() || null,
       sort_order: siblings.length,
       is_deleted: false,
     };
     db.policy_sections.push(created);
+    reindexByReferenceOrder(siblings, created);
   });
   return created!;
 }
@@ -924,6 +999,10 @@ export async function updateSection(
     if (input.text !== undefined) s.text = input.text.trim();
     if (input.reference_number !== undefined) {
       s.reference_number = input.reference_number?.trim() || null;
+      const siblings = db.policy_sections.filter(
+        (x) => x.policy_id === s.policy_id && !x.is_deleted,
+      );
+      reindexByReferenceOrder(siblings, s);
     }
     updated = s;
   });
@@ -953,34 +1032,72 @@ export async function upsertResponsibility(input: {
   responsibility_type: ResponsibilityType;
   weight?: number;
   required_evidence?: string | null;
+  process_id?: string | null;
+  location_id?: string | null;
+  asset_id?: string | null;
   notes?: string | null;
 }) {
   await updateDb((db) => {
-    const existing = db.clause_position_responsibilities.find(
-      (r) =>
-        r.policy_clause_id === input.policy_clause_id &&
-        r.job_position_id === input.job_position_id &&
-        r.responsibility_type === input.responsibility_type,
-    );
-    if (existing) {
-      existing.is_active = true;
-      existing.is_checked = true;
-      existing.weight = input.weight ?? existing.weight;
-      existing.required_evidence = input.required_evidence ?? existing.required_evidence;
-      existing.notes = input.notes ?? existing.notes;
-      return;
+    upsertResponsibilityInDb(db, input);
+  });
+}
+
+/**
+ * One active link per (clause, position, responsibility_type).
+ * Additional types are separate rows (RACI roles on the same job).
+ */
+function upsertResponsibilityInDb(
+  db: LocalDatabase,
+  input: {
+    policy_clause_id: string;
+    job_position_id: string;
+    responsibility_type: ResponsibilityType;
+    weight?: number;
+    required_evidence?: string | null;
+    process_id?: string | null;
+    location_id?: string | null;
+    asset_id?: string | null;
+    notes?: string | null;
+  },
+) {
+  const existing = db.clause_position_responsibilities.find(
+    (r) =>
+      r.policy_clause_id === input.policy_clause_id &&
+      r.job_position_id === input.job_position_id &&
+      r.responsibility_type === input.responsibility_type,
+  );
+  if (existing) {
+    existing.is_active = true;
+    existing.is_checked = true;
+    if (input.weight !== undefined) existing.weight = input.weight;
+    if (input.required_evidence !== undefined) {
+      existing.required_evidence = input.required_evidence;
     }
-    db.clause_position_responsibilities.push({
-      id: newId(),
-      policy_clause_id: input.policy_clause_id,
-      job_position_id: input.job_position_id,
-      responsibility_type: input.responsibility_type,
-      is_checked: true,
-      is_active: true,
-      weight: input.weight ?? 1,
-      required_evidence: input.required_evidence ?? null,
-      notes: input.notes ?? null,
-    });
+    if (input.process_id !== undefined) {
+      existing.process_id = input.process_id?.trim() || null;
+    }
+    if (input.location_id !== undefined) {
+      existing.location_id = input.location_id?.trim() || null;
+    }
+    if (input.asset_id !== undefined) {
+      existing.asset_id = input.asset_id?.trim() || null;
+    }
+    if (input.notes !== undefined) existing.notes = input.notes;
+    return;
+  }
+  db.clause_position_responsibilities.push({
+    id: newId(),
+    policy_clause_id: input.policy_clause_id,
+    job_position_id: input.job_position_id,
+    responsibility_type: input.responsibility_type,
+    is_checked: true,
+    is_active: true,
+    weight: input.weight ?? 1,
+    required_evidence: input.required_evidence ?? null,
+    process_id: input.process_id?.trim() || null,
+    location_id: input.location_id?.trim() || null,
+    asset_id: input.asset_id?.trim() || null,
+    notes: input.notes ?? null,
   });
 }
 
@@ -1083,6 +1200,43 @@ export async function updateResponsibilityType(
   return result;
 }
 
+/** Update PFD / meta fields on an active link (type via updateResponsibilityType). */
+export async function updateResponsibilityMeta(
+  linkId: string,
+  input: {
+    weight?: number;
+    required_evidence?: string | null;
+    process_id?: string | null;
+    location_id?: string | null;
+    asset_id?: string | null;
+  },
+): Promise<boolean> {
+  let found = false;
+  await updateDb((db) => {
+    const link = db.clause_position_responsibilities.find(
+      (r) => r.id === linkId && r.is_active,
+    );
+    if (!link) return;
+    if (input.weight !== undefined) {
+      link.weight = Number.isFinite(input.weight) ? input.weight : link.weight;
+    }
+    if (input.required_evidence !== undefined) {
+      link.required_evidence = input.required_evidence?.trim() || null;
+    }
+    if (input.process_id !== undefined) {
+      link.process_id = input.process_id?.trim() || null;
+    }
+    if (input.location_id !== undefined) {
+      link.location_id = input.location_id?.trim() || null;
+    }
+    if (input.asset_id !== undefined) {
+      link.asset_id = input.asset_id?.trim() || null;
+    }
+    found = true;
+  });
+  return found;
+}
+
 export async function deactivateResponsibilities(linkIds: string[]) {
   const idSet = new Set(linkIds.filter(Boolean));
   let count = 0;
@@ -1168,38 +1322,16 @@ export async function upsertResponsibilitiesBulk(
     responsibility_type: ResponsibilityType;
     weight?: number;
     required_evidence?: string | null;
+    process_id?: string | null;
+    location_id?: string | null;
+    asset_id?: string | null;
     notes?: string | null;
   }>,
 ) {
   let count = 0;
   await updateDb((db) => {
     for (const input of inputs) {
-      const existing = db.clause_position_responsibilities.find(
-        (r) =>
-          r.policy_clause_id === input.policy_clause_id &&
-          r.job_position_id === input.job_position_id &&
-          r.responsibility_type === input.responsibility_type,
-      );
-      if (existing) {
-        existing.is_active = true;
-        existing.is_checked = true;
-        existing.weight = input.weight ?? existing.weight;
-        existing.required_evidence =
-          input.required_evidence ?? existing.required_evidence;
-        existing.notes = input.notes ?? existing.notes;
-      } else {
-        db.clause_position_responsibilities.push({
-          id: newId(),
-          policy_clause_id: input.policy_clause_id,
-          job_position_id: input.job_position_id,
-          responsibility_type: input.responsibility_type,
-          is_checked: true,
-          is_active: true,
-          weight: input.weight ?? 1,
-          required_evidence: input.required_evidence ?? null,
-          notes: input.notes ?? null,
-        });
-      }
+      upsertResponsibilityInDb(db, input);
       count += 1;
     }
   });
@@ -1261,6 +1393,9 @@ export async function createEvaluationsBulk(input: {
             is_active: true,
             weight: 1,
             required_evidence: null,
+            process_id: null,
+            location_id: null,
+            asset_id: null,
             notes: "Үнэлгээний үед автоматаар үүсгэсэн",
           });
         }
@@ -1494,6 +1629,9 @@ export async function copyResponsibilitiesByOfficialCode(
         is_active: true,
         weight: link.weight,
         required_evidence: link.required_evidence,
+        process_id: link.process_id ?? null,
+        location_id: link.location_id ?? null,
+        asset_id: link.asset_id ?? null,
         notes: link.notes,
       });
       copied += 1;
@@ -1586,6 +1724,14 @@ export async function upsertJobDescription(
       // Preserve markdown_body / raw / supervisor links unless explicitly provided.
       if (input.title !== undefined) existing.title = input.title;
       if (input.a_code !== undefined) existing.a_code = input.a_code;
+      if (input.position_code !== undefined) {
+        existing.position_code = input.position_code;
+      }
+      if (input.company_name !== undefined) {
+        existing.company_name = input.company_name;
+      }
+      if (input.location !== undefined) existing.location = input.location;
+      if (input.unit_name !== undefined) existing.unit_name = input.unit_name;
       if (input.job_condition !== undefined) {
         existing.job_condition = input.job_condition;
       }
@@ -1593,6 +1739,9 @@ export async function upsertJobDescription(
       if (input.schedule !== undefined) existing.schedule = input.schedule;
       if (input.daily_hours !== undefined) existing.daily_hours = input.daily_hours;
       if (input.break_time !== undefined) existing.break_time = input.break_time;
+      if (input.position_note !== undefined) {
+        existing.position_note = input.position_note;
+      }
       if (input.duties !== undefined) existing.duties = input.duties;
       if (input.education_level !== undefined) {
         existing.education_level = input.education_level;
@@ -1614,8 +1763,26 @@ export async function upsertJobDescription(
         existing.relevant_laws = input.relevant_laws;
       }
       if (input.resources !== undefined) existing.resources = input.resources;
+      if (input.required_trainings !== undefined) {
+        existing.required_trainings = input.required_trainings;
+      }
+      if (input.required_certificates !== undefined) {
+        existing.required_certificates = input.required_certificates;
+      }
+      if (input.property_liability !== undefined) {
+        existing.property_liability = input.property_liability;
+      }
+      if (input.other_notes !== undefined) {
+        existing.other_notes = input.other_notes;
+      }
       if (input.communication_scope !== undefined) {
         existing.communication_scope = input.communication_scope;
+      }
+      if (input.supervisor_positions !== undefined) {
+        existing.supervisor_positions = input.supervisor_positions;
+      }
+      if (input.subordinate_positions !== undefined) {
+        existing.subordinate_positions = input.subordinate_positions;
       }
       if (input.markdown_body !== undefined) {
         existing.markdown_body = input.markdown_body;
@@ -1627,10 +1794,15 @@ export async function upsertJobDescription(
       job_position_id: input.job_position_id,
       title: input.title ?? null,
       a_code: input.a_code ?? null,
+      position_code: input.position_code ?? null,
+      company_name: input.company_name ?? null,
+      location: input.location ?? null,
+      unit_name: input.unit_name ?? null,
       purpose: input.purpose ?? null,
       schedule: input.schedule ?? null,
       daily_hours: input.daily_hours ?? null,
       break_time: input.break_time ?? null,
+      position_note: input.position_note ?? null,
       duties: input.duties ?? [],
       education_level: input.education_level ?? null,
       work_experience: input.work_experience ?? null,
@@ -1641,12 +1813,102 @@ export async function upsertJobDescription(
       relevant_laws: input.relevant_laws ?? [],
       job_condition: input.job_condition ?? null,
       resources: input.resources ?? null,
+      required_trainings: input.required_trainings ?? [],
+      required_certificates: input.required_certificates ?? [],
+      property_liability: input.property_liability ?? null,
+      other_notes: input.other_notes ?? null,
       communication_scope: input.communication_scope ?? null,
       supervisor_positions: input.supervisor_positions ?? [],
       subordinate_positions: input.subordinate_positions ?? [],
       markdown_body: input.markdown_body ?? null,
     });
   });
+}
+
+function ensureJobDescriptionEvaluations(db: LocalDatabase) {
+  if (!Array.isArray(db.job_description_evaluations)) {
+    db.job_description_evaluations = [];
+  }
+}
+
+export async function getLatestJobDescriptionEvaluation(
+  positionId: string,
+): Promise<JobDescriptionEvaluation | null> {
+  const db = await readDb();
+  ensureJobDescriptionEvaluations(db);
+  const rows = db.job_description_evaluations.filter(
+    (e) => e.job_position_id === positionId,
+  );
+  if (rows.length === 0) return null;
+  return [...rows].sort(
+    (a, b) =>
+      new Date(b.evaluated_at).getTime() - new Date(a.evaluated_at).getTime(),
+  )[0];
+}
+
+/** Latest score per position — for Т-үнэлгээ column. */
+export async function latestJobDescriptionScoresByPosition(): Promise<
+  Map<string, number>
+> {
+  const db = await readDb();
+  ensureJobDescriptionEvaluations(db);
+  const best = new Map<string, { score: number; at: number }>();
+  for (const e of db.job_description_evaluations) {
+    const at = new Date(e.evaluated_at).getTime();
+    const prev = best.get(e.job_position_id);
+    if (!prev || at > prev.at) {
+      best.set(e.job_position_id, { score: e.score, at });
+    }
+  }
+  return new Map([...best.entries()].map(([id, v]) => [id, v.score]));
+}
+
+export async function upsertJobDescriptionEvaluation(input: {
+  job_position_id: string;
+  evaluation_period: string;
+  score: number;
+  result_text?: string | null;
+  improvement_actions?: string | null;
+  conclusion?: string | null;
+}): Promise<JobDescriptionEvaluation> {
+  const now = new Date().toISOString();
+  let saved: JobDescriptionEvaluation | null = null;
+  await updateDb((db) => {
+    ensureJobDescriptionEvaluations(db);
+    const period = input.evaluation_period.trim();
+    const existing = db.job_description_evaluations.find(
+      (e) =>
+        e.job_position_id === input.job_position_id &&
+        e.evaluation_period === period,
+    );
+    if (existing) {
+      existing.score = input.score;
+      existing.result_text = input.result_text?.trim() || null;
+      existing.improvement_actions =
+        input.improvement_actions?.trim() || null;
+      existing.conclusion = input.conclusion?.trim() || null;
+      existing.evaluated_at = now;
+      existing.updated_at = now;
+      saved = existing;
+      return;
+    }
+    const row: JobDescriptionEvaluation = {
+      id: newId(),
+      job_position_id: input.job_position_id,
+      evaluation_period: period,
+      score: input.score,
+      result_text: input.result_text?.trim() || null,
+      improvement_actions: input.improvement_actions?.trim() || null,
+      conclusion: input.conclusion?.trim() || null,
+      evaluated_at: now,
+      created_at: now,
+      updated_at: now,
+    };
+    db.job_description_evaluations.push(row);
+    saved = row;
+  });
+  if (!saved) throw new Error("АБТ үнэлгээ хадгалж чадсангүй");
+  return saved;
 }
 
 export async function getDataQualityWarnings(): Promise<DataQualityWarning[]> {

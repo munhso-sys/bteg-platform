@@ -25,11 +25,13 @@ import {
   COMPANY_HELTES_ID,
   COMPANY_SCOPE_LABEL,
   HELTES_COMMON_LABEL,
+  HELTES_COMMON_SUFFIX,
   OTHER_ALBA_ID,
   OTHER_HELTES_ID,
   type OrgAssignTree,
   type OrgExplorerHeltes,
   type PositionListRow,
+  type PositionReviewRow,
 } from "@/lib/org-assign";
 
 export {
@@ -44,6 +46,7 @@ export {
   type OrgAssignTree,
   type OrgExplorerHeltes,
   type PositionListRow,
+  type PositionReviewRow,
 } from "@/lib/org-assign";
 
 type RefAlba = {
@@ -116,6 +119,8 @@ type OrgCatalogOverridesFile = {
   heltes?: RefHeltes[];
   removed_heltes_ids?: string[];
   removed_alba_ids?: string[];
+  /** Optional organization labels managed in Settings (not the bundled seed). */
+  organizations?: Array<{ id: string; name: string }>;
 };
 
 async function loadCatalogOverrides(): Promise<OrgCatalogOverridesFile> {
@@ -256,6 +261,7 @@ async function saveCatalog(catalog: OrgCatalog) {
     }
   }
 
+  const prev = await loadCatalogOverrides();
   const overrides: OrgCatalogOverridesFile = {
     heltes: [...renamedOrExtended, ...additiveHeltes].map((h) => ({
       ...h,
@@ -263,6 +269,8 @@ async function saveCatalog(catalog: OrgCatalog) {
     })),
     removed_heltes_ids: [...baseHeltesIds].filter((id) => !nextHeltesIds.has(id)),
     removed_alba_ids: [...baseAlbaIds].filter((id) => !nextAlbaIds.has(id)),
+    // Preserve org labels managed separately in Settings.
+    organizations: prev.organizations,
   };
   await saveCatalogOverrides(overrides);
 }
@@ -474,31 +482,36 @@ function applyPositionOrgOverrides(
   return { ...map, position_to_alba, unmatched_positions: unmatched };
 }
 
-async function loadMap(): Promise<ReferenceMap> {
-  await ensureDataDir();
+function emptyReferenceMap(): ReferenceMap {
+  return {
+    position_to_alba: {},
+    policy_to_org: {},
+    unmatched_positions: [],
+    unmatched_policies: [],
+  };
+}
+
+function referenceMapSize(map: ReferenceMap | null | undefined) {
+  return Object.keys(map?.policy_to_org ?? {}).length;
+}
+
+async function readLocalReferenceMap(): Promise<ReferenceMap | null> {
   try {
-    const raw = JSON.parse(
-      await fs.readFile(mapPath(), "utf8"),
-    ) as ReferenceMap;
-    const [policyOverrides, positionOverrides] = await Promise.all([
-      loadOverrides(),
-      loadPositionOverrides(),
-    ]);
-    return applyPositionOrgOverrides(
-      applyPolicyOrgOverrides(raw, policyOverrides),
-      positionOverrides,
-    );
-  } catch {
+    const raw = JSON.parse(await fs.readFile(mapPath(), "utf8")) as ReferenceMap;
+    if (!raw || typeof raw !== "object") return null;
     return {
-      position_to_alba: {},
-      policy_to_org: {},
-      unmatched_positions: [],
-      unmatched_policies: [],
+      position_to_alba: raw.position_to_alba ?? {},
+      policy_to_org: raw.policy_to_org ?? {},
+      unmatched_positions: raw.unmatched_positions ?? [],
+      unmatched_policies: raw.unmatched_policies ?? [],
+      ...(raw.stats ? { stats: raw.stats } : {}),
     };
+  } catch {
+    return null;
   }
 }
 
-async function saveMap(map: ReferenceMap) {
+async function writeLocalReferenceMap(map: ReferenceMap) {
   await ensureDataDir();
   const file = mapPath();
   await fs.mkdir(path.dirname(file), { recursive: true });
@@ -518,6 +531,66 @@ async function saveMap(map: ReferenceMap) {
     throw err;
   } finally {
     await fs.unlink(tmp).catch(() => undefined);
+  }
+}
+
+async function loadMap(): Promise<ReferenceMap> {
+  await ensureDataDir();
+  let local = await readLocalReferenceMap();
+  const remote = await loadRemotePayload<ReferenceMap>(REMOTE_KEYS.referenceMap);
+
+  // Vercel has no gitignored data/ — prefer remote map. Locally prefer richer local file,
+  // but seed remote once so Portal Policy Review can read the same classification.
+  if (preferRemoteStore()) {
+    if (referenceMapSize(remote) > 0) {
+      local = remote;
+    } else if (referenceMapSize(local) > 0) {
+      await saveRemotePayload(REMOTE_KEYS.referenceMap, local).catch(() => false);
+    }
+  } else if (referenceMapSize(local) > 0 && referenceMapSize(remote) === 0) {
+    await saveRemotePayload(REMOTE_KEYS.referenceMap, local).catch(() => false);
+  } else if (referenceMapSize(local) === 0 && referenceMapSize(remote) > 0) {
+    local = remote;
+    try {
+      await writeLocalReferenceMap(remote!);
+    } catch {
+      // /tmp or read-only — in-memory merge is enough for this request
+    }
+  }
+
+  const raw = local ?? emptyReferenceMap();
+  const [policyOverrides, positionOverrides] = await Promise.all([
+    loadOverrides(),
+    loadPositionOverrides(),
+  ]);
+  return applyPositionOrgOverrides(
+    applyPolicyOrgOverrides(raw, policyOverrides),
+    positionOverrides,
+  );
+}
+
+async function saveMap(map: ReferenceMap) {
+  let localOk = false;
+  try {
+    await writeLocalReferenceMap(map);
+    localOk = true;
+  } catch (err) {
+    // Vercel FS is read-only outside /tmp; remote store is the durable path.
+    console.warn(
+      "[org] local reference-map save skipped/failed",
+      err instanceof Error ? err.message : err,
+    );
+  }
+  const remoteOk = await saveRemotePayload(REMOTE_KEYS.referenceMap, map);
+  if (!localOk && !remoteOk) {
+    throw new Error(
+      "Журмын нэгжийн ангиллыг хадгалж чадсангүй (local + Supabase).",
+    );
+  }
+  if (!remoteOk) {
+    console.warn(
+      "[org] reference-map remote save failed; portal Policy Review may lag",
+    );
   }
 }
 
@@ -1061,6 +1134,180 @@ export async function createAlbaUnit(input: {
   });
   await saveCatalog(catalog);
   return { heltesId: heltes.id, albaId, heltesName: heltes.name, albaName: name };
+}
+
+function assertMutableUnitId(id: string, kind: "heltes" | "alba") {
+  if (
+    id === COMPANY_HELTES_ID ||
+    id === COMPANY_ALBA_ID ||
+    id === OTHER_HELTES_ID ||
+    id === OTHER_ALBA_ID ||
+    id.endsWith(HELTES_COMMON_SUFFIX)
+  ) {
+    throw new Error(
+      kind === "heltes"
+        ? "Системийн хэлтэсийг устгаж болохгүй"
+        : "Системийн албыг устгаж болохгүй",
+    );
+  }
+}
+
+/** Remove an алба from the catalog (overrides). Detaches linked policies/positions. */
+export async function deleteAlbaUnit(input: {
+  heltes_id: string;
+  alba_id: string;
+}) {
+  assertMutableUnitId(input.alba_id, "alba");
+  const catalog = await loadCatalog();
+  const heltes = catalog.heltes.find((h) => h.id === input.heltes_id);
+  if (!heltes) throw new Error("Хэлтэс олдсонгүй");
+  const idx = heltes.albas.findIndex((a) => a.id === input.alba_id);
+  if (idx < 0) throw new Error("Алба олдсонгүй");
+  if (heltes.albas.length <= 1) {
+    throw new Error("Хэлтэст хамгийн багадаа нэг алба үлдэх ёстой");
+  }
+
+  const albaName = heltes.albas[idx].name;
+  heltes.albas.splice(idx, 1);
+  await saveCatalog(catalog);
+
+  // Detach policy allocations + position overrides pointing at this alba.
+  const assignments = await getPolicyOrgAssignments();
+  const linkedPolicyIds = [...assignments.entries()]
+    .filter(([, org]) => org.albaId === input.alba_id)
+    .map(([policyId]) => policyId);
+  for (const policyId of linkedPolicyIds) {
+    await setPolicyOrgAssignment({
+      policy_id: policyId,
+      heltes_id: OTHER_HELTES_ID,
+      alba_id: OTHER_ALBA_ID,
+    });
+  }
+  const map = await loadMap();
+  const linkedPositions = Object.entries(map.position_to_alba)
+    .filter(([, albaId]) => albaId === input.alba_id)
+    .map(([pid]) => pid);
+  for (const positionId of linkedPositions) {
+    await setPositionOrgAssignment({
+      position_id: positionId,
+      heltes_id: OTHER_HELTES_ID,
+      alba_id: OTHER_ALBA_ID,
+    });
+  }
+
+  return {
+    heltesId: input.heltes_id,
+    albaId: input.alba_id,
+    albaName,
+    detachedPolicies: linkedPolicyIds.length,
+    detachedPositions: linkedPositions.length,
+  };
+}
+
+/** Remove a хэлтэс and all its алба. Detaches linked policies/positions. */
+export async function deleteHeltesUnit(input: { heltes_id: string }) {
+  assertMutableUnitId(input.heltes_id, "heltes");
+  const catalog = await loadCatalog();
+  const idx = catalog.heltes.findIndex((h) => h.id === input.heltes_id);
+  if (idx < 0) throw new Error("Хэлтэс олдсонгүй");
+  const heltes = catalog.heltes[idx];
+  const albaIds = new Set(heltes.albas.map((a) => a.id));
+  catalog.heltes.splice(idx, 1);
+  await saveCatalog(catalog);
+
+  const assignments = await getPolicyOrgAssignments();
+  for (const [policyId, org] of assignments.entries()) {
+    if (org.heltesId === input.heltes_id || albaIds.has(org.albaId)) {
+      await setPolicyOrgAssignment({
+        policy_id: policyId,
+        heltes_id: OTHER_HELTES_ID,
+        alba_id: OTHER_ALBA_ID,
+      });
+    }
+  }
+  const map = await loadMap();
+  const linkedPositions = Object.entries(map.position_to_alba)
+    .filter(([, albaId]) => albaIds.has(albaId))
+    .map(([pid]) => pid);
+  for (const positionId of linkedPositions) {
+    await setPositionOrgAssignment({
+      position_id: positionId,
+      heltes_id: OTHER_HELTES_ID,
+      alba_id: OTHER_ALBA_ID,
+    });
+  }
+
+  return {
+    heltesId: input.heltes_id,
+    heltesName: heltes.name,
+    removedAlbaCount: albaIds.size,
+    detachedPositions: linkedPositions.length,
+  };
+}
+
+/** Catalog tree for Settings (no synthetic company / heltes-common rows). */
+export async function listManagedOrgUnits() {
+  const catalog = await loadCatalog();
+  const overrides = await loadCatalogOverrides();
+  const organizations = [...(overrides.organizations ?? [])].sort((a, b) =>
+    a.name.localeCompare(b.name, "mn"),
+  );
+  return {
+    organizations,
+    other: catalog.other,
+    heltes: catalog.heltes.map((h) => ({
+      id: h.id,
+      name: h.name,
+      albas: h.albas.map((a) => ({ id: a.id, name: a.name })),
+    })),
+  };
+}
+
+export async function createOrganizationLabel(nameInput: string) {
+  const name = nameInput.trim();
+  if (!name) throw new Error("Байгууллагын нэр хоосон");
+  const overrides = await loadCatalogOverrides();
+  const list = [...(overrides.organizations ?? [])];
+  if (
+    list.some((o) => o.name.toLocaleLowerCase("mn") === name.toLocaleLowerCase("mn"))
+  ) {
+    throw new Error("Ижил нэртэй байгууллага байна");
+  }
+  const id = slugifyUnitId(name, "org");
+  list.push({ id, name });
+  await saveCatalogOverrides({ ...overrides, organizations: list });
+  return { id, name };
+}
+
+export async function deleteOrganizationLabel(idOrName: string) {
+  const key = idOrName.trim();
+  if (!key) throw new Error("Байгууллага сонгоогүй");
+  const overrides = await loadCatalogOverrides();
+  const list = [...(overrides.organizations ?? [])];
+  const idx = list.findIndex(
+    (o) =>
+      o.id === key ||
+      o.name.toLocaleLowerCase("mn") === key.toLocaleLowerCase("mn"),
+  );
+  if (idx < 0) throw new Error("Байгууллага олдсонгүй");
+  const [removed] = list.splice(idx, 1);
+  await saveCatalogOverrides({ ...overrides, organizations: list });
+
+  // Clear matching free-text organization_name on positions.
+  let cleared = 0;
+  await updateDb((db) => {
+    for (const p of db.job_positions) {
+      if (
+        (p.organization_name ?? "").trim().toLocaleLowerCase("mn") ===
+        removed.name.toLocaleLowerCase("mn")
+      ) {
+        p.organization_name = null;
+        p.updated_at = new Date().toISOString();
+        cleared += 1;
+      }
+    }
+  });
+  return { id: removed.id, name: removed.name, clearedPositions: cleared };
 }
 
 export async function getHeltes(heltesIdOrKey: string) {
@@ -1817,6 +2064,60 @@ export async function listPositionsForOrgTree(q?: string): Promise<PositionListR
   });
 }
 
+export async function listPositionsForReview(
+  q?: string,
+): Promise<PositionReviewRow[]> {
+  const [rows, db] = await Promise.all([
+    listPositionsForOrgTree(q),
+    getDb(),
+  ]);
+  const { byPosition } = scoreMaps(db);
+  const activePolicyIds = new Set(
+    db.policies.filter((p) => !p.is_deleted).map((p) => p.id),
+  );
+  const clauseToPolicy = new Map(
+    db.policy_clauses
+      .filter((c) => !c.is_deleted && activePolicyIds.has(c.policy_id))
+      .map((c) => [c.id, c.policy_id] as const),
+  );
+
+  // "Холбогдсон" = active personal responsibility links only.
+  // Do NOT inflate with company/heltes/alba org-scope policies (that made every
+  // position in a unit show the same policy/clause counts).
+  const clauseIdsByPos = new Map<string, Set<string>>();
+  const policyIdsByPos = new Map<string, Set<string>>();
+
+  for (const l of db.clause_position_responsibilities) {
+    if (!l.is_active) continue;
+    const policyId = clauseToPolicy.get(l.policy_clause_id);
+    if (!policyId) continue;
+    const cset = clauseIdsByPos.get(l.job_position_id) ?? new Set();
+    cset.add(l.policy_clause_id);
+    clauseIdsByPos.set(l.job_position_id, cset);
+    const pset = policyIdsByPos.get(l.job_position_id) ?? new Set();
+    pset.add(policyId);
+    policyIdsByPos.set(l.job_position_id, pset);
+  }
+
+  // Т-үнэлгээ = latest АБТ evaluation score (not field-completeness proxy).
+  const tScoreByPos = new Map<string, { score: number; at: number }>();
+  for (const e of db.job_description_evaluations ?? []) {
+    const at = new Date(e.evaluated_at).getTime();
+    const prev = tScoreByPos.get(e.job_position_id);
+    if (!prev || at > prev.at) {
+      tScoreByPos.set(e.job_position_id, { score: e.score, at });
+    }
+  }
+
+  return rows.map((row) => ({
+    ...row,
+    policy_avg_score: avg(byPosition.get(row.id) ?? []),
+    policy_count: policyIdsByPos.get(row.id)?.size ?? 0,
+    clause_count: clauseIdsByPos.get(row.id)?.size ?? 0,
+    description_score: tScoreByPos.get(row.id)?.score ?? null,
+  }));
+}
+
 export async function setPositionOrgAssignment(input: {
   position_id: string;
   organization_name?: string | null;
@@ -1962,28 +2263,64 @@ export async function resolvePositionOrg(positionId: string): Promise<{
   return { heltesId: null, albaId };
 }
 
+export type OrgScopeVisibility = {
+  /** Нэгжийн товч нэр (хэлтэс · алба) */
+  unitLabel: string;
+  /** Холбогдсон шалтгааны товч тайлбар */
+  reasonSummary: string;
+  /** Компани / хэлтэс / алба тус бүрийн тоо */
+  reasonBreakdown: Array<{
+    type: "company" | "heltes" | "alba";
+    label: string;
+    policyCount: number;
+  }>;
+  policyIds: Set<string>;
+};
+
 /**
- * Org-scoped policies (company / heltes-common / alba) are visible to matching
- * positions without per-clause responsibility links.
+ * Org-scoped policies visible to a position (company / heltes / alba allocation),
+ * with human-readable reasons for the UI.
  */
-export async function listOrgVisiblePolicyIdsForPosition(
+export async function listOrgScopeVisibilityForPosition(
   positionId: string,
-): Promise<Set<string>> {
-  const [map, posOrg] = await Promise.all([
+): Promise<OrgScopeVisibility> {
+  const [map, catalog, posOrg, db] = await Promise.all([
     loadMap(),
+    loadCatalog(),
     resolvePositionOrg(positionId),
+    getDb(),
   ]);
-  const visible = new Set<string>();
+
+  let heltesName: string | null = null;
+  let albaName: string | null = null;
+  if (posOrg?.heltesId) {
+    const h = catalog.heltes.find((x) => x.id === posOrg.heltesId);
+    heltesName = h?.name ?? null;
+    if (h && posOrg.albaId) {
+      albaName = h.albas.find((a) => a.id === posOrg.albaId)?.name ?? null;
+    }
+  }
+  const unitLabel = [heltesName, albaName].filter(Boolean).join(" · ") || "Нэгж тодорхойгүй";
+
+  const counts = { company: 0, heltes: 0, alba: 0 };
+  const policyIds = new Set<string>();
+  const activePolicies = new Set(
+    db.policies.filter((p) => !p.is_deleted).map((p) => p.id),
+  );
+
   for (const [pid, orgs] of Object.entries(map.policy_to_org)) {
+    if (!activePolicies.has(pid)) continue;
     const primary = (orgs ?? [])[0];
     if (!primary) continue;
     if (primary.type === "company") {
-      visible.add(pid);
+      policyIds.add(pid);
+      counts.company += 1;
       continue;
     }
     if (!posOrg?.heltesId) continue;
     if (primary.type === "heltes" && primary.id === posOrg.heltesId) {
-      visible.add(pid);
+      policyIds.add(pid);
+      counts.heltes += 1;
       continue;
     }
     if (
@@ -1991,10 +2328,55 @@ export async function listOrgVisiblePolicyIdsForPosition(
       posOrg.albaId &&
       primary.id === posOrg.albaId
     ) {
-      visible.add(pid);
+      policyIds.add(pid);
+      counts.alba += 1;
     }
   }
-  return visible;
+
+  const reasonBreakdown: OrgScopeVisibility["reasonBreakdown"] = [];
+  if (counts.company > 0) {
+    reasonBreakdown.push({
+      type: "company",
+      label: COMPANY_SCOPE_LABEL,
+      policyCount: counts.company,
+    });
+  }
+  if (counts.heltes > 0) {
+    reasonBreakdown.push({
+      type: "heltes",
+      label: heltesName
+        ? `${heltesName} · ${HELTES_COMMON_LABEL}`
+        : HELTES_COMMON_LABEL,
+      policyCount: counts.heltes,
+    });
+  }
+  if (counts.alba > 0) {
+    reasonBreakdown.push({
+      type: "alba",
+      label: albaName
+        ? `${albaName} албанд хамааруулсан`
+        : "Албанд хамааруулсан",
+      policyCount: counts.alba,
+    });
+  }
+
+  const reasonSummary =
+    reasonBreakdown.length === 0
+      ? "Энэ ажлын байрын нэгжид org-scope-оор хамааруулсан журам алга."
+      : `Эдгээр журам нь ажлын байрт шууд заалт холбоогүй ч «${unitLabel}» нэгжийн хамрах хүрээгээр харагдана (${reasonBreakdown.map((r) => `${r.label}: ${r.policyCount}`).join("; ")}).`;
+
+  return { unitLabel, reasonSummary, reasonBreakdown, policyIds };
+}
+
+/**
+ * Org-scoped policies (company / heltes-common / alba) are visible to matching
+ * positions without per-clause responsibility links.
+ */
+export async function listOrgVisiblePolicyIdsForPosition(
+  positionId: string,
+): Promise<Set<string>> {
+  const vis = await listOrgScopeVisibilityForPosition(positionId);
+  return vis.policyIds;
 }
 
 export async function isPolicyOrgVisibleToPosition(

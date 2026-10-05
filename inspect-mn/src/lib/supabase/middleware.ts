@@ -80,10 +80,38 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user && (isLogin || pathname === "/access-request")) {
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("status")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (profile && profile.status !== "active") {
+      await supabase.auth.signOut();
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/login";
+      redirectUrl.searchParams.set("reason", "inactive");
+      return NextResponse.redirect(redirectUrl);
+    }
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/";
     redirectUrl.search = "";
     return NextResponse.redirect(redirectUrl);
+  }
+
+  // Kick inactive / suspended users from protected app routes.
+  if (user && !isAuthPublic) {
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("status")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (profile && profile.status !== "active") {
+      await supabase.auth.signOut();
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/login";
+      redirectUrl.searchParams.set("reason", "inactive");
+      return NextResponse.redirect(redirectUrl);
+    }
   }
 
   return response;

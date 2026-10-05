@@ -28,6 +28,8 @@ export type PermissionId =
   | "module.voice.edit"
   | "module.ai.view"
   | "module.review.view"
+  | "module.glossary.view"
+  | "module.glossary.edit"
   | "module.results.view"
   | "module.smartmine.view"
   | "module.tools.view";
@@ -61,6 +63,7 @@ export const MODULE_VIEW_PERMISSION: Record<string, PermissionId> = {
   smartmine: "module.smartmine.view",
   "ai-assistant": "module.ai.view",
   "policy-review": "module.review.view",
+  glossary: "module.glossary.view",
   settings: "portal.settings",
   "management-center": "portal.admin",
 };

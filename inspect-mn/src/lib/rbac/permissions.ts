@@ -48,6 +48,15 @@ export async function getEffectivePermissions(
     ) {
       perms.add("module.smartmine.view");
     }
+
+    const { data: glossaryPermission } = await supabase
+      .from("permissions")
+      .select("id")
+      .eq("id", "module.glossary.view")
+      .maybeSingle();
+    if (!glossaryPermission && perms.has("module.tools.view")) {
+      perms.add("module.glossary.view");
+    }
   }
 
   const now = new Date().toISOString();

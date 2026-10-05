@@ -3,7 +3,8 @@ import { getPositionDetail } from "@/lib/db/repository";
 import { getPolicyScope } from "@/lib/access/scope";
 import { PageHeader, Panel, ScoreChip, KpiCard } from "@/components/ui/primitives";
 import { PositionObligationsTree } from "@/app/(app)/positions/[id]/position-obligations-tree";
-import { ScoreTrendChart } from "@/components/charts/charts";
+import { PositionScoreTrendPanel } from "@/components/charts/position-score-trend-panel";
+import { buildPositionScoreTrend } from "@/lib/score-trend";
 
 export const dynamic = "force-dynamic";
 
@@ -77,13 +78,11 @@ export default async function MyObligationsPage({
     );
   }
 
-  const trend = [...detail.evaluations]
-    .reverse()
-    .slice(-20)
-    .map((e) => ({
-      at: e.evaluated_at.slice(0, 10),
-      score: e.score,
-    }));
+  const { points: trendPoints, snapshot: trendSnapshot } =
+    buildPositionScoreTrend({
+      complianceEvaluations: detail.evaluations,
+      descriptionEvaluations: detail.descriptionEvaluations,
+    });
 
   return (
     <div>
@@ -122,11 +121,10 @@ export default async function MyObligationsPage({
           <PositionObligationsTree rows={detail.obligations} />
         </Panel>
         <Panel title="Онооны хандлага">
-          {trend.length === 0 ? (
-            <p className="text-sm text-slate-500">Үнэлгээ байхгүй.</p>
-          ) : (
-            <ScoreTrendChart data={trend} />
-          )}
+          <PositionScoreTrendPanel
+            points={trendPoints}
+            snapshot={trendSnapshot}
+          />
         </Panel>
       </div>
     </div>

@@ -11,13 +11,19 @@ export function PageHeader({
 }) {
   return (
     <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
+      <div className="min-w-0 flex-1 basis-[min(100%,16rem)]">
+        <h1 className="text-lg font-semibold tracking-tight break-words sm:text-xl">
+          {title}
+        </h1>
         {description ? (
-          <p className="mt-0.5 text-sm text-[var(--muted)]">{description}</p>
+          <p className="mt-0.5 text-sm text-[var(--muted)] break-words">
+            {description}
+          </p>
         ) : null}
       </div>
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+      {actions ? (
+        <div className="flex flex-wrap items-center gap-2">{actions}</div>
+      ) : null}
     </div>
   );
 }

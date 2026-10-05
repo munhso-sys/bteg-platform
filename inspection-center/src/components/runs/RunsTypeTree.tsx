@@ -14,7 +14,7 @@ export type RunListRow = {
   inspectionType: string;
   inspectionTypeLabel: string;
   categoryLabel: string;
-  inspectedByOrg: string;
+  inspectedPlace: string;
   inspectionDate: string;
   dueDate: string;
   completedDate: string;
@@ -159,8 +159,8 @@ function RunRow({
         </Link>
       </td>
       <td className="col-narrow text-sm">{row.categoryLabel}</td>
-      <td className="col-narrow text-sm" title={row.inspectedByOrg}>
-        <span className="cell-ellipsis">{row.inspectedByOrg}</span>
+      <td className="col-narrow text-sm" title={row.inspectedPlace || undefined}>
+        <span className="cell-ellipsis">{row.inspectedPlace || "—"}</span>
       </td>
       <td className="col-narrow-sm tabular-nums text-sm">{row.inspectionDate}</td>
       <td className="col-narrow-sm tabular-nums text-sm">{row.dueDate}</td>

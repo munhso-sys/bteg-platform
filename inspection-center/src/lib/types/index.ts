@@ -160,11 +160,6 @@ export interface InspectionTemplate {
   version: number;
   createdAt: string;
   updatedAt: string;
-  /**
-   * Optional link to Process module `ProcessNode.id` (PFD backbone).
-   * Expand-only field — older rows omit it.
-   */
-  processId?: string | null;
 }
 
 export interface InspectionTemplateSection {
@@ -222,6 +217,8 @@ export type JointUnitAnswerState = {
 };
 
 export type InspectionPerformer = {
+  /** Байгууллага / хийсэн байгууллагын нэр */
+  place?: string;
   name: string;
   position: string;
 };
@@ -253,13 +250,50 @@ export interface InspectionRun {
   leadInspectorId: string;
   status: RunStatus;
   notes: string;
-  /** ХШ гүйцэтгэсэн ажилтан (нэр, албан тушаал) */
+  /** ХШ гүйцэтгэсэн ажилтан (байгууллага, нэр, албан тушаал) */
   performers?: InspectionPerformer[];
+  /** Баталгаажуулалтын тэмдэглэл / гарын үсэг текст */
+  confirmationText?: string;
   /** Хамтарсан/шөнийн ХШ: хэсэг·байршлын бөглөлт */
   jointUnitScopes?: JointUnitScope[];
   activeJointUnitKey?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/** «Байгууллага» багана: хийсэн байгууллагын нэр(үүд) */
+export function formatInspectedPlaceText(
+  performers?: InspectionPerformer[] | null,
+): string {
+  const places = [
+    ...new Set(
+      (performers ?? [])
+        .map((row) => (row.place ?? "").trim())
+        .filter(Boolean),
+    ),
+  ];
+  return places.join("; ");
+}
+
+/** Лавлагаа: байгууллага · албан тушаал — нэр */
+export function formatInspectedByText(
+  performers?: InspectionPerformer[] | null,
+): string {
+  const rows = (performers ?? []).filter(
+    (row) =>
+      (row.place ?? "").trim() || row.name.trim() || row.position.trim(),
+  );
+  if (rows.length === 0) return "";
+  return rows
+    .map((row) => {
+      const who = [row.position.trim(), row.name.trim()]
+        .filter(Boolean)
+        .join(" — ");
+      const place = (row.place ?? "").trim();
+      if (place && who) return `${place} · ${who}`;
+      return place || who;
+    })
+    .join("; ");
 }
 
 export interface InspectionAnswer {
@@ -294,18 +328,6 @@ export interface InspectionFinding {
    * Нэг асуулт дээр олон нэгжийн зөрчлийг тусад нь холбоно.
    */
   jointUnitKey?: string | null;
-  /**
-   * Optional Process module link (`ProcessNode.id`) for NC / finding aggregation.
-   */
-  processId?: string | null;
-  /** Root-cause category when findingType is nonconformity (Process analytics). */
-  rootCauseCategory?:
-    | "PROCESS_GAP"
-    | "HUMAN_ERROR"
-    | "EQUIPMENT_FAILURE"
-    | "ENVIRONMENTAL"
-    | null;
-  rootCauseDescription?: string | null;
   status: FindingStatus;
   createdAt: string;
   updatedAt: string;

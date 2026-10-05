@@ -1,8 +1,7 @@
-import { promises as fs } from "fs";
-import path from "path";
 import { loadAppDataPayload } from "@/lib/risk/store-payload";
 import type { AiResolvedScope } from "@/lib/ai/resolve-scope";
 import { getDutyModuleApps } from "@/lib/module-apps";
+import { loadBundledOrgAccessOptions } from "@/lib/org/catalog";
 import type {
   ExtractedDocument,
   PolicyOrganization,
@@ -29,13 +28,6 @@ type Clause = {
 type PolicyDb = { policies?: Policy[]; policy_clauses?: Clause[] };
 type OrgRef = { type: "heltes" | "alba"; id: string };
 type Overrides = Record<string, { orgs: OrgRef[] | null }>;
-type OrgCatalog = {
-  heltes: Array<{
-    id: string;
-    name: string;
-    albas: Array<{ id: string; name: string; heltes_id?: string }>;
-  }>;
-};
 
 type LoadedStore = {
   db: PolicyDb;
@@ -44,11 +36,10 @@ type LoadedStore = {
   source: "app-data-store" | "policy-api";
 };
 
-async function loadOrgCatalog() {
-  const file = path.join(process.cwd(), "data", "reference", "org-catalog.json");
-  const catalog = JSON.parse(await fs.readFile(file, "utf8")) as OrgCatalog;
+function loadOrgCatalog() {
+  const catalog = loadBundledOrgAccessOptions();
   const organizations = new Map<string, PolicyOrganization>();
-  for (const heltes of catalog.heltes ?? []) {
+  for (const heltes of catalog.heltes) {
     organizations.set(heltes.id, {
       type: "heltes",
       id: heltes.id,
@@ -56,12 +47,12 @@ async function loadOrgCatalog() {
       heltesId: heltes.id,
       heltesName: heltes.name,
     });
-    for (const alba of heltes.albas ?? []) {
+    for (const alba of heltes.albas) {
       organizations.set(alba.id, {
         type: "alba",
         id: alba.id,
         name: alba.name,
-        heltesId: alba.heltes_id ?? heltes.id,
+        heltesId: heltes.id,
         heltesName: heltes.name,
       });
     }
@@ -70,7 +61,7 @@ async function loadOrgCatalog() {
 }
 
 async function loadStoredPolicyData(): Promise<LoadedStore> {
-  const organizations = await loadOrgCatalog();
+  const organizations = loadOrgCatalog();
 
   // The Policy Compliance module owns policy-to-unit assignments. Always use
   // its API as the canonical source so Policy Review mirrors that module's

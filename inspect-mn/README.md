@@ -43,6 +43,8 @@ Open [http://localhost:3000](http://localhost:3000).
 | `/smartmine` | SmartMine | ҮР ДҮН |
 | `/ai-assistant` | AI туслах | TOOLS |
 | `/policy-review` | Баримт харьцуулалт | TOOLS |
+| `/glossary` | Толь бичиг | TOOLS |
+| `/glossary/database` | Толь бичиг — үндсэн мэдээлэл | TOOLS |
 | `/settings` | Тохиргоо | TOOLS |
 | `/management-center` | Удирдлагын төв | TOOLS |
 

@@ -20,13 +20,12 @@ export async function GET(
       );
     }
 
-    const trend = [...detail.evaluations]
-      .reverse()
-      .slice(-12)
-      .map((e) => ({
-        at: e.evaluated_at.slice(0, 10),
-        score: e.score,
-      }));
+    const { points: trend, snapshot } = (
+      await import("@/lib/score-trend")
+    ).buildPositionScoreTrend({
+      complianceEvaluations: detail.evaluations,
+      descriptionEvaluations: detail.descriptionEvaluations,
+    });
 
     const overdue = detail.latestEvaluations.filter(
       (e) =>
@@ -48,6 +47,8 @@ export async function GET(
       overdue,
       counts: detail.counts,
       hasJobDescription: Boolean(detail.description),
+      descriptionScore: detail.descriptionEvaluation?.score ?? null,
+      trendSnapshot: snapshot,
       trend,
     });
   } catch (err) {

@@ -1,0 +1,641 @@
+[
+  {
+    "id": 157,
+    "policy_id": "7a6b4467-8e3f-4054-b561-b5f9134c91ec",
+    "target_type": "alba",
+    "target_bteg_id": "46",
+    "target_name": "Авто тээврийн алба",
+    "parent_bteg_id": "25",
+    "created_at": "2026-05-05T17:35:29.069098+08:00"
+  },
+  {
+    "id": 156,
+    "policy_id": "7c51f551-1efc-43dc-aa3e-0e8216ad8709",
+    "target_type": "alba",
+    "target_bteg_id": "46",
+    "target_name": "Авто тээврийн алба",
+    "parent_bteg_id": "25",
+    "created_at": "2026-05-05T17:34:59.379017+08:00"
+  },
+  {
+    "id": 135,
+    "policy_id": "39f237d4-7a3d-4136-8b56-7ed130d76d21",
+    "target_type": "alba",
+    "target_bteg_id": "44",
+    "target_name": "Баяжуулалтын алба ",
+    "parent_bteg_id": "25",
+    "created_at": "2026-05-05T17:14:59.509726+08:00"
+  },
+  {
+    "id": 137,
+    "policy_id": "3c4f475c-3029-47de-92cd-f57afa7288c2",
+    "target_type": "alba",
+    "target_bteg_id": "44",
+    "target_name": "Баяжуулалтын алба ",
+    "parent_bteg_id": "25",
+    "created_at": "2026-05-05T17:15:56.337036+08:00"
+  },
+  {
+    "id": 158,
+    "policy_id": "4ddb70fe-2d77-4efa-a4a5-f963aea63317",
+    "target_type": "alba",
+    "target_bteg_id": "65",
+    "target_name": "Бүртгэл хяналтын алба",
+    "parent_bteg_id": "31",
+    "created_at": "2026-05-05T17:35:54.213725+08:00"
+  },
+  {
+    "id": 155,
+    "policy_id": "82732800-c8d3-4a4c-af59-e0656c077e87",
+    "target_type": "alba",
+    "target_bteg_id": "65",
+    "target_name": "Бүртгэл хяналтын алба",
+    "parent_bteg_id": "31",
+    "created_at": "2026-05-05T17:34:20.73232+08:00"
+  },
+  {
+    "id": 131,
+    "policy_id": "688298c0-5248-427c-95ca-06a38b424ce6",
+    "target_type": "alba",
+    "target_bteg_id": "97",
+    "target_name": "Бүртгэл хяналтын алба",
+    "parent_bteg_id": "56",
+    "created_at": "2026-05-05T17:12:39.137292+08:00"
+  },
+  {
+    "id": 129,
+    "policy_id": "589b3d89-a90e-4c08-8c71-e4309ac8599b",
+    "target_type": "alba",
+    "target_bteg_id": "65",
+    "target_name": "Бүртгэл хяналтын алба",
+    "parent_bteg_id": "31",
+    "created_at": "2026-05-05T17:11:43.909423+08:00"
+  },
+  {
+    "id": 160,
+    "policy_id": "615bc5c3-0d2c-4e2f-9aa4-0b65352e0425",
+    "target_type": "alba",
+    "target_bteg_id": "65",
+    "target_name": "Бүртгэл хяналтын алба",
+    "parent_bteg_id": "31",
+    "created_at": "2026-05-05T17:36:51.206644+08:00"
+  },
+  {
+    "id": 161,
+    "policy_id": "a0eca52a-7fbf-403a-b325-38068fb2de6c",
+    "target_type": "alba",
+    "target_bteg_id": "62",
+    "target_name": "Геологи, чанарын алба",
+    "parent_bteg_id": "25",
+    "created_at": "2026-05-05T17:38:28.495671+08:00"
+  },
+  {
+    "id": 144,
+    "policy_id": "94fb980f-1d54-41a5-92c8-793d27703532",
+    "target_type": "alba",
+    "target_bteg_id": "62",
+    "target_name": "Геологи, чанарын алба",
+    "parent_bteg_id": "25",
+    "created_at": "2026-05-05T17:28:26.10157+08:00"
+  },
+  {
+    "id": 162,
+    "policy_id": "6a24a743-a18c-4b15-b4d3-49e2e6c09e50",
+    "target_type": "alba",
+    "target_bteg_id": "62",
+    "target_name": "Геологи, чанарын алба",
+    "parent_bteg_id": "25",
+    "created_at": "2026-05-05T17:38:53.202633+08:00"
+  },
+  {
+    "id": 138,
+    "policy_id": "34827be1-d1a5-427f-a7d6-25812dd7d42b",
+    "target_type": "alba",
+    "target_bteg_id": "91",
+    "target_name": "Геотехникийн алба",
+    "parent_bteg_id": "25",
+    "created_at": "2026-05-05T17:16:27.700878+08:00"
+  },
+  {
+    "id": 130,
+    "policy_id": "05d90792-f72f-4fe7-9d5f-3d1828d4ce65",
+    "target_type": "alba",
+    "target_bteg_id": "91",
+    "target_name": "Геотехникийн алба",
+    "parent_bteg_id": "25",
+    "created_at": "2026-05-05T17:12:05.344775+08:00"
+  },
+  {
+    "id": 124,
+    "policy_id": "a63c94b1-b3d5-42b4-8ba1-0587588c35a4",
+    "target_type": "alba",
+    "target_bteg_id": "63",
+    "target_name": "Маркшейдерийн алба",
+    "parent_bteg_id": "25",
+    "created_at": "2026-05-05T17:01:49.585188+08:00"
+  },
+  {
+    "id": 141,
+    "policy_id": "3b84c84c-1a60-4227-b20a-83e820680303",
+    "target_type": "alba",
+    "target_bteg_id": "64",
+    "target_name": "Төлөвлөлт хяналтын алба",
+    "parent_bteg_id": "25",
+    "created_at": "2026-05-05T17:18:43.329286+08:00"
+  },
+  {
+    "id": 143,
+    "policy_id": "fe20175d-676b-4b20-b340-65315983d4e5",
+    "target_type": "alba",
+    "target_bteg_id": "64",
+    "target_name": "Төлөвлөлт хяналтын алба",
+    "parent_bteg_id": "25",
+    "created_at": "2026-05-05T17:27:31.275287+08:00"
+  },
+  {
+    "id": 146,
+    "policy_id": "02d1fcfd-0c05-4499-b907-4c33882c4e70",
+    "target_type": "alba",
+    "target_bteg_id": "45",
+    "target_name": "ХММЗасварын алба",
+    "parent_bteg_id": "25",
+    "created_at": "2026-05-05T17:29:16.376601+08:00"
+  },
+  {
+    "id": 136,
+    "policy_id": "701c2ce7-6d75-49b0-9d1c-2f95937f9b74",
+    "target_type": "alba",
+    "target_bteg_id": "45",
+    "target_name": "ХММЗасварын алба",
+    "parent_bteg_id": "25",
+    "created_at": "2026-05-05T17:15:23.772838+08:00"
+  },
+  {
+    "id": 132,
+    "policy_id": "aa142d35-8f94-4342-a217-b2215b9673ee",
+    "target_type": "alba",
+    "target_bteg_id": "45",
+    "target_name": "ХММЗасварын алба",
+    "parent_bteg_id": "25",
+    "created_at": "2026-05-05T17:13:42.891991+08:00"
+  },
+  {
+    "id": 163,
+    "policy_id": "17625748-303a-49a0-a460-e96446b9bc7a",
+    "target_type": "alba",
+    "target_bteg_id": "89",
+    "target_name": "Хүний нөөцийн алба",
+    "parent_bteg_id": "29",
+    "created_at": "2026-05-05T17:41:49.495996+08:00"
+  },
+  {
+    "id": 153,
+    "policy_id": "e732b58c-77cf-4ddd-86c6-fb8bdd27ed2a",
+    "target_type": "alba",
+    "target_bteg_id": "89",
+    "target_name": "Хүний нөөцийн алба",
+    "parent_bteg_id": "29",
+    "created_at": "2026-05-05T17:33:20.538516+08:00"
+  },
+  {
+    "id": 127,
+    "policy_id": "eb12c8d7-cbe7-48b2-8d74-6eace255425f",
+    "target_type": "alba",
+    "target_bteg_id": "89",
+    "target_name": "Хүний нөөцийн алба",
+    "parent_bteg_id": "29",
+    "created_at": "2026-05-05T17:10:45.62442+08:00"
+  },
+  {
+    "id": 128,
+    "policy_id": "3e4777b4-3f6b-454c-aed8-4794ec0309ef",
+    "target_type": "alba",
+    "target_bteg_id": "89",
+    "target_name": "Хүний нөөцийн алба",
+    "parent_bteg_id": "29",
+    "created_at": "2026-05-05T17:11:10.425197+08:00"
+  },
+  {
+    "id": 134,
+    "policy_id": "18d11e6a-e7a0-423b-9b9f-542eae879685",
+    "target_type": "alba",
+    "target_bteg_id": "89",
+    "target_name": "Хүний нөөцийн алба",
+    "parent_bteg_id": "29",
+    "created_at": "2026-05-05T17:14:38.639185+08:00"
+  },
+  {
+    "id": 139,
+    "policy_id": "7fbcceb5-f3fe-460c-85a2-a8ffdf10cdef",
+    "target_type": "alba",
+    "target_bteg_id": "89",
+    "target_name": "Хүний нөөцийн алба",
+    "parent_bteg_id": "29",
+    "created_at": "2026-05-05T17:16:54.417055+08:00"
+  },
+  {
+    "id": 140,
+    "policy_id": "1932bf9c-b309-44e5-aa23-38ab7ea6bd37",
+    "target_type": "alba",
+    "target_bteg_id": "89",
+    "target_name": "Хүний нөөцийн алба",
+    "parent_bteg_id": "29",
+    "created_at": "2026-05-05T17:17:23.677744+08:00"
+  },
+  {
+    "id": 149,
+    "policy_id": "1b38ab21-af7b-4934-b1e8-ad87ecc0eb1e",
+    "target_type": "alba",
+    "target_bteg_id": "89",
+    "target_name": "Хүний нөөцийн алба",
+    "parent_bteg_id": "29",
+    "created_at": "2026-05-05T17:31:26.387952+08:00"
+  },
+  {
+    "id": 154,
+    "policy_id": "9a174b93-88ed-4cfe-9017-6ccdcf6bfdb9",
+    "target_type": "alba",
+    "target_bteg_id": "89",
+    "target_name": "Хүний нөөцийн алба",
+    "parent_bteg_id": "29",
+    "created_at": "2026-05-05T17:33:48.015491+08:00"
+  },
+  {
+    "id": 145,
+    "policy_id": "93536a06-df96-4cca-9f08-33f790bf12eb",
+    "target_type": "alba",
+    "target_bteg_id": "89",
+    "target_name": "Хүний нөөцийн алба",
+    "parent_bteg_id": "29",
+    "created_at": "2026-05-05T17:28:51.817818+08:00"
+  },
+  {
+    "id": 150,
+    "policy_id": "08b16be3-cad3-458b-a49c-5a543df9786c",
+    "target_type": "alba",
+    "target_bteg_id": "89",
+    "target_name": "Хүний нөөцийн алба",
+    "parent_bteg_id": "29",
+    "created_at": "2026-05-05T17:31:50.579848+08:00"
+  },
+  {
+    "id": 151,
+    "policy_id": "83b428ed-ce2f-40eb-829b-539dd8b9f42c",
+    "target_type": "alba",
+    "target_bteg_id": "89",
+    "target_name": "Хүний нөөцийн алба",
+    "parent_bteg_id": "29",
+    "created_at": "2026-05-05T17:32:12.518354+08:00"
+  },
+  {
+    "id": 152,
+    "policy_id": "bd026083-38b7-4620-b690-eb7d9618ae7a",
+    "target_type": "alba",
+    "target_bteg_id": "89",
+    "target_name": "Хүний нөөцийн алба",
+    "parent_bteg_id": "29",
+    "created_at": "2026-05-05T17:32:47.234959+08:00"
+  },
+  {
+    "id": 142,
+    "policy_id": "07c9fc32-5efc-4b2e-abc1-2f818c4bdce7",
+    "target_type": "alba",
+    "target_bteg_id": "48",
+    "target_name": "Цахилгааны алба ",
+    "parent_bteg_id": "25",
+    "created_at": "2026-05-05T17:26:56.811066+08:00"
+  },
+  {
+    "id": 164,
+    "policy_id": "835d96fd-ec34-4b9f-a354-1fc41c884da5",
+    "target_type": "alba",
+    "target_bteg_id": "66",
+    "target_name": "Эдийн засгийн алба",
+    "parent_bteg_id": "31",
+    "created_at": "2026-05-23T15:20:21.187364+08:00"
+  },
+  {
+    "id": 133,
+    "policy_id": "24e1130a-f735-4163-bbba-fdb3a5fee955",
+    "target_type": "alba",
+    "target_bteg_id": "66",
+    "target_name": "Эдийн засгийн алба",
+    "parent_bteg_id": "31",
+    "created_at": "2026-05-05T17:14:16.201015+08:00"
+  },
+  {
+    "id": 57,
+    "policy_id": "b993c84d-e78c-4863-a397-0b02e951f281",
+    "target_type": "heltes",
+    "target_bteg_id": "32",
+    "target_name": "Байгаль орчны хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:12:38.922257+08:00"
+  },
+  {
+    "id": 88,
+    "policy_id": "a7e5f522-d7b9-4746-ac48-952135c19a36",
+    "target_type": "heltes",
+    "target_bteg_id": "32",
+    "target_name": "Байгаль орчны хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:37:46.280248+08:00"
+  },
+  {
+    "id": 122,
+    "policy_id": "5dcaef9b-b325-4985-b608-e4b3031a5946",
+    "target_type": "heltes",
+    "target_bteg_id": "32",
+    "target_name": "Байгаль орчны хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:50:13.83062+08:00"
+  },
+  {
+    "id": 123,
+    "policy_id": "0b479c22-1f96-406d-a73b-c55c75950e8b",
+    "target_type": "heltes",
+    "target_bteg_id": "32",
+    "target_name": "Байгаль орчны хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:50:39.33347+08:00"
+  },
+  {
+    "id": 62,
+    "policy_id": "ce950120-4c95-4e67-a388-92a21651968f",
+    "target_type": "heltes",
+    "target_bteg_id": "32",
+    "target_name": "Байгаль орчны хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:14:44.984737+08:00"
+  },
+  {
+    "id": 121,
+    "policy_id": "9cdd4a23-b084-45e2-a148-03bd61a24311",
+    "target_type": "heltes",
+    "target_bteg_id": "32",
+    "target_name": "Байгаль орчны хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:49:30.612155+08:00"
+  },
+  {
+    "id": 37,
+    "policy_id": "a722e743-7170-490e-962e-bdab4afb69e9",
+    "target_type": "heltes",
+    "target_bteg_id": "33",
+    "target_name": "Дотоод хяналт шалгалтын хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:03:26.379046+08:00"
+  },
+  {
+    "id": 36,
+    "policy_id": "fe41c506-d7e3-4d83-a33f-e8d7b0a47871",
+    "target_type": "heltes",
+    "target_bteg_id": "33",
+    "target_name": "Дотоод хяналт шалгалтын хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:02:57.106762+08:00"
+  },
+  {
+    "id": 81,
+    "policy_id": "2a08a680-e8b8-4a1c-9898-132fd42d5a81",
+    "target_type": "heltes",
+    "target_bteg_id": "33",
+    "target_name": "Дотоод хяналт шалгалтын хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:34:24.553634+08:00"
+  },
+  {
+    "id": 120,
+    "policy_id": "215b720e-ff4d-4d68-b14d-938b0cbccd5e",
+    "target_type": "heltes",
+    "target_bteg_id": "33",
+    "target_name": "Дотоод хяналт шалгалтын хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:48:46.434273+08:00"
+  },
+  {
+    "id": 109,
+    "policy_id": "cd06f6a0-fec6-46a3-87fa-0834208e1414",
+    "target_type": "heltes",
+    "target_bteg_id": "29",
+    "target_name": "Захиргаа Удирдлагын хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:45:00.928798+08:00"
+  },
+  {
+    "id": 66,
+    "policy_id": "7b9eb1fb-87bf-459e-bee1-a73c5e043371",
+    "target_type": "heltes",
+    "target_bteg_id": "29",
+    "target_name": "Захиргаа Удирдлагын хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:16:34.547724+08:00"
+  },
+  {
+    "id": 159,
+    "policy_id": "37100197-a368-4f34-9be0-3bbdaaf4b452",
+    "target_type": "heltes",
+    "target_bteg_id": "29",
+    "target_name": "Захиргаа Удирдлагын хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T17:36:21.37424+08:00"
+  },
+  {
+    "id": 70,
+    "policy_id": "aa719440-48bf-474a-acdc-49e3acb4c03b",
+    "target_type": "heltes",
+    "target_bteg_id": "29",
+    "target_name": "Захиргаа Удирдлагын хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:19:39.568016+08:00"
+  },
+  {
+    "id": 45,
+    "policy_id": "cc507189-5553-48e1-89ed-b0e3610fefdc",
+    "target_type": "heltes",
+    "target_bteg_id": "29",
+    "target_name": "Захиргаа Удирдлагын хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:07:40.007254+08:00"
+  },
+  {
+    "id": 69,
+    "policy_id": "576f3425-dbb8-4756-8be1-ce12d53ebf30",
+    "target_type": "heltes",
+    "target_bteg_id": "29",
+    "target_name": "Захиргаа Удирдлагын хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:18:46.75103+08:00"
+  },
+  {
+    "id": 54,
+    "policy_id": "a78f589a-3ccf-4570-9ea1-63a54d20310b",
+    "target_type": "heltes",
+    "target_bteg_id": "29",
+    "target_name": "Захиргаа Удирдлагын хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:11:27.503025+08:00"
+  },
+  {
+    "id": 113,
+    "policy_id": "2ff3265b-b356-4318-89a7-1308cc0a8c8c",
+    "target_type": "heltes",
+    "target_bteg_id": "29",
+    "target_name": "Захиргаа Удирдлагын хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:46:32.675762+08:00"
+  },
+  {
+    "id": 18,
+    "policy_id": "4565e72a-a5ec-40fc-8cf5-2435f3b6b3d6",
+    "target_type": "heltes",
+    "target_bteg_id": "29",
+    "target_name": "Захиргаа Удирдлагын хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-03T18:02:14.116587+08:00"
+  },
+  {
+    "id": 68,
+    "policy_id": "77a0679d-3e96-4a11-83ad-496ec92821c0",
+    "target_type": "heltes",
+    "target_bteg_id": "25",
+    "target_name": "Үйлдвэрлэлийн хэлтэс ",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:17:57.710723+08:00"
+  },
+  {
+    "id": 39,
+    "policy_id": "c764b8b1-b2b0-4782-a915-1284442f4f4e",
+    "target_type": "heltes",
+    "target_bteg_id": "30",
+    "target_name": "ХАБЭА-н хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:04:33.249971+08:00"
+  },
+  {
+    "id": 126,
+    "policy_id": "41ff5200-8ec5-41c3-bbfb-cdf752810cfd",
+    "target_type": "heltes",
+    "target_bteg_id": "30",
+    "target_name": "ХАБЭА-н хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T17:10:08.129023+08:00"
+  },
+  {
+    "id": 20,
+    "policy_id": "a193efa2-cab3-4da7-ace6-9abc42cef6ff",
+    "target_type": "heltes",
+    "target_bteg_id": "30",
+    "target_name": "ХАБЭА-н хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-04T10:25:13.374268+08:00"
+  },
+  {
+    "id": 61,
+    "policy_id": "91bfdfc4-ecef-456f-ae4c-9b1c85bc2238",
+    "target_type": "heltes",
+    "target_bteg_id": "30",
+    "target_name": "ХАБЭА-н хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:14:14.741915+08:00"
+  },
+  {
+    "id": 60,
+    "policy_id": "23a0d342-b023-46e8-bafe-86fc24cbae42",
+    "target_type": "heltes",
+    "target_bteg_id": "30",
+    "target_name": "ХАБЭА-н хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:13:37.470756+08:00"
+  },
+  {
+    "id": 40,
+    "policy_id": "14a3d3c1-027a-4c5c-a7ba-2ed8d19dc60d",
+    "target_type": "heltes",
+    "target_bteg_id": "30",
+    "target_name": "ХАБЭА-н хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:04:57.754492+08:00"
+  },
+  {
+    "id": 63,
+    "policy_id": "0521b402-5f51-4890-93c0-7c6a66c8c01b",
+    "target_type": "heltes",
+    "target_bteg_id": "30",
+    "target_name": "ХАБЭА-н хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:15:18.99291+08:00"
+  },
+  {
+    "id": 38,
+    "policy_id": "8bae8a98-5cb5-4ad8-a42f-cfacea43e425",
+    "target_type": "heltes",
+    "target_bteg_id": "30",
+    "target_name": "ХАБЭА-н хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:04:03.618033+08:00"
+  },
+  {
+    "id": 17,
+    "policy_id": "14cff15a-eff9-4416-98cf-336c6c071f98",
+    "target_type": "heltes",
+    "target_bteg_id": "30",
+    "target_name": "ХАБЭА-н хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-03T17:58:28.157708+08:00"
+  },
+  {
+    "id": 67,
+    "policy_id": "ac7c88bf-cffb-408d-a27b-67a117e9f77e",
+    "target_type": "heltes",
+    "target_bteg_id": "30",
+    "target_name": "ХАБЭА-н хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:17:14.215852+08:00"
+  },
+  {
+    "id": 21,
+    "policy_id": "d4ebf07d-d292-440a-9cc9-10998bbe6e0a",
+    "target_type": "heltes",
+    "target_bteg_id": "30",
+    "target_name": "ХАБЭА-н хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-04T10:26:43.305194+08:00"
+  },
+  {
+    "id": 84,
+    "policy_id": "7c08649b-6bcf-410f-a044-a1174a32ea02",
+    "target_type": "heltes",
+    "target_bteg_id": "30",
+    "target_name": "ХАБЭА-н хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:35:30.680286+08:00"
+  },
+  {
+    "id": 85,
+    "policy_id": "98b73e66-3579-468c-bf4c-fd519f30c3fe",
+    "target_type": "heltes",
+    "target_bteg_id": "30",
+    "target_name": "ХАБЭА-н хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:36:03.836441+08:00"
+  },
+  {
+    "id": 86,
+    "policy_id": "21e545c9-754c-4888-bd4e-a48b6bb682c6",
+    "target_type": "heltes",
+    "target_bteg_id": "30",
+    "target_name": "ХАБЭА-н хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:36:30.436405+08:00"
+  },
+  {
+    "id": 87,
+    "policy_id": "0e224cdd-8ce3-40d1-96ec-c24249c5b644",
+    "target_type": "heltes",
+    "target_bteg_id": "30",
+    "target_name": "ХАБЭА-н хэлтэс",
+    "parent_bteg_id": null,
+    "created_at": "2026-05-05T16:37:06.650649+08:00"
+  }
+]

@@ -38,6 +38,11 @@ export interface Policy {
   name: string;
   approved_date: string | null;
   reference_code: string | null;
+  /**
+   * Optional official job-position code (албан тушаалын код).
+   * Older rows may omit this field — treat as null.
+   */
+  official_code?: string | null;
   status: PolicyStatus;
   version: number;
   is_deleted: boolean;
@@ -86,31 +91,74 @@ export interface JobPosition {
   updated_at: string;
 }
 
+/** Мэргэжлийн ур чадварын ангилал (Загвар.docx D хэсэг). */
+export type JobDescriptionSkillCategory = {
+  title: string;
+  items: string[];
+};
+
+/**
+ * Ажлын байрны тодорхойлолт — Загвар.docx (А–E) бүтэц.
+ * Хуучин string талбарууд normalize хийгдэнэ (authority/responsibilities гэх мэт).
+ */
 export interface JobDescription {
   id: string;
   job_position_id: string;
   title: string | null;
+  /** Үндэсний ажил мэргэжлийн ангиллын код (жнь. 1322-11) */
   a_code: string | null;
+  /** Албан тушаалын код (жнь. 103) */
+  position_code?: string | null;
+  company_name?: string | null;
+  location?: string | null;
+  unit_name?: string | null;
   purpose: string | null;
   schedule: string | null;
   daily_hours: string | null;
   break_time: string | null;
+  /** B хэсгийн «Албан тушаал» тайлбар */
+  position_note?: string | null;
   duties: unknown[];
   education_level: string | null;
   work_experience: string | null;
   general_skills: unknown[];
+  /** string[] эсвэл JobDescriptionSkillCategory[] */
   professional_skills: unknown[];
-  authority: string | null;
-  responsibilities: string | null;
+  /** string | string[] (дугаарлагдсан мөр) */
+  authority: string | string[] | null;
+  /** string | string[] (дугаарлагдсан мөр) */
+  responsibilities: string | string[] | null;
   relevant_laws: unknown[];
   job_condition: string | null;
   resources: string | null;
+  required_trainings?: unknown[];
+  required_certificates?: unknown[];
+  property_liability?: string | null;
+  other_notes?: string | null;
   communication_scope: unknown;
   supervisor_positions: unknown[];
   subordinate_positions: unknown[];
   /** Full markdown export body from BGS_export Job_descriptions/*.md */
   markdown_body?: string | null;
   raw?: unknown;
+}
+
+/** АБТ (ажлын байрны тодорхойлолт) үнэлгээ — Т-үнэлгээ. Журмын compliance_evaluations-ээс тусдаа. */
+export interface JobDescriptionEvaluation {
+  id: string;
+  job_position_id: string;
+  evaluation_period: string;
+  /** 0–100 → Т-үнэлгээ багана */
+  score: number;
+  /** Үр дүн */
+  result_text: string | null;
+  /** Сайжруулах арга хэмжээ */
+  improvement_actions: string | null;
+  /** Ерөнхий дүгнэлт */
+  conclusion: string | null;
+  evaluated_at: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface PolicyScopeTarget {
@@ -128,11 +176,19 @@ export interface ClausePositionResponsibility {
   id: string;
   policy_clause_id: string;
   job_position_id: string;
+  /** RACI-style duty on this clause (Гүйцэтгэх / Хянах / …). */
   responsibility_type: ResponsibilityType;
   is_checked: boolean;
   is_active: boolean;
   weight: number;
   required_evidence: string | null;
+  /**
+   * Optional PFD keys on the JSON link document (`app_data_store` / local DB).
+   * Not applied as SQL ALTER on production unless a reviewed migration is approved.
+   */
+  process_id?: string | null;
+  location_id?: string | null;
+  asset_id?: string | null;
   notes: string | null;
 }
 
@@ -191,6 +247,7 @@ export interface LocalDatabase {
   policy_clauses: PolicyClause[];
   job_positions: JobPosition[];
   job_descriptions: JobDescription[];
+  job_description_evaluations: JobDescriptionEvaluation[];
   policy_scope_targets: PolicyScopeTarget[];
   clause_position_responsibilities: ClausePositionResponsibility[];
   compliance_evaluations: ComplianceEvaluation[];

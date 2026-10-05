@@ -21,7 +21,7 @@ export default async function SettingsPage() {
     <div>
       <PageHeader
         title="Тохиргоо ба Inspect холболт"
-        description="Inspect системтэй холбох адаптерын бэлтгэл. Алба·журам холболт: Тохиргоо → Алба · журам холбох."
+        description="Inspect системтэй холбох адаптерын бэлтгэл. Нэгж бүтэц: Тохиргоо → Байгууллага · нэгж."
       />
       <div className="grid gap-3 lg:grid-cols-2">
         <Panel title="Нэвтрэлт">

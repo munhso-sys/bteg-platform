@@ -216,6 +216,8 @@ export default async function RunDetailPage({
               initialScopes={run.jointUnitScopes ?? []}
               initialActiveUnitKey={run.activeJointUnitKey}
               initialPerformers={run.performers}
+              initialNotes={run.notes}
+              initialConfirmationText={run.confirmationText ?? ""}
               unitGroupLabel="Алба / хэсэг / байршил"
               readOnly={readOnly}
               inspectionType="JOINT_INSPECTION"
@@ -234,6 +236,8 @@ export default async function RunDetailPage({
               initialScopes={run.jointUnitScopes ?? []}
               initialActiveUnitKey={run.activeJointUnitKey}
               initialPerformers={run.performers}
+              initialNotes={run.notes}
+              initialConfirmationText={run.confirmationText ?? ""}
               unitGroupLabel="Байршил"
               readOnly={readOnly}
               inspectionType="NIGHT_INSPECTION"
@@ -249,6 +253,9 @@ export default async function RunDetailPage({
               sections={sheetSections}
               sheetTitle={sheetTitle}
               readOnly={readOnly}
+              initialPerformers={run.performers}
+              initialNotes={run.notes}
+              initialConfirmationText={run.confirmationText ?? ""}
             />
           )}
         </Panel>

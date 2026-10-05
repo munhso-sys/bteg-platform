@@ -29,6 +29,8 @@ import {
 } from "@/lib/checklist-sheet";
 import { deriveComplianceStatus } from "@/lib/scoring";
 import { inspectionApiFetch } from "@/lib/access/inspection-api-fetch";
+import { RunInspectionMetaForm } from "@/components/runs/RunInspectionMetaForm";
+import type { InspectionPerformer } from "@/lib/types";
 
 type Row = {
   answer: InspectionAnswer;
@@ -55,6 +57,9 @@ export function RunScoringForm({
   sections = [],
   sheetTitle,
   readOnly = false,
+  initialPerformers = [],
+  initialNotes = "",
+  initialConfirmationText = "",
 }: {
   runId: string;
   runStatus: RunStatus;
@@ -65,6 +70,9 @@ export function RunScoringForm({
   sections?: InspectionTemplateSection[];
   sheetTitle?: string;
   readOnly?: boolean;
+  initialPerformers?: InspectionPerformer[];
+  initialNotes?: string;
+  initialConfirmationText?: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -76,6 +84,19 @@ export function RunScoringForm({
   const [startedDate, setStartedDate] = useState(inspectionDate);
   const [finishDueDate, setFinishDueDate] = useState(dueDate ?? "");
   const [finishedDate, setFinishedDate] = useState(completedDate ?? "");
+  const [performers, setPerformers] = useState<InspectionPerformer[]>(() =>
+    initialPerformers.length > 0
+      ? initialPerformers.map((row) => ({
+          place: row.place ?? "",
+          name: row.name,
+          position: row.position,
+        }))
+      : [{ place: "", name: "", position: "" }],
+  );
+  const [notes, setNotes] = useState(initialNotes);
+  const [confirmationText, setConfirmationText] = useState(
+    initialConfirmationText,
+  );
   const locked = pending || busy || readOnly;
   const [drafts, setDrafts] = useState(() =>
     Object.fromEntries(
@@ -176,6 +197,15 @@ export function RunScoringForm({
         inspectionDate: startedDate,
         dueDate: finishDueDate || null,
         completedDate: finishedDate || null,
+        performers: performers
+          .map((row) => ({
+            place: (row.place ?? "").trim(),
+            name: row.name.trim(),
+            position: row.position.trim(),
+          }))
+          .filter((row) => row.place || row.name || row.position),
+        notes,
+        confirmationText,
         syncFindings: true,
       }),
     });
@@ -502,6 +532,17 @@ export function RunScoringForm({
           </tbody>
         </table>
       </TableScroll>
+
+      <RunInspectionMetaForm
+        performers={performers}
+        notes={notes}
+        confirmationText={confirmationText}
+        status={status}
+        locked={locked}
+        onPerformersChange={setPerformers}
+        onNotesChange={setNotes}
+        onConfirmationChange={setConfirmationText}
+      />
     </div>
   );
 }

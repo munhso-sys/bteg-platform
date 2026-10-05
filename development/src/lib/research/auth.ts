@@ -6,16 +6,39 @@ export type ResearchAuthContext = {
   roleId: string | null;
 };
 
+function bearerFromClient(supabase: SupabaseClient) {
+  try {
+    // @supabase/ssr may stash Authorization on the fetch headers used by auth
+    const headers = (
+      supabase as unknown as {
+        headers?: Record<string, string>;
+        rest?: { headers?: Record<string, string> };
+      }
+    ).headers;
+    const auth = headers?.Authorization || headers?.authorization;
+    if (auth?.toLowerCase().startsWith("bearer ")) {
+      return auth.slice(7).trim();
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
 export async function requireResearchAuth(
   supabase: SupabaseClient,
+  accessToken?: string | null,
 ): Promise<
   | { ok: true; ctx: ResearchAuthContext }
   | { ok: false; status: 401 | 403; error: string }
 > {
+  const jwt = accessToken?.trim() || bearerFromClient(supabase) || undefined;
   const {
     data: { user },
     error: userError,
-  } = await supabase.auth.getUser();
+  } = jwt
+    ? await supabase.auth.getUser(jwt)
+    : await supabase.auth.getUser();
   if (userError || !user) {
     return {
       ok: false,

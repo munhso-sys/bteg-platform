@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { COMPLIANCE_STATUS_LABELS } from "@/lib/constants";
 import { withBasePath } from "@/lib/paths";
 import type { ComplianceStatus, ResponsibilityType } from "@/lib/types";
@@ -13,12 +13,28 @@ export function QuickEvaluateForm({
   obligations,
 }: {
   positionId: string;
-  obligations: Array<{ clause_id: string; type: ResponsibilityType; label: string }>;
+  obligations: Array<{
+    clause_id: string;
+    type: ResponsibilityType;
+    label: string;
+  }>;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
+
+  const uniqueObligations = useMemo(() => {
+    const seen = new Set<string>();
+    const out: typeof obligations = [];
+    for (const o of obligations) {
+      const key = `${o.clause_id}::${o.type}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(o);
+    }
+    return out;
+  }, [obligations]);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -64,15 +80,22 @@ export function QuickEvaluateForm({
     }
   }
 
-  if (!obligations.length) {
+  if (!uniqueObligations.length) {
     return <p className="text-sm text-slate-500">Үнэлэх үүрэг байхгүй.</p>;
   }
 
   return (
     <form onSubmit={onSubmit} className="space-y-2 text-sm">
-      <select name="obligation" required className="w-full rounded border border-slate-300 px-2 py-1.5">
-        {obligations.map((o) => (
-          <option key={`${o.clause_id}:${o.type}`} value={`${o.clause_id}::${o.type}`}>
+      <select
+        name="obligation"
+        required
+        className="w-full rounded border border-slate-300 px-2 py-1.5"
+      >
+        {uniqueObligations.map((o) => (
+          <option
+            key={`${o.clause_id}::${o.type}`}
+            value={`${o.clause_id}::${o.type}`}
+          >
             {o.label}
           </option>
         ))}
@@ -93,7 +116,11 @@ export function QuickEvaluateForm({
         defaultValue={75}
         className="w-full rounded border border-slate-300 px-2 py-1.5"
       />
-      <select name="status" className="w-full rounded border border-slate-300 px-2 py-1.5" defaultValue="in_progress">
+      <select
+        name="status"
+        className="w-full rounded border border-slate-300 px-2 py-1.5"
+        defaultValue="in_progress"
+      >
         {STATUSES.map((s) => (
           <option key={s} value={s}>
             {COMPLIANCE_STATUS_LABELS[s]}

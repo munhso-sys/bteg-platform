@@ -23,6 +23,7 @@ const MODULE_LABELS: Record<string, string> = {
   voice: "Ажилтны дуу хоолой",
   ai: "AI туслах",
   review: "Баримт харьцуулалт",
+  glossary: "Толь бичиг",
   result: "Үр дүн",
   smartmine: "SmartMine",
   tools: "Tools",

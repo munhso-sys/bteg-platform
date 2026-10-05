@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
   Check,
@@ -42,6 +42,7 @@ import {
   type PolicyEvalOption,
 } from "@/app/(app)/policies/[id]/policy-evaluate-form";
 import { BulkUnlinkScopeButton } from "@/components/policies/bulk-unlink-scope-button";
+import { ClauseJobDropButton } from "@/components/policies/clause-job-drop-button";
 import { EditResponsibilityLinkMenu } from "@/components/policies/edit-responsibility-link-menu";
 import { AttentionNoteMarker } from "@/components/policies/attention-note-marker";
 import { QuickEvaluatePopover } from "@/components/policies/quick-evaluate-popover";
@@ -118,6 +119,8 @@ function ScopeKpiChips({
   unevaluatedCount,
   attentionCount,
   noteCount,
+  attentionMarker,
+  noteMarker,
 }: {
   linkCount: number;
   positionCount: number;
@@ -125,6 +128,10 @@ function ScopeKpiChips({
   unevaluatedCount: number;
   attentionCount?: number;
   noteCount?: number;
+  /** Interactive exclude marker — replaces the static attention chip when set. */
+  attentionMarker?: ReactNode;
+  /** Interactive note marker — replaces the static note chip when set. */
+  noteMarker?: ReactNode;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-1 text-[11px]">
@@ -148,24 +155,28 @@ function ScopeKpiChips({
       >
         ⌀{avgScore != null ? avgScore : "—"}
       </span>
-      {(attentionCount ?? 0) > 0 ? (
-        <span
-          className="inline-flex h-6 min-w-6 items-center justify-center gap-0.5 rounded border border-amber-500/50 bg-amber-500/20 px-1.5 tabular-nums text-amber-950 dark:text-amber-100"
-          title="Дундажаас хассан · анхаарах"
-        >
-          <AlertTriangle size={11} />
-          {attentionCount}
-        </span>
-      ) : null}
-      {(noteCount ?? 0) > 0 ? (
-        <span
-          className="inline-flex h-6 min-w-6 items-center justify-center gap-0.5 rounded border border-sky-500/50 bg-sky-500/15 px-1.5 tabular-nums text-sky-950 dark:text-sky-100"
-          title="Тайлбар/баримт · дундажид орно"
-        >
-          <MessageSquareText size={11} />
-          {noteCount}
-        </span>
-      ) : null}
+      {attentionMarker != null
+        ? attentionMarker
+        : (attentionCount ?? 0) > 0 ? (
+            <span
+              className="inline-flex h-6 min-w-6 items-center justify-center gap-0.5 rounded border border-amber-500/50 bg-amber-500/20 px-1.5 tabular-nums text-amber-950 dark:text-amber-100"
+              title="Дундажаас хассан · анхаарах"
+            >
+              <AlertTriangle size={11} />
+              {attentionCount}
+            </span>
+          ) : null}
+      {noteMarker != null
+        ? noteMarker
+        : (noteCount ?? 0) > 0 ? (
+            <span
+              className="inline-flex h-6 min-w-6 items-center justify-center gap-0.5 rounded border border-sky-500/50 bg-sky-500/15 px-1.5 tabular-nums text-sky-950 dark:text-sky-100"
+              title="Тайлбар/баримт · дундажид орно"
+            >
+              <MessageSquareText size={11} />
+              {noteCount}
+            </span>
+          ) : null}
       {unevaluatedCount > 0 ? (
         <span
           className="inline-flex h-6 min-w-6 items-center justify-center gap-0.5 rounded border border-rose-500/40 bg-rose-500/15 px-1.5 tabular-nums text-rose-800 dark:text-rose-200"
@@ -372,105 +383,253 @@ function LinksPanel({
           Холбоос байхгүй. «Ажлын байр холбох»-оор нэмнэ үү.
         </p>
       ) : (
-        <ul className="max-h-56 space-y-0.5 overflow-y-auto overflow-x-hidden rounded border border-[var(--border)] bg-[var(--card)] text-sm">
-          {aggregated.map((r) => (
-            <li
-              key={r.job_position_id}
-              className="flex items-center justify-between gap-2 border-b border-[var(--border)] px-2 py-1.5 last:border-b-0"
-            >
-              <div className="min-w-0 flex-1 overflow-hidden">
-                {readOnly ? (
-                  <span className="block truncate">{r.positionName}</span>
-                ) : (
-                  <Link
-                    href={`/positions/${r.job_position_id}?from=policy&policyId=${encodeURIComponent(policyId)}`}
-                    className="block truncate hover:underline"
-                  >
-                    {r.positionName}
-                  </Link>
-                )}
-                <div className="mt-0.5 flex flex-wrap gap-1">
-                  {r.types.map((t) => (
-                    <Badge
-                      key={t}
-                      className={cn("text-[10px]", responsibilityTone(t))}
-                    >
-                      {RESPONSIBILITY_SHORT[t]}
-                    </Badge>
-                  ))}
-                  {r.linkCount > 1 ? (
-                    <span
-                      className="text-[10px] text-[var(--muted)]"
-                      title="Доод зүйлүүдийн холбоос"
-                    >
-                      {r.linkCount} холбоос · ⌀
-                    </span>
+        <ul className="max-h-72 space-y-1 overflow-y-auto overflow-x-hidden rounded border border-[var(--border)] bg-[var(--card)] text-sm">
+          {aggregated.map((r) => {
+            const linkIdSet = new Set(r.linkIds);
+            const posIdSet = new Set(
+              r.jobPositionIds?.length
+                ? r.jobPositionIds
+                : [r.job_position_id],
+            );
+            // Include links from name-merged duplicate position UUIDs.
+            const positionLinks = rows.filter(
+              (x) =>
+                linkIdSet.has(x.id) || posIdSet.has(x.job_position_id),
+            );
+            const roleTypes = [
+              ...new Set([
+                ...r.types,
+                ...positionLinks.map((x) => x.responsibility_type),
+              ]),
+            ];
+            const roles = roleTypes.map((type) => {
+              const link =
+                positionLinks.find((x) => x.responsibility_type === type) ??
+                null;
+              return {
+                linkId: link?.id ?? `${r.job_position_id}:${type}`,
+                type,
+              };
+            });
+            const typeScores = roleTypes.map((t) => {
+              const typeLinks = positionLinks.filter(
+                (x) => x.responsibility_type === t,
+              );
+              const scores = typeLinks
+                .map((x) => x.score)
+                .filter((s): s is number => s != null && Number.isFinite(s));
+              const avg =
+                scores.length > 0
+                  ? Math.round(
+                      (scores.reduce((a, b) => a + b, 0) / scores.length) * 10,
+                    ) / 10
+                  : null;
+              return {
+                type: t,
+                avgScore: avg,
+                clauseIds: [
+                  ...new Set(typeLinks.map((x) => x.policy_clause_id)),
+                ],
+                excludeLink:
+                  typeLinks.find((x) => x.excludeFromAverage === true) ?? null,
+                noteLink:
+                  typeLinks.find((x) => x.hasNoteContent === true) ?? null,
+              };
+            });
+            const positionExclude = positionLinks.find(
+              (x) => x.excludeFromAverage === true,
+            );
+            const positionNote = positionLinks.find(
+              (x) => x.hasNoteContent === true,
+            );
+            const evalRoles = typeScores.map((ts) => {
+              const link = positionLinks.find(
+                (x) => x.responsibility_type === ts.type,
+              );
+              return {
+                type: ts.type,
+                clauseIds: ts.clauseIds.length
+                  ? ts.clauseIds
+                  : clauseId
+                    ? [clauseId]
+                    : [],
+                defaultScore: ts.avgScore,
+                processId: link?.process_id ?? null,
+                locationId: link?.location_id ?? null,
+                assetId: link?.asset_id ?? null,
+                comment: link?.attentionComment ?? null,
+                evidence: link?.attentionEvidence ?? null,
+                excludeFromAverage: link?.excludeFromAverage === true,
+                jobPositionId: link?.job_position_id ?? r.job_position_id,
+              };
+            });
+            return (
+              <li
+                key={r.job_position_id}
+                className="border-b border-[var(--border)] px-2 py-1.5 last:border-b-0"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <div className="flex min-w-0 items-center gap-1">
+                      {readOnly ? (
+                        <span className="block truncate font-medium">
+                          {r.positionName}
+                        </span>
+                      ) : (
+                        <Link
+                          href={`/positions/${r.job_position_id}?from=policy&policyId=${encodeURIComponent(policyId)}`}
+                          className="block truncate font-medium hover:underline"
+                        >
+                          {r.positionName}
+                        </Link>
+                      )}
+                      {positionExclude ? (
+                        <AttentionNoteMarker
+                          compact
+                          variant="exclude"
+                          readOnly={readOnly}
+                          positionName={r.positionName}
+                          roleLabel={
+                            RESPONSIBILITY_LABELS[
+                              positionExclude.responsibility_type
+                            ]
+                          }
+                          evaluationId={positionExclude.evaluationId ?? null}
+                          comment={positionExclude.attentionComment ?? null}
+                          evidence={positionExclude.attentionEvidence ?? null}
+                        />
+                      ) : null}
+                      {positionNote ? (
+                        <AttentionNoteMarker
+                          compact
+                          variant="note"
+                          readOnly={readOnly}
+                          positionName={r.positionName}
+                          roleLabel={
+                            RESPONSIBILITY_LABELS[
+                              positionNote.responsibility_type
+                            ]
+                          }
+                          evaluationId={positionNote.evaluationId ?? null}
+                          comment={positionNote.attentionComment ?? null}
+                          evidence={positionNote.attentionEvidence ?? null}
+                        />
+                      ) : null}
+                    </div>
+                  </div>
+                  {!readOnly ? (
+                    <div className="flex shrink-0 items-center gap-1">
+                      <QuickEvaluatePopover
+                        positionName={r.positionName}
+                        jobPositionId={r.job_position_id}
+                        roles={evalRoles}
+                      />
+                      <EditResponsibilityLinkMenu
+                        positionName={r.positionName}
+                        jobPositionId={r.job_position_id}
+                        clauseIds={
+                          clauseId
+                            ? [clauseId]
+                            : r.clauseIds.length
+                              ? r.clauseIds
+                              : []
+                        }
+                        roles={roles.map((role) => {
+                          const link = positionLinks.find(
+                            (x) => x.responsibility_type === role.type,
+                          );
+                          return {
+                            ...role,
+                            processId: link?.process_id ?? null,
+                            locationId: link?.location_id ?? null,
+                            assetId: link?.asset_id ?? null,
+                          };
+                        })}
+                      />
+                    </div>
                   ) : null}
                 </div>
-              </div>
-              <div className="flex shrink-0 items-center gap-1">
-                {r.excludeFromAverage ? (
-                  <AttentionNoteMarker
-                    compact
-                    variant="exclude"
-                    readOnly={readOnly}
-                    evaluationId={
-                      rows
-                        .filter(
-                          (x) =>
-                            x.job_position_id === r.job_position_id &&
-                            x.excludeFromAverage,
-                        )
-                        .map((x) => x.evaluationId)
-                        .find(Boolean) ??
-                      r.evaluationIds[0] ??
-                      null
-                    }
-                    comment={r.attentionComment}
-                    evidence={r.attentionEvidence}
-                  />
-                ) : r.hasCountedNote ? (
-                  <AttentionNoteMarker
-                    compact
-                    variant="note"
-                    readOnly={readOnly}
-                    evaluationId={
-                      rows
-                        .filter(
-                          (x) =>
-                            x.job_position_id === r.job_position_id &&
-                            x.hasCountedNote,
-                        )
-                        .map((x) => x.evaluationId)
-                        .find(Boolean) ??
-                      r.evaluationIds[0] ??
-                      null
-                    }
-                    comment={r.attentionComment}
-                    evidence={r.attentionEvidence}
-                  />
-                ) : null}
-                <ScoreChip score={r.avgScore} />
-                {!readOnly ? (
-                  <>
-                    <QuickEvaluatePopover
-                      positionName={r.positionName}
-                      jobPositionId={r.job_position_id}
-                      clauseIds={r.clauseIds}
-                      responsibilityType={r.primaryType}
-                      responsibilityTypes={r.types}
-                      defaultScore={r.avgScore}
-                    />
-                    <EditResponsibilityLinkMenu
-                      linkIds={r.linkIds}
-                      positionName={r.positionName}
-                      responsibilityType={r.primaryType}
-                    />
-                  </>
-                ) : null}
-              </div>
-            </li>
-          ))}
+
+                <ul className="mt-1 space-y-0.5 pl-1">
+                  {typeScores.map((ts) => {
+                    const link = positionLinks.find(
+                      (x) => x.responsibility_type === ts.type,
+                    );
+                    return (
+                      <li
+                        key={`${r.job_position_id}:${ts.type}`}
+                        className="flex items-center justify-between gap-2 rounded bg-[var(--surface-muted)]/60 px-1.5 py-1"
+                      >
+                        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+                          <Badge
+                            className={cn(
+                              "text-[10px]",
+                              responsibilityTone(ts.type),
+                            )}
+                          >
+                            {RESPONSIBILITY_SHORT[ts.type]}
+                          </Badge>
+                          <span className="truncate text-[11px] text-[var(--muted)]">
+                            {RESPONSIBILITY_LABELS[ts.type]}
+                          </span>
+                          {ts.excludeLink ? (
+                            <AttentionNoteMarker
+                              compact
+                              variant="exclude"
+                              readOnly={readOnly}
+                              positionName={r.positionName}
+                              roleLabel={RESPONSIBILITY_LABELS[ts.type]}
+                              evaluationId={
+                                ts.excludeLink.evaluationId ?? null
+                              }
+                              comment={
+                                ts.excludeLink.attentionComment ?? null
+                              }
+                              evidence={
+                                ts.excludeLink.attentionEvidence ?? null
+                              }
+                            />
+                          ) : null}
+                          {ts.noteLink ? (
+                            <AttentionNoteMarker
+                              compact
+                              variant="note"
+                              readOnly={readOnly}
+                              positionName={r.positionName}
+                              roleLabel={RESPONSIBILITY_LABELS[ts.type]}
+                              evaluationId={ts.noteLink.evaluationId ?? null}
+                              comment={ts.noteLink.attentionComment ?? null}
+                              evidence={ts.noteLink.attentionEvidence ?? null}
+                            />
+                          ) : null}
+                          {link?.process_id ||
+                          link?.location_id ||
+                          link?.asset_id ? (
+                            <span className="w-full truncate font-mono text-[10px] text-[var(--muted)]">
+                              {[link.process_id, link.location_id, link.asset_id]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <ScoreChip score={ts.avgScore} />
+                          {!readOnly ? (
+                            <QuickEvaluatePopover
+                              positionName={r.positionName}
+                              jobPositionId={r.job_position_id}
+                              initialType={ts.type}
+                              roles={evalRoles}
+                            />
+                          ) : null}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -548,11 +707,18 @@ function ClauseNode({
   /** Sub-clauses start collapsed. */
   const [childrenOpen, setChildrenOpen] = useState(false);
   const hasChildren = node.children.length > 0;
-  const rows = useMemo(
+  /** Roll-up KPIs include descendants. */
+  const scopeRows = useMemo(
     () => collectSubtreeLinkRows(node, rowsByClause),
     [node, rowsByClause],
   );
-  const kpis = useMemo(() => computeScopeKpis(rows), [rows]);
+  /** Connected list: this clause only (one link per position). */
+  const ownRows = useMemo(
+    () => rowsByClause.get(node.id) ?? [],
+    [node.id, rowsByClause],
+  );
+  const kpis = useMemo(() => computeScopeKpis(scopeRows), [scopeRows]);
+  const unlinkRows = scopeRows;
 
   return (
     <li className="border-l border-[var(--border)]">
@@ -611,39 +777,6 @@ function ClauseNode({
                   {node.children.length} · {childrenOpen ? "нээлттэй" : "хаагдсан"}
                 </span>
               ) : null}
-              {kpis.attentionCount > 0 ? (
-                <AttentionNoteMarker
-                  compact
-                  variant="exclude"
-                  readOnly={readOnly}
-                  evaluationId={
-                    rows.find((r) => r.excludeFromAverage)?.evaluationId ?? null
-                  }
-                  comment={
-                    rows.find((r) => r.excludeFromAverage)?.attentionComment ??
-                    null
-                  }
-                  evidence={
-                    rows.find((r) => r.excludeFromAverage)?.attentionEvidence ??
-                    null
-                  }
-                />
-              ) : kpis.noteCount > 0 ? (
-                <AttentionNoteMarker
-                  compact
-                  variant="note"
-                  readOnly={readOnly}
-                  evaluationId={
-                    rows.find((r) => r.hasCountedNote)?.evaluationId ?? null
-                  }
-                  comment={
-                    rows.find((r) => r.hasCountedNote)?.attentionComment ?? null
-                  }
-                  evidence={
-                    rows.find((r) => r.hasCountedNote)?.attentionEvidence ?? null
-                  }
-                />
-              ) : null}
             </div>
             <div className="mt-1.5 pl-7">
               <ScopeKpiChips
@@ -651,8 +784,68 @@ function ClauseNode({
                 positionCount={kpis.positionCount}
                 avgScore={kpis.avgScore}
                 unevaluatedCount={kpis.unevaluatedCount}
-                attentionCount={kpis.attentionCount}
-                noteCount={kpis.noteCount}
+                attentionMarker={
+                  kpis.attentionCount > 0 ? (
+                    <AttentionNoteMarker
+                      compact
+                      variant="exclude"
+                      readOnly={readOnly}
+                      positionName={
+                        scopeRows.find((r) => r.excludeFromAverage)
+                          ?.positionName ?? null
+                      }
+                      roleLabel={(() => {
+                        const row = scopeRows.find((r) => r.excludeFromAverage);
+                        return row
+                          ? RESPONSIBILITY_LABELS[row.responsibility_type]
+                          : null;
+                      })()}
+                      evaluationId={
+                        scopeRows.find((r) => r.excludeFromAverage)
+                          ?.evaluationId ?? null
+                      }
+                      comment={
+                        scopeRows.find((r) => r.excludeFromAverage)
+                          ?.attentionComment ?? null
+                      }
+                      evidence={
+                        scopeRows.find((r) => r.excludeFromAverage)
+                          ?.attentionEvidence ?? null
+                      }
+                    />
+                  ) : null
+                }
+                noteMarker={
+                  scopeRows.some((r) => r.hasNoteContent) ? (
+                    <AttentionNoteMarker
+                      compact
+                      variant="note"
+                      readOnly={readOnly}
+                      positionName={
+                        scopeRows.find((r) => r.hasNoteContent)?.positionName ??
+                        null
+                      }
+                      roleLabel={(() => {
+                        const row = scopeRows.find((r) => r.hasNoteContent);
+                        return row
+                          ? RESPONSIBILITY_LABELS[row.responsibility_type]
+                          : null;
+                      })()}
+                      evaluationId={
+                        scopeRows.find((r) => r.hasNoteContent)?.evaluationId ??
+                        null
+                      }
+                      comment={
+                        scopeRows.find((r) => r.hasNoteContent)
+                          ?.attentionComment ?? null
+                      }
+                      evidence={
+                        scopeRows.find((r) => r.hasNoteContent)
+                          ?.attentionEvidence ?? null
+                      }
+                    />
+                  ) : null
+                }
               />
             </div>
           </div>
@@ -664,7 +857,13 @@ function ClauseNode({
             >
               {panelOpen ? <ChevronDown size={14} /> : <ListChecks size={14} />}
             </IconBtn>
-            {!readOnly && rows.length > 0 ? (
+            {!readOnly ? (
+              <ClauseJobDropButton
+                target={{ kind: "clause", clauseId: node.id }}
+                title="Ажлын байр чирж холбох"
+              />
+            ) : null}
+            {!readOnly && unlinkRows.length > 0 ? (
               <BulkUnlinkScopeButton
                 variant="icon"
                 clauseId={node.id}
@@ -678,7 +877,7 @@ function ClauseNode({
         {panelOpen ? (
           <div className="pl-7">
             <LinksPanel
-              rows={rows}
+              rows={ownRows}
               readOnly={readOnly}
               clauseId={node.id}
               policyId={policyId}
@@ -834,6 +1033,12 @@ export function PolicyScopeWorkbench({
             >
               {policyOpen ? <ChevronDown size={14} /> : <ListChecks size={14} />}
             </IconBtn>
+            {!readOnly ? (
+              <ClauseJobDropButton
+                target={{ kind: "policy" }}
+                title="Ажлын байр чирж журмын бүх зүйлд холбох"
+              />
+            ) : null}
             {!readOnly && linkRows.length > 0 ? (
               <BulkUnlinkScopeButton
                 variant="icon"
@@ -938,6 +1143,12 @@ export function PolicyScopeWorkbench({
                     <ListChecks size={14} />
                   )}
                 </IconBtn>
+                {!readOnly && section.id !== "orphan" ? (
+                  <ClauseJobDropButton
+                    target={{ kind: "section", sectionId: section.id }}
+                    title="Ажлын байр чирж хэсгийн зүйлд холбох"
+                  />
+                ) : null}
                 {!readOnly &&
                 section.id !== "orphan" &&
                 sRows.length > 0 ? (
@@ -1031,6 +1242,11 @@ export function ClauseTree({
               `${r.policy_clause_id}:${r.job_position_id}:${r.responsibility_type}`,
             ) ?? null,
           notes: r.notes,
+          weight: r.weight ?? 1,
+          required_evidence: r.required_evidence ?? null,
+          process_id: r.process_id ?? null,
+          location_id: r.location_id ?? null,
+          asset_id: r.asset_id ?? null,
         }));
         map.set(n.id, rows);
         if (n.children.length) walk(n.children);

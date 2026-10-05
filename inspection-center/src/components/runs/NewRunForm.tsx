@@ -359,10 +359,6 @@ export function NewRunForm({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-sm">
-          <span className="mb-1 block font-medium">Шалгасан байгууллага</span>
-          <input className="input w-full" name="inspectedByOrg" defaultValue="ДХШ" />
-        </label>
-        <label className="block text-sm">
           <span className="mb-1 block font-medium">Шалгалт эхлүүлсэн</span>
           <input
             className="input w-full"

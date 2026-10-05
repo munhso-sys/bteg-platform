@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { PolicyScopeWorkbench } from "@/components/policies/policy-scope-workbench";
+import { PolicyEditorLayout } from "@/components/policies/policy-editor-layout";
 import { ContextBackLink } from "@/components/policies/policy-back-link";
 import { Badge, PageHeader, ScoreChip } from "@/components/ui/primitives";
 import { CollapsiblePanel } from "@/components/ui/collapsible-panel";
@@ -216,6 +217,11 @@ export default async function PolicyDetailPage({
       albaName: org?.albaName,
       score: evaluation?.score ?? null,
       notes: r.notes,
+      weight: r.weight ?? 1,
+      required_evidence: r.required_evidence ?? null,
+      process_id: r.process_id ?? null,
+      location_id: r.location_id ?? null,
+      asset_id: r.asset_id ?? null,
       excludeFromAverage: evaluation?.exclude_from_average === true,
       hasCountedNote:
         evaluation != null &&
@@ -224,6 +230,10 @@ export default async function PolicyDetailPage({
           evaluation.comment?.trim() ||
           evidenceById[evaluation.id]?.trim()
         ),
+      hasNoteContent: !!(
+        evaluation?.comment?.trim() ||
+        (evaluation ? evidenceById[evaluation.id]?.trim() : "")
+      ),
       evaluationId: evaluation?.id ?? null,
       attentionComment: evaluation?.comment ?? null,
       attentionEvidence: evaluation
@@ -288,12 +298,10 @@ export default async function PolicyDetailPage({
       ) : null}
 
       <div
-        className={
-          readOnly ? "space-y-3" : "grid gap-3 lg:grid-cols-[1fr_280px]"
-        }
+        className={readOnly ? "space-y-3" : undefined}
       >
-        <div className="min-w-0">
-          {detail.trees.length === 0 ? (
+        {readOnly ? (
+          detail.trees.length === 0 ? (
             <p className="text-sm text-slate-500">
               Таны ажлын байрт холбоос байхгүй.
             </p>
@@ -316,49 +324,56 @@ export default async function PolicyDetailPage({
               linkRows={linkRows}
               policyEvalOptions={evalOptions}
             />
-          )}
-        </div>
-        {!readOnly ? (
-          <div className="space-y-3">
-            <CollapsiblePanel title="Хэсэг нэмэх" defaultOpen={false}>
-              <AddSectionForm policyId={id} />
-            </CollapsiblePanel>
-            <CollapsiblePanel title="Зүйл нэмэх" defaultOpen={false}>
-              <AddClauseForm
-                policyId={id}
-                sections={detail.sections.map((s) => ({
-                  id: s.id,
-                  label: `${s.reference_number || ""} ${s.text || s.id}`.trim(),
-                }))}
-              />
-            </CollapsiblePanel>
-            <CollapsiblePanel
-              title="Холбогдсон ажлын байр"
-              defaultOpen={false}
-              badge={
-                <span className="rounded bg-[var(--surface-muted)] px-1.5 py-0.5 text-[10px] tabular-nums text-[var(--muted)]">
-                  {detail.positions.length}
-                </span>
-              }
-            >
-              <ul className="max-h-80 space-y-1 overflow-auto text-sm">
-                {detail.positions.map((p) => (
-                  <li key={p.id}>
-                    <Link
-                      href={`/positions/${p.id}?from=policy&policyId=${encodeURIComponent(id)}`}
-                      className="hover:underline"
-                    >
-                      {p.name}
-                    </Link>
-                  </li>
-                ))}
-                {!detail.positions.length ? (
-                  <li className="text-[var(--muted)]">Холбоосгүй.</li>
-                ) : null}
-              </ul>
-            </CollapsiblePanel>
-          </div>
-        ) : null}
+          )
+        ) : (
+          <PolicyEditorLayout
+            policyId={id}
+            clauses={clauseRows}
+            linkRows={linkRows}
+            workbench={
+              detail.trees.length === 0 ? (
+                <p className="text-sm text-slate-500">
+                  Таны ажлын байрт холбоос байхгүй.
+                </p>
+              ) : (
+                <PolicyScopeWorkbench
+                  policyId={id}
+                  policyName={detail.policy.name}
+                  readOnly={readOnly}
+                  orgTree={orgTree}
+                  sections={sectionRows}
+                  trees={detail.trees.map(({ section, tree }) => ({
+                    section: {
+                      id: section.id,
+                      reference_number: section.reference_number,
+                      text: section.text,
+                    },
+                    tree,
+                  }))}
+                  clauses={clauseRows}
+                  linkRows={linkRows}
+                  policyEvalOptions={evalOptions}
+                />
+              )
+            }
+            sidebarTop={
+              <>
+                <CollapsiblePanel title="Хэсэг нэмэх" defaultOpen={false}>
+                  <AddSectionForm policyId={id} />
+                </CollapsiblePanel>
+                <CollapsiblePanel title="Зүйл нэмэх" defaultOpen={false}>
+                  <AddClauseForm
+                    policyId={id}
+                    sections={detail.sections.map((s) => ({
+                      id: s.id,
+                      label: `${s.reference_number || ""} ${s.text || s.id}`.trim(),
+                    }))}
+                  />
+                </CollapsiblePanel>
+              </>
+            }
+          />
+        )}
       </div>
     </div>
   );

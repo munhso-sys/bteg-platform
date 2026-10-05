@@ -22,6 +22,21 @@ function revalidateRunPaths(runId: string) {
   revalidatePath("/dashboard");
 }
 
+function normalizePerformers(
+  performers:
+    | { place?: string; name?: string; position?: string }[]
+    | undefined,
+) {
+  if (!Array.isArray(performers)) return undefined;
+  return performers
+    .map((row) => ({
+      place: String(row.place ?? "").trim(),
+      name: String(row.name ?? "").trim(),
+      position: String(row.position ?? "").trim(),
+    }))
+    .filter((row) => row.place || row.name || row.position);
+}
+
 export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
@@ -51,7 +66,9 @@ export async function PATCH(
     syncFindings?: boolean;
     jointUnitKey?: string;
     jointUnitLabel?: string;
-    performers?: { name?: string; position?: string }[];
+    performers?: { place?: string; name?: string; position?: string }[];
+    notes?: string;
+    confirmationText?: string;
   };
 
   if (body.reset) {
@@ -69,14 +86,7 @@ export async function PATCH(
 
   if (Array.isArray(body.answers) && body.jointUnitKey) {
     try {
-      const performers = Array.isArray(body.performers)
-        ? body.performers
-            .map((row) => ({
-              name: String(row.name ?? "").trim(),
-              position: String(row.position ?? "").trim(),
-            }))
-            .filter((row) => row.name || row.position)
-        : undefined;
+      const performers = normalizePerformers(body.performers);
       const result = await runStoreMutation(() =>
         saveJointUnitScopeAndSync({
           runId,
@@ -90,6 +100,8 @@ export async function PATCH(
           dueDate: body.dueDate,
           completedDate: body.completedDate,
           performers,
+          notes: body.notes,
+          confirmationText: body.confirmationText,
           answeredBy: "inspector-1",
         }),
       );
@@ -105,14 +117,7 @@ export async function PATCH(
 
   if (Array.isArray(body.answers)) {
     try {
-      const performers = Array.isArray(body.performers)
-        ? body.performers
-            .map((row) => ({
-              name: String(row.name ?? "").trim(),
-              position: String(row.position ?? "").trim(),
-            }))
-            .filter((row) => row.name || row.position)
-        : undefined;
+      const performers = normalizePerformers(body.performers);
       const result = await runStoreMutation(() =>
         updateRunAnswersAndSyncFindings({
           runId,
@@ -124,6 +129,8 @@ export async function PATCH(
           dueDate: body.dueDate,
           completedDate: body.completedDate,
           performers,
+          notes: body.notes,
+          confirmationText: body.confirmationText,
           answeredBy: "inspector-1",
         }),
       );

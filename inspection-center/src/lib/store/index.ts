@@ -50,6 +50,10 @@ import {
   REMOTE_KEYS,
   saveRemotePayload,
 } from "@/lib/store/remote";
+import {
+  canReuseStorePartition,
+  storePartitionKey,
+} from "@/lib/store/partition-cache";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
 import { getInspectionScope } from "@/lib/access/scope";
 
@@ -101,6 +105,8 @@ type StoreMemory = {
   annualPlanTypesUpdatedAt?: string;
   /** Last successful remote/local hydrate time (ms). Used to skip re-fetch. */
   hydratedAt?: number;
+  /** Remote partition currently held in the process-wide cache. */
+  hydratedStoreKey?: string;
   hydratePromise?: Promise<void>;
   /** One-shot per warm instance: expand run violations into findings/actions. */
   findingsLinkedAt?: number;
@@ -212,10 +218,18 @@ function preferLocalStore() {
  */
 export async function ensureStoreHydrated() {
   const memory = storeMemory();
+  const localOnly = preferLocalStore();
+  const organizationId = localOnly ? null : await resolveStoreOrganizationId();
+  const storeKey = storePartitionKey(organizationId);
+
   if (memory.hydratePromise) {
     await memory.hydratePromise;
-    linkFindingsFromRunsIfNeeded();
-    return;
+    // A concurrent request may have hydrated another tenant partition. Only
+    // reuse it when it is the partition required by this request.
+    if (canReuseStorePartition(memory.hydratedStoreKey, storeKey)) {
+      linkFindingsFromRunsIfNeeded();
+      return;
+    }
   }
 
   // Local mutations in-flight are authoritative until flushed.
@@ -227,6 +241,7 @@ export async function ensureStoreHydrated() {
   // Warm cache: avoid full remote pull on every layout/navigation.
   if (
     memory.store &&
+    canReuseStorePartition(memory.hydratedStoreKey, storeKey) &&
     memory.hydratedAt &&
     Date.now() - memory.hydratedAt < HYDRATE_TTL_MS
   ) {
@@ -244,7 +259,6 @@ export async function ensureStoreHydrated() {
       return;
     }
 
-    const localOnly = preferLocalStore();
     const diskStore = readJsonFile<InspectionCenterData>(
       STORE_FILE,
       STORE_SEED_FILE,
@@ -305,10 +319,14 @@ export async function ensureStoreHydrated() {
         memory.annualPlanTypesUpdatedAt = typesStamp;
       }
       memory.hydratedAt = Date.now();
+      memory.hydratedStoreKey = storeKey;
       return;
     }
 
-    const organizationId = await resolveStoreOrganizationId();
+    const partitionChanged = !canReuseStorePartition(
+      memory.hydratedStoreKey,
+      storeKey,
+    );
     // Org partition first; falls back to legacy app_data_store when
     // org_app_data_store is missing (Production) or has no row yet.
     const remoteLoad = Promise.all([
@@ -349,7 +367,7 @@ export async function ensureStoreHydrated() {
 
     if (
       remoteStore &&
-      isRemoteNewer(remoteStore.updatedAt, localStoreStamp)
+      (partitionChanged || isRemoteNewer(remoteStore.updatedAt, localStoreStamp))
     ) {
       memory.store = normalizeStoreData(remoteStore.payload);
       memory.storeUpdatedAt = remoteStore.updatedAt;
@@ -357,14 +375,16 @@ export async function ensureStoreHydrated() {
       writeJsonFile(STORE_FILE, remoteStore.payload);
     } else if (
       memory.store &&
+      !partitionChanged &&
       (!remoteStore ||
         Boolean(localStoreStamp && localStoreStamp > remoteStore.updatedAt))
     ) {
       await saveRemotePayload(REMOTE_KEYS.store, memory.store, organizationId);
-    } else if (!memory.store) {
+    } else if (!memory.store || partitionChanged) {
       memory.store = diskStore
         ? normalizeStoreData(diskStore)
         : readStore();
+      memory.storeUpdatedAt = fileUpdatedAt(STORE_FILE);
       memory.findingsLinkedAt = undefined;
     }
 
@@ -374,13 +394,14 @@ export async function ensureStoreHydrated() {
     );
     if (
       remotePlans &&
-      isRemoteNewer(remotePlans.updatedAt, localPlansStamp)
+      (partitionChanged || isRemoteNewer(remotePlans.updatedAt, localPlansStamp))
     ) {
       memory.annualPlans = remotePlans.payload;
       memory.annualPlansUpdatedAt = remotePlans.updatedAt;
       writeJsonFile(ANNUAL_PLAN_FILE, remotePlans.payload);
     } else if (
       memory.annualPlans &&
+      !partitionChanged &&
       (!remotePlans ||
         Boolean(localPlansStamp && localPlansStamp > remotePlans.updatedAt))
     ) {
@@ -389,6 +410,11 @@ export async function ensureStoreHydrated() {
         memory.annualPlans,
         organizationId,
       );
+    } else if (partitionChanged) {
+      memory.annualPlans =
+        readJsonFile<AnnualPlanRow[]>(ANNUAL_PLAN_FILE, ANNUAL_PLAN_SEED_FILE) ??
+        [];
+      memory.annualPlansUpdatedAt = fileUpdatedAt(ANNUAL_PLAN_FILE);
     }
 
     const localTypesStamp = newestStamp(
@@ -397,13 +423,14 @@ export async function ensureStoreHydrated() {
     );
     if (
       remoteTypes &&
-      isRemoteNewer(remoteTypes.updatedAt, localTypesStamp)
+      (partitionChanged || isRemoteNewer(remoteTypes.updatedAt, localTypesStamp))
     ) {
       memory.annualPlanTypes = remoteTypes.payload;
       memory.annualPlanTypesUpdatedAt = remoteTypes.updatedAt;
       writeJsonFile(ANNUAL_PLAN_TYPE_FILE, remoteTypes.payload);
     } else if (
       memory.annualPlanTypes &&
+      !partitionChanged &&
       (!remoteTypes ||
         Boolean(localTypesStamp && localTypesStamp > remoteTypes.updatedAt))
     ) {
@@ -412,9 +439,17 @@ export async function ensureStoreHydrated() {
         memory.annualPlanTypes,
         organizationId,
       );
+    } else if (partitionChanged) {
+      memory.annualPlanTypes =
+        readJsonFile<AnnualPlanTypeTarget[]>(
+          ANNUAL_PLAN_TYPE_FILE,
+          ANNUAL_PLAN_TYPE_SEED_FILE,
+        ) ?? [];
+      memory.annualPlanTypesUpdatedAt = fileUpdatedAt(ANNUAL_PLAN_TYPE_FILE);
     }
 
     memory.hydratedAt = Date.now();
+    memory.hydratedStoreKey = storeKey;
   })();
 
   try {
@@ -2972,6 +3007,8 @@ export function updateRunAnswersAndSyncFindings(input: {
   dueDate?: string | null;
   completedDate?: string | null;
   performers?: InspectionPerformer[];
+  notes?: string;
+  confirmationText?: string;
   answers: {
     answerId: string;
     isApplicable?: boolean;
@@ -3150,6 +3187,8 @@ export function updateRunAnswersAndSyncFindings(input: {
     || input.dueDate !== undefined
     || input.completedDate !== undefined
     || input.performers !== undefined
+    || input.notes !== undefined
+    || input.confirmationText !== undefined
     ? data.runs.map((row) => {
         if (row.id !== input.runId) return row;
         return {
@@ -3163,6 +3202,11 @@ export function updateRunAnswersAndSyncFindings(input: {
               : input.completedDate || null,
           performers:
             input.performers !== undefined ? input.performers : row.performers,
+          notes: input.notes !== undefined ? input.notes : row.notes,
+          confirmationText:
+            input.confirmationText !== undefined
+              ? input.confirmationText
+              : row.confirmationText,
           updatedAt: now,
         };
       })
@@ -3270,6 +3314,8 @@ export function saveJointUnitScopeAndSync(input: {
   dueDate?: string | null;
   completedDate?: string | null;
   performers?: InspectionPerformer[];
+  notes?: string;
+  confirmationText?: string;
   answeredBy?: string;
 }) {
   const data = readStore();
@@ -3338,6 +3384,8 @@ export function saveJointUnitScopeAndSync(input: {
     dueDate: input.dueDate,
     completedDate: input.completedDate,
     performers: input.performers,
+    notes: input.notes,
+    confirmationText: input.confirmationText,
     answeredBy: input.answeredBy,
   });
 

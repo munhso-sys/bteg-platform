@@ -1,5 +1,6 @@
 export const SETTINGS_NAV = [
   { href: "/settings", label: "Ерөнхий", exact: true },
+  { href: "/settings/org-structure", label: "Байгууллага · нэгж" },
   { href: "/settings/org-policies", label: "Алба · журам холбох" },
   { href: "/settings/data", label: "Өгөгдөл", adminOnly: true },
 ] as const;

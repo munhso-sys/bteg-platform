@@ -38,7 +38,8 @@ export async function countPolicyStoreSections() {
     orgMaster:
       db.org_units.length +
       db.job_positions.length +
-      db.job_descriptions.length,
+      db.job_descriptions.length +
+      (db.job_description_evaluations?.length ?? 0),
     orgAllocations: policyOv + positionOv,
   };
 }
@@ -77,6 +78,7 @@ export async function exportPolicyStoreSections(
       org_units: db.org_units,
       job_positions: db.job_positions,
       job_descriptions: db.job_descriptions,
+      job_description_evaluations: db.job_description_evaluations ?? [],
     };
   }
   if (selected.has("orgAllocations")) {
@@ -133,10 +135,12 @@ export async function clearPolicyStoreSections(
         counts.orgMaster =
           db.org_units.length +
           db.job_positions.length +
-          db.job_descriptions.length;
+          db.job_descriptions.length +
+          (db.job_description_evaluations?.length ?? 0);
         db.org_units = [];
         db.job_positions = [];
         db.job_descriptions = [];
+        db.job_description_evaluations = [];
       }
     });
     if (selected.has("evaluations")) cleared.push("evaluations");

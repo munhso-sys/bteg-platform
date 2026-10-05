@@ -31,9 +31,15 @@ import {
 
 export type ClauseLinkRow = {
   id: string;
+  policy_clause_id: string;
   job_position_id: string;
   responsibility_type: ResponsibilityType;
   notes: string | null;
+  weight?: number;
+  required_evidence?: string | null;
+  process_id?: string | null;
+  location_id?: string | null;
+  asset_id?: string | null;
   positionName: string;
   organizationName: string;
   heltesId: string;
@@ -289,9 +295,18 @@ function PositionRow({
         <ScoreChip score={l.score} />
         {!readOnly ? (
           <EditResponsibilityLinkMenu
-            linkIds={[l.id]}
             positionName={l.positionName}
-            responsibilityType={l.responsibility_type}
+            jobPositionId={l.job_position_id}
+            clauseIds={[l.policy_clause_id]}
+            roles={[
+              {
+                linkId: l.id,
+                type: l.responsibility_type,
+                processId: l.process_id,
+                locationId: l.location_id,
+                assetId: l.asset_id,
+              },
+            ]}
           />
         ) : null}
       </div>

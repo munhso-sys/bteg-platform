@@ -19,6 +19,7 @@ import {
 import { StatusBadge, TableScroll } from "@/components/ui/primitives";
 import { ExportButtons } from "@/components/ui/ExportButtons";
 import { ConsolidatedViolationReport } from "@/components/runs/ConsolidatedViolationReport";
+import { RunInspectionMetaForm } from "@/components/runs/RunInspectionMetaForm";
 import { inspectionApiFetch } from "@/lib/access/inspection-api-fetch";
 
 type Row = {
@@ -44,7 +45,11 @@ const PHOTO_ACCEPT = "image/*,image/heic,image/heif,.heic,.heif";
 const PHOTO_MAX_EDGE = 1600;
 const PHOTO_JPEG_QUALITY = 0.82;
 
-const EMPTY_PERFORMER: InspectionPerformer = { name: "", position: "" };
+const EMPTY_PERFORMER: InspectionPerformer = {
+  place: "",
+  name: "",
+  position: "",
+};
 
 async function fileToCompressedDataUrl(file: File): Promise<{
   dataUrl: string;
@@ -90,10 +95,11 @@ function normalizePerformers(
 ): InspectionPerformer[] {
   const cleaned = (performers ?? [])
     .map((row) => ({
+      place: row.place?.trim() ?? "",
       name: row.name?.trim() ?? "",
       position: row.position?.trim() ?? "",
     }))
-    .filter((row) => row.name || row.position);
+    .filter((row) => row.place || row.name || row.position);
   if (cleaned.length === 0) {
     return [
       { ...EMPTY_PERFORMER },
@@ -170,6 +176,8 @@ export function JointRunScoringForm({
   initialScopes,
   initialActiveUnitKey,
   initialPerformers,
+  initialNotes = "",
+  initialConfirmationText = "",
   unitGroupLabel = "Алба / хэсэг / байршил",
   readOnly = false,
   inspectionType,
@@ -186,6 +194,8 @@ export function JointRunScoringForm({
   initialScopes: JointUnitScope[];
   initialActiveUnitKey?: string | null;
   initialPerformers?: InspectionPerformer[];
+  initialNotes?: string;
+  initialConfirmationText?: string;
   unitGroupLabel?: string;
   readOnly?: boolean;
   inspectionType?: "JOINT_INSPECTION" | "NIGHT_INSPECTION";
@@ -221,6 +231,10 @@ export function JointRunScoringForm({
   const [performers, setPerformers] = useState<InspectionPerformer[]>(() =>
     normalizePerformers(initialPerformers),
   );
+  const [notes, setNotes] = useState(initialNotes);
+  const [confirmationText, setConfirmationText] = useState(
+    initialConfirmationText,
+  );
   const photoInputRef = useRef<HTMLInputElement>(null);
   const photoTargetRef = useRef<string | null>(null);
   const locked = pending || busy || readOnly;
@@ -234,59 +248,36 @@ export function JointRunScoringForm({
   );
 
   const unitExportMeta = useMemo(() => {
-    const filled = performers.filter((row) => row.name || row.position);
+    const filled = performers.filter(
+      (row) => row.place || row.name || row.position,
+    );
     const rowsMeta: string[][] = [
       ["Хяналт шалгалт", runTitle],
-      ["Байгууллага", inspectedByOrg || ""],
       [unitGroupLabel, activeUnit?.label || ""],
       ["Огноо", startedDate],
       ["Дуусгах хугацаа", finishDueDate || ""],
       ["Дуусгасан хугацаа", finishedDate || ""],
       [],
       ["Гүйцэтгэсэн ажилтан"],
-      ["Нэр", "Албан тушаал"],
+      ["Байгууллага", "Албан тушаал", "Нэр"],
     ];
     if (filled.length === 0) {
-      rowsMeta.push(["", ""]);
+      rowsMeta.push(["", "", ""]);
     } else {
       for (const row of filled) {
-        rowsMeta.push([row.name, row.position]);
+        rowsMeta.push([row.place ?? "", row.position, row.name]);
       }
     }
     return rowsMeta;
   }, [
     performers,
     runTitle,
-    inspectedByOrg,
     unitGroupLabel,
     activeUnit?.label,
     startedDate,
     finishDueDate,
     finishedDate,
   ]);
-
-  function setPerformer(
-    index: number,
-    patch: Partial<InspectionPerformer>,
-  ) {
-    setPerformers((current) =>
-      current.map((row, rowIndex) =>
-        rowIndex === index ? { ...row, ...patch } : row,
-      ),
-    );
-  }
-
-  function addPerformer() {
-    setPerformers((current) => [...current, { ...EMPTY_PERFORMER }]);
-  }
-
-  function removePerformer(index: number) {
-    setPerformers((current) =>
-      current.length <= 1
-        ? [{ ...EMPTY_PERFORMER }]
-        : current.filter((_, rowIndex) => rowIndex !== index),
-    );
-  }
 
   function setDraft(answerId: string, patch: Partial<Draft>) {
     if (!activeUnit) return;
@@ -401,10 +392,13 @@ export function JointRunScoringForm({
         completedDate: finishedDate || null,
         performers: performers
           .map((row) => ({
+            place: (row.place ?? "").trim(),
             name: row.name.trim(),
             position: row.position.trim(),
           }))
-          .filter((row) => row.name || row.position),
+          .filter((row) => row.place || row.name || row.position),
+        notes,
+        confirmationText,
         syncFindings: true,
       }),
     });
@@ -625,10 +619,6 @@ export function JointRunScoringForm({
               {startedDate || "—"}
             </div>
             <div>
-              <span className="font-medium">Байгууллага: </span>
-              {inspectedByOrg || "—"}
-            </div>
-            <div>
               <span className="font-medium">{unitGroupLabel}: </span>
               {activeUnit?.label || "—"}
             </div>
@@ -790,68 +780,16 @@ export function JointRunScoringForm({
           </table>
         </TableScroll>
 
-        <section className="space-y-2 border border-[var(--border)] p-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="text-sm font-semibold">Гүйцэтгэсэн ажилтан</div>
-            <button
-              type="button"
-              className="btn text-xs print:hidden"
-              disabled={locked}
-              onClick={addPerformer}
-            >
-              Нэр нэмэх
-            </button>
-          </div>
-          <TableScroll size="sm" maxHeightClass="max-h-none">
-            <table className="text-sm">
-              <thead>
-                <tr>
-                  <th className="w-[42%]">Нэр</th>
-                  <th className="w-[42%]">Албан тушаал</th>
-                  <th className="w-16 print:hidden"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {performers.map((row, index) => (
-                  <tr key={`performer-${index}`}>
-                    <td>
-                      <input
-                        className="input w-full text-sm"
-                        value={row.name}
-                        disabled={locked}
-                        onChange={(event) =>
-                          setPerformer(index, { name: event.target.value })
-                        }
-                      />
-                    </td>
-                    <td>
-                      <input
-                        className="input w-full text-sm"
-                        value={row.position}
-                        disabled={locked}
-                        onChange={(event) =>
-                          setPerformer(index, { position: event.target.value })
-                        }
-                      />
-                    </td>
-                    <td className="print:hidden">
-                      <button
-                        type="button"
-                        className="btn p-1.5 text-red-700"
-                        disabled={locked}
-                        aria-label="Устгах"
-                        title="Устгах"
-                        onClick={() => removePerformer(index)}
-                      >
-                        <X aria-hidden="true" className="h-3.5 w-3.5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TableScroll>
-        </section>
+        <RunInspectionMetaForm
+          performers={performers}
+          notes={notes}
+          confirmationText={confirmationText}
+          status={status}
+          locked={locked}
+          onPerformersChange={setPerformers}
+          onNotesChange={setNotes}
+          onConfirmationChange={setConfirmationText}
+        />
       </div>
 
       <div className="mt-4">

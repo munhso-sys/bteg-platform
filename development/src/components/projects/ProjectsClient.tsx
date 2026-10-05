@@ -11,6 +11,8 @@ import {
   PROJECT_STATUS_LABELS,
   projectKpis,
 } from "@/lib/projects-data";
+import { useResearchSessionReady } from "@/lib/research/use-session-ready";
+import { researchFetch } from "@/lib/research/session-events";
 import type { ResearchProject } from "@/lib/types";
 
 const KPI_META = [
@@ -32,6 +34,7 @@ const KPI_TITLES: Record<string, string> = {
 };
 
 export function ProjectsClient() {
+  const { ready, failed } = useResearchSessionReady();
   const [projects, setProjects] = useState<ResearchProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +47,11 @@ export function ProjectsClient() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/research/projects", { cache: "no-store" });
+      let res = await researchFetch("/api/research/projects");
+      if (res.status === 401) {
+        await new Promise((r) => window.setTimeout(r, 600));
+        res = await researchFetch("/api/research/projects");
+      }
       const body = (await res.json().catch(() => null)) as {
         ok?: boolean;
         error?: string;
@@ -65,17 +72,29 @@ export function ProjectsClient() {
   }, []);
 
   useEffect(() => {
-    queueMicrotask(() => {
-      void reload();
-    });
-  }, [reload]);
+    if (ready) {
+      queueMicrotask(() => {
+        void reload();
+      });
+      return;
+    }
+    if (failed) {
+      setLoading(false);
+      setProjects([]);
+      setError(
+        typeof window !== "undefined" && window.parent === window
+          ? "Нэвтрэх шаардлагатай. Портал (bteg.inspect.mn) → Судалгаа хөгжүүлэлт цэсээр нээнэ үү."
+          : "Authentication required",
+      );
+    }
+  }, [reload, ready, failed]);
 
   const groups = useMemo(() => projectKpis(projects), [projects]);
 
   async function saveProject(next: ResearchProject) {
     setSaveError(null);
     const isNew = !projects.some((p) => p.id === next.id);
-    const res = await fetch("/api/research/projects", {
+    const res = await researchFetch("/api/research/projects", {
       method: isNew ? "POST" : "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(isNew ? { ...next, id: undefined } : next),
@@ -96,9 +115,10 @@ export function ProjectsClient() {
 
   async function deleteProject(id: string) {
     setSaveError(null);
-    const res = await fetch(`/api/research/projects?id=${encodeURIComponent(id)}`, {
-      method: "DELETE",
-    });
+    const res = await researchFetch(
+      `/api/research/projects?id=${encodeURIComponent(id)}`,
+      { method: "DELETE" },
+    );
     const body = (await res.json().catch(() => null)) as {
       ok?: boolean;
       error?: string;
@@ -142,7 +162,7 @@ export function ProjectsClient() {
           Хадгалалт амжилтгүй: {saveError}
         </div>
       ) : null}
-      {loading ? (
+      {(!ready && !failed) || loading ? (
         <p className="mb-4 text-sm text-[var(--muted)]">Ачаалж байна…</p>
       ) : null}
 

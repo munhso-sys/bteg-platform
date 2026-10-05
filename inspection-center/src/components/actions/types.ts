@@ -24,7 +24,7 @@ export type CorrectiveActionRow = {
   runDueDate: string;
   runCompletedDate: string;
   inspectedByOrg: string;
-  performers: Array<{ name: string; position: string }>;
+  performers: Array<{ place?: string; name: string; position: string }>;
   targetOrgUnitId: string;
   targetDepartmentId: string;
   severity: string;

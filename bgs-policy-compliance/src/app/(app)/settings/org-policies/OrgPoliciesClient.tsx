@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
+import { Loader2, RefreshCw, Save, Trash2 } from "lucide-react";
 import { Panel } from "@/components/ui/primitives";
 import {
   COMPANY_ALBA_ID,
@@ -36,13 +36,8 @@ export function OrgPoliciesClient() {
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [okMsg, setOkMsg] = useState<string | null>(null);
-  const [newHeltesName, setNewHeltesName] = useState("");
-  const [newHeltesAlbaName, setNewHeltesAlbaName] = useState("");
-  const [newAlbaName, setNewAlbaName] = useState("");
-  const [newAlbaHeltesId, setNewAlbaHeltesId] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -80,11 +75,6 @@ export function OrgPoliciesClient() {
     }, 0);
     return () => window.clearTimeout(id);
   }, [load]);
-
-  const realHeltes = useMemo(
-    () => heltes.filter((h) => h.id !== COMPANY_HELTES_ID),
-    [heltes],
-  );
 
   const albas = useMemo(() => {
     return heltes.find((h) => h.id === heltesId)?.albas ?? [];
@@ -183,73 +173,6 @@ export function OrgPoliciesClient() {
     await load();
   }
 
-  async function createHeltes() {
-    if (!newHeltesName.trim()) {
-      setError("Хэлтэсийн нэр оруулна уу");
-      return;
-    }
-    setCreating(true);
-    setError(null);
-    setOkMsg(null);
-    try {
-      const res = await fetch("/api/org/units", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          kind: "heltes",
-          name: newHeltesName.trim(),
-          alba_name: newHeltesAlbaName.trim() || null,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || "Үүсгэж чадсангүй");
-      setOkMsg(`Хэлтэс үүсгэлээ: ${data.heltesName}`);
-      setNewHeltesName("");
-      setNewHeltesAlbaName("");
-      await load();
-      if (data.heltesId) {
-        setHeltesId(data.heltesId);
-        setAlbaId(data.albaId ?? "");
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Алдаа");
-    } finally {
-      setCreating(false);
-    }
-  }
-
-  async function createAlba() {
-    if (!newAlbaHeltesId || !newAlbaName.trim()) {
-      setError("Хэлтэс сонгоод албаны нэр оруулна уу");
-      return;
-    }
-    setCreating(true);
-    setError(null);
-    setOkMsg(null);
-    try {
-      const res = await fetch("/api/org/units", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          kind: "alba",
-          heltes_id: newAlbaHeltesId,
-          name: newAlbaName.trim(),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || "Үүсгэж чадсангүй");
-      setOkMsg(`Алба үүсгэлээ: ${data.albaName}`);
-      setNewAlbaName("");
-      await load();
-      setHeltesId(data.heltesId);
-      setAlbaId(data.albaId);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Алдаа");
-    } finally {
-      setCreating(false);
-    }
-  }
-
   if (loading) {
     return (
       <div className="flex items-center gap-2 text-sm text-slate-500">
@@ -267,63 +190,6 @@ export function OrgPoliciesClient() {
         {okMsg ? <span className="text-sm text-emerald-700">{okMsg}</span> : null}
         {error ? <span className="text-sm text-rose-600">{error}</span> : null}
       </div>
-
-      <Panel title="Нэгж үүсгэх">
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2 rounded border border-slate-200 p-3">
-            <div className="text-sm font-medium">Шинэ хэлтэс</div>
-            <input
-              className="input w-full"
-              placeholder="Хэлтэсийн нэр"
-              value={newHeltesName}
-              onChange={(e) => setNewHeltesName(e.target.value)}
-            />
-            <input
-              className="input w-full"
-              placeholder="Эхний албаны нэр (заавал биш)"
-              value={newHeltesAlbaName}
-              onChange={(e) => setNewHeltesAlbaName(e.target.value)}
-            />
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={creating}
-              onClick={() => void createHeltes()}
-            >
-              <Plus size={14} /> Хэлтэс нэмэх
-            </button>
-          </div>
-          <div className="space-y-2 rounded border border-slate-200 p-3">
-            <div className="text-sm font-medium">Хэлтэст алба нэмэх</div>
-            <select
-              className="input w-full"
-              value={newAlbaHeltesId}
-              onChange={(e) => setNewAlbaHeltesId(e.target.value)}
-            >
-              <option value="">— хэлтэс сонгох —</option>
-              {realHeltes.map((h) => (
-                <option key={h.id} value={h.id}>
-                  {h.name}
-                </option>
-              ))}
-            </select>
-            <input
-              className="input w-full"
-              placeholder="Албаны нэр"
-              value={newAlbaName}
-              onChange={(e) => setNewAlbaName(e.target.value)}
-            />
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={creating}
-              onClick={() => void createAlba()}
-            >
-              <Plus size={14} /> Алба нэмэх
-            </button>
-          </div>
-        </div>
-      </Panel>
 
       <div className="grid gap-4 xl:grid-cols-[280px_1fr]">
         <Panel title="Нэгж сонгох">

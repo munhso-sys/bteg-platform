@@ -6,15 +6,34 @@ import type { ResearchProject } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const supabase = await createUserServerClient();
+function accessToken(request: Request) {
+  const raw = request.headers.get("authorization")?.trim() || "";
+  return raw.toLowerCase().startsWith("bearer ") ? raw.slice(7).trim() : null;
+}
+
+async function authed(request: Request) {
+  const supabase = await createUserServerClient(request);
   if (!supabase) {
-    return NextResponse.json({ ok: false, error: "Supabase missing" }, { status: 503 });
+    return {
+      error: NextResponse.json({ ok: false, error: "Supabase missing" }, { status: 503 }),
+    };
   }
-  const auth = await requireResearchAuth(supabase);
+  const auth = await requireResearchAuth(supabase, accessToken(request));
   if (!auth.ok) {
-    return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
+    return {
+      error: NextResponse.json({ ok: false, error: auth.error }, { status: auth.status }),
+    };
   }
+  return { supabase, auth };
+}
+
+export async function GET(request: Request) {
+  const gate = await authed(request);
+  if ("error" in gate && gate.error) return gate.error;
+  const { supabase, auth } = gate as {
+    supabase: NonNullable<Awaited<ReturnType<typeof createUserServerClient>>>;
+    auth: Extract<Awaited<ReturnType<typeof requireResearchAuth>>, { ok: true }>;
+  };
 
   const { data, error } = await supabase
     .from("research_projects")
@@ -31,14 +50,12 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const supabase = await createUserServerClient();
-  if (!supabase) {
-    return NextResponse.json({ ok: false, error: "Supabase missing" }, { status: 503 });
-  }
-  const auth = await requireResearchAuth(supabase);
-  if (!auth.ok) {
-    return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
-  }
+  const gate = await authed(request);
+  if ("error" in gate && gate.error) return gate.error;
+  const { supabase, auth } = gate as {
+    supabase: NonNullable<Awaited<ReturnType<typeof createUserServerClient>>>;
+    auth: Extract<Awaited<ReturnType<typeof requireResearchAuth>>, { ok: true }>;
+  };
 
   let body: Partial<ResearchProject>;
   try {
@@ -51,7 +68,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "title required" }, { status: 400 });
   }
 
-  // Reject client-supplied organization override attempts.
   if (
     body &&
     "organization_id" in body &&
@@ -86,14 +102,12 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const supabase = await createUserServerClient();
-  if (!supabase) {
-    return NextResponse.json({ ok: false, error: "Supabase missing" }, { status: 503 });
-  }
-  const auth = await requireResearchAuth(supabase);
-  if (!auth.ok) {
-    return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
-  }
+  const gate = await authed(request);
+  if ("error" in gate && gate.error) return gate.error;
+  const { supabase, auth } = gate as {
+    supabase: NonNullable<Awaited<ReturnType<typeof createUserServerClient>>>;
+    auth: Extract<Awaited<ReturnType<typeof requireResearchAuth>>, { ok: true }>;
+  };
 
   let body: Partial<ResearchProject> & { id?: string };
   try {
@@ -135,14 +149,12 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const supabase = await createUserServerClient();
-  if (!supabase) {
-    return NextResponse.json({ ok: false, error: "Supabase missing" }, { status: 503 });
-  }
-  const auth = await requireResearchAuth(supabase);
-  if (!auth.ok) {
-    return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
-  }
+  const gate = await authed(request);
+  if ("error" in gate && gate.error) return gate.error;
+  const { supabase, auth } = gate as {
+    supabase: NonNullable<Awaited<ReturnType<typeof createUserServerClient>>>;
+    auth: Extract<Awaited<ReturnType<typeof requireResearchAuth>>, { ok: true }>;
+  };
 
   const id = new URL(request.url).searchParams.get("id")?.trim();
   if (!id) {

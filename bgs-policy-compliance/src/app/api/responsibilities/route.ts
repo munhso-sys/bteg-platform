@@ -17,6 +17,9 @@ const itemSchema = z.object({
   ]),
   weight: z.number().optional(),
   required_evidence: z.string().nullable().optional(),
+  process_id: z.string().nullable().optional(),
+  location_id: z.string().nullable().optional(),
+  asset_id: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
 });
 

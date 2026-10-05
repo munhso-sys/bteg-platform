@@ -20,11 +20,15 @@ type UserRow = {
 
 type Role = { id: string; label: string };
 
-const USER_STATUS_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: "active", label: "Идэвхтэй (active)" },
-  { value: "suspended", label: "Хугацаа хэрэгүй (suspended)" },
-  { value: "pending", label: "Хүлээгдэж буй (pending)" },
+const USER_STATUS_OPTIONS: Array<{ value: "active" | "inactive"; label: string }> = [
+  { value: "active", label: "Active" },
+  { value: "inactive", label: "Inactive" },
 ];
+
+/** DB may still store pending/suspended — UI only offers Active/Inactive. */
+function statusSelectValue(status: string): "active" | "inactive" {
+  return status === "active" ? "active" : "inactive";
+}
 
 export default function UsersRolesPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -61,7 +65,7 @@ export default function UsersRolesPage() {
 
   async function updateUser(
     user_id: string,
-    patch: { role_id?: string; status?: string },
+    patch: { role_id?: string; status?: "active" | "inactive" },
   ) {
     setBusy(user_id);
     setError("");
@@ -78,7 +82,22 @@ export default function UsersRolesPage() {
         console.error("[users] update failed:", msg, patch);
         return;
       }
-      await load();
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.user_id === user_id
+            ? {
+                ...u,
+                ...(patch.role_id ? { role_id: patch.role_id } : null),
+                ...(patch.status
+                  ? {
+                      status:
+                        patch.status === "active" ? "active" : "suspended",
+                    }
+                  : null),
+              }
+            : u,
+        ),
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Алдаа";
       setError(msg);
@@ -103,7 +122,8 @@ export default function UsersRolesPage() {
       <SettingsNav />
 
       <div className="mb-4 rounded-md border border-[var(--border)] bg-white p-3 text-sm text-[var(--muted)]">
-        Хэрэглэгчид role онооно. Role бүрийн нэмэлт эрхийг{" "}
+        Хэрэглэгчид role онооно. <strong className="text-[var(--fg)]">Inactive</strong>{" "}
+        сонговол нэвтрэх эрх түр хаагдана. Role бүрийн нэмэлт эрхийг{" "}
         <a href="/settings/roles" className="font-medium text-[var(--brand-dark)] hover:underline">
           Role эрх
         </a>{" "}
@@ -176,9 +196,11 @@ export default function UsersRolesPage() {
                         <select
                           className="input py-1 text-sm"
                           disabled={busy === u.user_id}
-                          value={u.status}
+                          value={statusSelectValue(u.status)}
                           onChange={(e) =>
-                            void updateUser(u.user_id, { status: e.target.value })
+                            void updateUser(u.user_id, {
+                              status: e.target.value as "active" | "inactive",
+                            })
                           }
                         >
                           {USER_STATUS_OPTIONS.map((opt) => (

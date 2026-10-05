@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const frameAncestors = [
   "'self'",
@@ -12,6 +13,11 @@ const frameAncestors = [
 ].join(" ");
 
 const nextConfig: NextConfig = {
+  // Monorepo has a root package-lock.json; without this Turbopack resolves the
+  // wrong workspace root and pages can 500 with ComponentMod.handler errors.
+  turbopack: {
+    root: path.join(__dirname),
+  },
   async headers() {
     return [
       {

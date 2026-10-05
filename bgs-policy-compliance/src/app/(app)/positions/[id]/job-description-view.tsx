@@ -1,84 +1,100 @@
-import type { JobDescription } from "@/lib/types";
+"use client";
 
-function asList(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => {
-      if (typeof item === "string") return item.trim();
-      if (item && typeof item === "object") {
-        const o = item as Record<string, unknown>;
-        if (typeof o.text === "string") return o.text.trim();
-        if (typeof o.name === "string") return o.name.trim();
-        return JSON.stringify(item);
-      }
-      return String(item ?? "").trim();
-    })
-    .filter(Boolean);
+import type { JobDescription } from "@/lib/types";
+import {
+  asCommunication,
+  asSkillCategories,
+  asTextList,
+  documentHeading,
+  JD_DEFAULT_COMPANY,
+  JD_DEFAULT_LOCATION,
+} from "@/lib/job-description/normalize";
+import {
+  JdCollapsibleSection,
+  JdSectionControls,
+  useJdSectionOpenState,
+} from "@/components/job-description/jd-collapsible-section";
+
+function cellText(value: string | null | undefined) {
+  const t = (value ?? "").trim();
+  return t || "—";
 }
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  if (children == null || children === "" || children === false) return null;
+function NumberedList({ items }: { items: string[] }) {
+  if (!items.length) return <span className="text-slate-400">—</span>;
   return (
-    <section className="space-y-1">
-      <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-        {title}
-      </h4>
-      <div className="text-sm text-slate-800">{children}</div>
-    </section>
+    <ol className="m-0 list-decimal space-y-1.5 pl-5">
+      {items.map((item, i) => (
+        <li key={`${i}-${item.slice(0, 24)}`} className="leading-relaxed">
+          {item}
+        </li>
+      ))}
+    </ol>
   );
 }
 
-function Paragraph({ text }: { text: string | null | undefined }) {
-  const t = (text ?? "").trim();
-  if (!t) return null;
-  return <p className="whitespace-pre-wrap leading-relaxed">{t}</p>;
-}
-
 function BulletList({ items }: { items: string[] }) {
-  if (!items.length) return null;
+  if (!items.length) return <span className="text-slate-400">—</span>;
   return (
-    <ul className="list-disc space-y-1 pl-5">
+    <ul className="m-0 list-disc space-y-1 pl-5">
       {items.map((item, i) => (
-        <li key={i}>{item}</li>
+        <li key={`${i}-${item.slice(0, 24)}`} className="leading-relaxed">
+          {item}
+        </li>
       ))}
     </ul>
   );
 }
 
-function formatCommunication(value: unknown): string | null {
-  if (value == null) return null;
-  if (typeof value === "string") return value;
-  if (typeof value === "object") {
-    const o = value as Record<string, unknown>;
-    const lines: string[] = [];
-    const internal = o.company_internal as Record<string, unknown> | undefined;
-    const external = o.external as Record<string, unknown> | undefined;
-    if (internal) {
-      const parts = Object.entries(internal)
-        .filter(([, v]) => v)
-        .map(([k]) => k);
-      if (parts.length) lines.push(`Дотоод: ${parts.join(", ")}`);
-    }
-    if (external) {
-      const parts = Object.entries(external)
-        .filter(([, v]) => v)
-        .map(([k]) => k);
-      if (parts.length) lines.push(`Гадаад: ${parts.join(", ")}`);
-    }
-    if (lines.length) return lines.join("\n");
-    try {
-      return JSON.stringify(value, null, 2);
-    } catch {
-      return String(value);
-    }
-  }
-  return String(value);
+function DocTable({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="-mx-0.5 overflow-x-auto">
+      <table className="w-full min-w-[28rem] border-collapse border-0 text-[13px] leading-relaxed text-slate-900 sm:min-w-0">
+        {children}
+      </table>
+    </div>
+  );
+}
+
+function LabelCell({
+  children,
+  rowSpan,
+  colSpan,
+  className = "",
+}: {
+  children: React.ReactNode;
+  rowSpan?: number;
+  colSpan?: number;
+  className?: string;
+}) {
+  return (
+    <th
+      rowSpan={rowSpan}
+      colSpan={colSpan}
+      className={`border border-slate-800 bg-slate-100 px-2.5 py-2 text-left align-top font-semibold text-slate-800 ${className}`}
+    >
+      {children}
+    </th>
+  );
+}
+
+function ValueCell({
+  children,
+  colSpan,
+  className = "",
+}: {
+  children: React.ReactNode;
+  colSpan?: number;
+  className?: string;
+}) {
+  return (
+    <td
+      colSpan={colSpan}
+      className={`border border-slate-800 px-2.5 py-2 align-top whitespace-pre-wrap text-slate-900 ${className}`}
+    >
+      {children}
+    </td>
+  );
 }
 
 export function JobDescriptionView({
@@ -86,100 +102,306 @@ export function JobDescriptionView({
 }: {
   description: JobDescription;
 }) {
-  const duties = asList(description.duties);
-  const generalSkills = asList(description.general_skills);
-  const professionalSkills = asList(description.professional_skills);
-  const laws = asList(description.relevant_laws);
-  const communication = formatCommunication(description.communication_scope);
+  const { openMap, setSection, expandAll, collapseAll } =
+    useJdSectionOpenState();
 
-  const hasStructured =
+  const duties = asTextList(description.duties);
+  const generalSkills = asTextList(description.general_skills);
+  const skillCats = asSkillCategories(description.professional_skills);
+  const laws = asTextList(description.relevant_laws);
+  const authority = asTextList(description.authority);
+  const responsibilities = asTextList(description.responsibilities);
+  const supervisors = asTextList(description.supervisor_positions);
+  const subordinates = asTextList(description.subordinate_positions);
+  const trainings = asTextList(description.required_trainings);
+  const certificates = asTextList(description.required_certificates);
+  const comm = asCommunication(description.communication_scope);
+  const heading = documentHeading(description);
+
+  const hasAny =
+    Boolean(description.title?.trim()) ||
     Boolean(description.purpose?.trim()) ||
     duties.length > 0 ||
-    Boolean(description.education_level?.trim()) ||
-    generalSkills.length > 0 ||
-    professionalSkills.length > 0 ||
-    Boolean(description.authority?.trim()) ||
-    Boolean(description.responsibilities?.trim());
+    Boolean(description.markdown_body?.trim()) ||
+    Boolean(description.company_name?.trim());
+
+  if (!hasAny) {
+    return (
+      <p className="text-sm text-slate-500">Ажлын байрны тодорхойлолт байхгүй.</p>
+    );
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
-        {description.title ? (
-          <span>
-            Гарчиг: <strong className="text-slate-800">{description.title}</strong>
-          </span>
-        ) : null}
-        {description.a_code ? (
-          <span>
-            Код: <span className="font-mono">{description.a_code}</span>
-          </span>
-        ) : null}
-        {description.job_condition ? (
-          <span>Нөхцөл: {description.job_condition}</span>
-        ) : null}
+    <article className="min-w-0 overflow-hidden rounded border border-slate-300 bg-[#fafaf8] shadow-sm">
+      <header className="border-b border-slate-300 bg-white px-3 py-4 text-center sm:px-4 sm:py-5">
+        <h3 className="text-sm font-bold leading-snug tracking-wide text-slate-950 uppercase sm:text-[15px]">
+          {heading}
+        </h3>
+        <p className="mt-1 text-xs font-semibold tracking-wider text-slate-600 uppercase">
+          Албан тушаалын тодорхойлолт
+        </p>
+      </header>
+
+      <div className="space-y-3 p-3 sm:p-4">
+        <JdSectionControls
+          onExpandAll={expandAll}
+          onCollapseAll={collapseAll}
+        />
+
+        <JdCollapsibleSection
+          title="А. Нийтлэг үндэслэл"
+          open={openMap.A}
+          onOpenChange={(v) => setSection("A", v)}
+        >
+          <DocTable>
+            <tbody>
+              {(
+                [
+                  [
+                    "Компанийн нэр:",
+                    cellText(description.company_name ?? JD_DEFAULT_COMPANY),
+                  ],
+                  [
+                    "Байршил:",
+                    cellText(description.location ?? JD_DEFAULT_LOCATION),
+                  ],
+                  ["Нэгжийн нэр:", cellText(description.unit_name)],
+                  ["Албан тушаалын нэр:", cellText(description.title)],
+                  [
+                    "Үндэсний ажил мэргэжлийн ангиллын код",
+                    cellText(description.a_code),
+                  ],
+                  ["Албан тушаалын код", cellText(description.position_code)],
+                  [
+                    "Шууд харьяалагдах албан тушаал:",
+                    supervisors.length ? (
+                      <BulletList items={supervisors} />
+                    ) : (
+                      "—"
+                    ),
+                  ],
+                  [
+                    "Шууд харьяалах албан тушаал:",
+                    subordinates.length ? (
+                      <BulletList items={subordinates} />
+                    ) : (
+                      "—"
+                    ),
+                  ],
+                  ["Хөдөлмөрийн нөхцөл", cellText(description.job_condition)],
+                ] as Array<[string, React.ReactNode]>
+              ).map(([label, value]) => (
+                <tr key={label}>
+                  <LabelCell className="w-[34%]">{label}</LabelCell>
+                  <ValueCell>{value}</ValueCell>
+                </tr>
+              ))}
+              <tr>
+                <LabelCell rowSpan={2}>Харилцах хүрээ:</LabelCell>
+                <ValueCell>
+                  <span className="font-semibold">-Компани дотор: </span>
+                  {comm.internal.trim() || "—"}
+                </ValueCell>
+              </tr>
+              <tr>
+                <ValueCell>
+                  <span className="font-semibold">-Гадна: </span>
+                  {comm.external.trim() || "—"}
+                </ValueCell>
+              </tr>
+            </tbody>
+          </DocTable>
+        </JdCollapsibleSection>
+
+        <JdCollapsibleSection
+          title="B. Албан тушаалын дэлгэрэнгүй мэдээлэл"
+          open={openMap.B}
+          onOpenChange={(v) => setSection("B", v)}
+        >
+          <DocTable>
+            <tbody>
+              {(
+                [
+                  ["Албан тушаалын зорилго:", cellText(description.purpose)],
+                  [
+                    "Ажлын хуваарийн талаарх мэдээлэл:",
+                    cellText(description.schedule),
+                  ],
+                  ["Ажлын өдрийн цаг:", cellText(description.daily_hours)],
+                  ["Өдрийн цайны цаг:", cellText(description.break_time)],
+                  ["Албан тушаал:", cellText(description.position_note)],
+                ] as Array<[string, React.ReactNode]>
+              ).map(([label, value]) => (
+                <tr key={label}>
+                  <LabelCell className="w-[34%]">{label}</LabelCell>
+                  <ValueCell>{value}</ValueCell>
+                </tr>
+              ))}
+            </tbody>
+          </DocTable>
+        </JdCollapsibleSection>
+
+        <JdCollapsibleSection
+          title="С. Албан тушаалын гүйцэтгэх үүрэг"
+          open={openMap.C}
+          onOpenChange={(v) => setSection("C", v)}
+          badge={
+            <span className="rounded bg-white/15 px-1.5 py-0.5 text-[10px] tabular-nums">
+              {duties.length}
+            </span>
+          }
+        >
+          <DocTable>
+            <thead>
+              <tr className="bg-slate-200">
+                <th className="w-12 border border-slate-800 px-2 py-2 text-center font-semibold">
+                  №
+                </th>
+                <th className="border border-slate-800 px-2.5 py-2 text-left font-semibold">
+                  Албан тушаалын гүйцэтгэх ажил үүрэг
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {duties.length === 0 ? (
+                <tr>
+                  <ValueCell colSpan={2}>Үүрэг бүртгээгүй.</ValueCell>
+                </tr>
+              ) : (
+                duties.map((duty, i) => (
+                  <tr key={`${i}-${duty.slice(0, 20)}`}>
+                    <td className="border border-slate-800 px-2 py-2 text-center tabular-nums font-medium text-slate-700">
+                      {i + 1}
+                    </td>
+                    <ValueCell>{duty}</ValueCell>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </DocTable>
+        </JdCollapsibleSection>
+
+        <JdCollapsibleSection
+          title="D. Албан тушаалд тавигдах шаардлага"
+          open={openMap.D}
+          onOpenChange={(v) => setSection("D", v)}
+        >
+          <DocTable>
+            <tbody>
+              <tr>
+                <LabelCell colSpan={3} className="bg-slate-200">
+                  Ерөнхий шаардлага
+                </LabelCell>
+              </tr>
+              <tr>
+                <LabelCell className="w-[28%]">Боловсролын түвшин:</LabelCell>
+                <ValueCell colSpan={2}>
+                  {cellText(description.education_level)}
+                </ValueCell>
+              </tr>
+              <tr>
+                <LabelCell>Ажлын туршлага:</LabelCell>
+                <ValueCell colSpan={2}>
+                  {cellText(description.work_experience)}
+                </ValueCell>
+              </tr>
+              <tr>
+                <LabelCell>Ерөнхий ур чадвар:</LabelCell>
+                <ValueCell colSpan={2}>
+                  <BulletList items={generalSkills} />
+                </ValueCell>
+              </tr>
+              {skillCats.length === 0 ? (
+                <tr>
+                  <LabelCell>Мэргэжлийн ур чадвар</LabelCell>
+                  <ValueCell colSpan={2}>—</ValueCell>
+                </tr>
+              ) : (
+                skillCats.map((cat, idx) => (
+                  <tr key={`${cat.title}-${idx}`}>
+                    {idx === 0 ? (
+                      <LabelCell rowSpan={skillCats.length}>
+                        Мэргэжлийн ур чадвар
+                      </LabelCell>
+                    ) : null}
+                    <td className="w-[22%] border border-slate-800 bg-slate-50 px-2.5 py-2 align-top font-medium">
+                      {cat.title || "—"}
+                    </td>
+                    <ValueCell>
+                      <BulletList items={cat.items} />
+                    </ValueCell>
+                  </tr>
+                ))
+              )}
+              <tr>
+                <LabelCell colSpan={3} className="bg-slate-200">
+                  Нэмэлт шаардлага
+                </LabelCell>
+              </tr>
+              <tr>
+                <LabelCell>Хамрагдсан байвал зохих сургалтууд:</LabelCell>
+                <ValueCell colSpan={2}>
+                  <BulletList items={trainings} />
+                </ValueCell>
+              </tr>
+              <tr>
+                <LabelCell>Сертификат, зөвшөөрөл, лиценз:</LabelCell>
+                <ValueCell colSpan={2}>
+                  <BulletList items={certificates} />
+                </ValueCell>
+              </tr>
+            </tbody>
+          </DocTable>
+        </JdCollapsibleSection>
+
+        <JdCollapsibleSection
+          title="E. Бусад хүчин зүйлс"
+          open={openMap.E}
+          onOpenChange={(v) => setSection("E", v)}
+        >
+          <DocTable>
+            <tbody>
+              <tr>
+                <LabelCell className="w-[34%]">
+                  Албан тушаалын нөөц хэрэгсэл (тоног төхөөрөмж):
+                </LabelCell>
+                <ValueCell>{cellText(description.resources)}</ValueCell>
+              </tr>
+              <tr>
+                <LabelCell>Албан тушаалын эрх мэдэл:</LabelCell>
+                <ValueCell>
+                  <NumberedList items={authority} />
+                </ValueCell>
+              </tr>
+              <tr>
+                <LabelCell>Албан тушаалын хариуцлага:</LabelCell>
+                <ValueCell>
+                  <NumberedList items={responsibilities} />
+                </ValueCell>
+              </tr>
+              <tr>
+                <LabelCell>Эд хөрөнгийн хариуцлага:</LabelCell>
+                <ValueCell>
+                  {cellText(description.property_liability)}
+                </ValueCell>
+              </tr>
+              <tr>
+                <LabelCell>Бусад</LabelCell>
+                <ValueCell>{cellText(description.other_notes)}</ValueCell>
+              </tr>
+              <tr>
+                <LabelCell>
+                  Энэхүү ажил үүргийг хийж гүйцэтгэхтэй холбоотой мэдсэн байх
+                  гол хууль тогтоомж, дүрэм журмууд:
+                </LabelCell>
+                <ValueCell>
+                  <NumberedList items={laws} />
+                </ValueCell>
+              </tr>
+            </tbody>
+          </DocTable>
+        </JdCollapsibleSection>
       </div>
-
-      {hasStructured ? (
-        <div className="max-h-[560px] space-y-4 overflow-auto rounded border border-slate-200 bg-slate-50/40 p-3">
-          <Section title="Зорилго">
-            <Paragraph text={description.purpose} />
-          </Section>
-          <Section title="Хуваарь / цаг">
-            <div className="grid gap-2 sm:grid-cols-3">
-              <div>Хуваарь: {description.schedule || "—"}</div>
-              <div>Өдрийн цаг: {description.daily_hours || "—"}</div>
-              <div>Завсарлага: {description.break_time || "—"}</div>
-            </div>
-          </Section>
-          <Section title="Үндсэн үүрэг">
-            <BulletList items={duties} />
-          </Section>
-          <Section title="Боловсрол">
-            <Paragraph text={description.education_level} />
-          </Section>
-          <Section title="Ажлын туршлага">
-            <Paragraph text={description.work_experience} />
-          </Section>
-          <Section title="Ерөнхий ур чадвар">
-            <BulletList items={generalSkills} />
-          </Section>
-          <Section title="Мэргэжлийн ур чадвар">
-            <BulletList items={professionalSkills} />
-          </Section>
-          <Section title="Эрх">
-            <Paragraph text={description.authority} />
-          </Section>
-          <Section title="Хариуцлага">
-            <Paragraph text={description.responsibilities} />
-          </Section>
-          <Section title="Холбогдох хууль, журам">
-            <BulletList items={laws} />
-          </Section>
-          <Section title="Нөөц / хэрэгсэл">
-            <Paragraph text={description.resources} />
-          </Section>
-          <Section title="Харилцааны хамрах хүрээ">
-            <Paragraph text={communication} />
-          </Section>
-        </div>
-      ) : description.markdown_body ? (
-        <pre className="max-h-[560px] overflow-auto whitespace-pre-wrap rounded border border-slate-200 bg-slate-50 p-3 text-sm leading-relaxed text-slate-800">
-          {description.markdown_body}
-        </pre>
-      ) : (
-        <p className="text-sm text-slate-500">Ажлын байрны тодорхойлолт хоосон.</p>
-      )}
-
-      {hasStructured && description.markdown_body ? (
-        <details className="rounded border border-slate-200 bg-white">
-          <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
-            Бүрэн markdown эх файл
-          </summary>
-          <pre className="max-h-[420px] overflow-auto whitespace-pre-wrap border-t border-slate-100 p-3 text-xs leading-relaxed text-slate-700">
-            {description.markdown_body}
-          </pre>
-        </details>
-      ) : null}
-    </div>
+    </article>
   );
 }

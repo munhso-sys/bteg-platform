@@ -21,18 +21,73 @@ import {
 import { cn } from "@/lib/utils";
 import { useShrinkCollapse } from "@/lib/use-shrink-collapse";
 
+type NavChild = {
+  href: string;
+  label: string;
+  match?: (pathname: string) => boolean;
+};
+
 type NavItem = {
   href: string;
   label: string;
   short: string;
   icon: typeof LayoutDashboard;
+  children?: NavChild[];
 };
 
 const NAV_FULL: NavItem[] = [
   { href: "/dashboard", label: "Хянах самбар", short: "Самбар", icon: LayoutDashboard },
   { href: "/org", label: "Алба, хэлтэс", short: "Нэгж", icon: Building2 },
-  { href: "/policies", label: "Журмууд", short: "Журам", icon: FileStack },
-  { href: "/positions", label: "Ажлын байр", short: "Албан", icon: Users },
+  {
+    href: "/policies",
+    label: "Журмууд",
+    short: "Журам",
+    icon: FileStack,
+    children: [
+      {
+        href: "/policies",
+        label: "Удирдлага",
+        match: (p) =>
+          p === "/policies" ||
+          (p.startsWith("/policies/") &&
+            !p.startsWith("/policies/review") &&
+            !p.includes("/preview")),
+      },
+      {
+        href: "/policies/review",
+        label: "Шалгах",
+        match: (p) =>
+          p === "/policies/review" ||
+          p.startsWith("/policies/review/") ||
+          p.includes("/preview"),
+      },
+    ],
+  },
+  {
+    href: "/positions",
+    label: "Ажлын байр",
+    short: "Албан",
+    icon: Users,
+    children: [
+      {
+        href: "/positions",
+        label: "Удирдлага",
+        match: (p) =>
+          p === "/positions" ||
+          (p.startsWith("/positions/") &&
+            !p.startsWith("/positions/review") &&
+            !p.includes("/preview")),
+      },
+      {
+        href: "/positions/review",
+        label: "Шалгах",
+        match: (p) =>
+          p === "/positions/review" ||
+          p.startsWith("/positions/review/") ||
+          p.includes("/preview"),
+      },
+    ],
+  },
   { href: "/matrix", label: "Холбоосын хүснэгт", short: "Матриц", icon: GitBranch },
   { href: "/evaluations", label: "Үнэлгээ", short: "Үнэлгээ", icon: ClipboardCheck },
   { href: "/imports", label: "Импорт", short: "Импорт", icon: Upload },
@@ -42,6 +97,11 @@ const NAV_FULL: NavItem[] = [
 function isActivePath(pathname: string, href: string) {
   if (pathname === href) return true;
   return pathname.startsWith(`${href}/`);
+}
+
+function isChildActive(pathname: string, child: NavChild) {
+  if (child.match) return child.match(pathname);
+  return isActivePath(pathname, child.href);
 }
 
 function SideNav({
@@ -65,23 +125,47 @@ function SideNav({
       {items.map((item) => {
         const active = navReady && isActivePath(pathname, item.href);
         const Icon = item.icon;
+        const showChildren = expanded && Boolean(item.children?.length);
         return (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={onNavigate}
-            title={item.label}
-            className={cn(
-              "flex items-center gap-2.5 rounded-md py-2.5 text-sm font-medium transition",
-              expanded ? "px-3" : "justify-center px-2",
-              active
-                ? "bg-orange-500 text-white shadow-sm"
-                : "text-white/75 hover:bg-white/10 hover:text-white",
-            )}
-          >
-            <Icon size={18} className="shrink-0" />
-            <span className={expanded ? "truncate" : "sr-only"}>{item.label}</span>
-          </Link>
+          <div key={item.href}>
+            <Link
+              href={item.href}
+              onClick={onNavigate}
+              title={item.label}
+              className={cn(
+                "flex items-center gap-2.5 rounded-md py-2.5 text-sm font-medium transition",
+                expanded ? "px-3" : "justify-center px-2",
+                active
+                  ? "bg-orange-500 text-white shadow-sm"
+                  : "text-white/75 hover:bg-white/10 hover:text-white",
+              )}
+            >
+              <Icon size={18} className="shrink-0" />
+              <span className={expanded ? "truncate" : "sr-only"}>{item.label}</span>
+            </Link>
+            {showChildren ? (
+              <div className="ml-3 mt-0.5 space-y-0.5 border-l border-white/15 pl-2">
+                {item.children!.map((child) => {
+                  const childActive = navReady && isChildActive(pathname, child);
+                  return (
+                    <Link
+                      key={`${item.href}::${child.href}`}
+                      href={child.href}
+                      onClick={onNavigate}
+                      className={cn(
+                        "block rounded-md px-2.5 py-1.5 text-xs font-medium transition",
+                        childActive
+                          ? "bg-white/20 text-white"
+                          : "text-white/65 hover:bg-white/10 hover:text-white",
+                      )}
+                    >
+                      {child.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
         );
       })}
     </nav>

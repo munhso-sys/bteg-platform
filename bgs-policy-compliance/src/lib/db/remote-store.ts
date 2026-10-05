@@ -9,6 +9,8 @@ export const REMOTE_KEYS = {
   positionOrgOverrides: "policy_compliance_position_org_overrides",
   policyOrgOverrides: "policy_compliance_policy_org_overrides",
   orgCatalogOverrides: "policy_compliance_org_catalog_overrides",
+  /** Full policy↔org classification (title-match + overrides). Used by Portal Policy Review. */
+  referenceMap: "policy_compliance_reference_map",
 } as const;
 
 export type RemoteKey = (typeof REMOTE_KEYS)[keyof typeof REMOTE_KEYS];

@@ -193,7 +193,7 @@ function DesktopRail({
           ) : null}
         </div>
 
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden p-2">
+        <nav className="soft-scroll flex-1 overflow-x-hidden p-2">
           <NavLinks modules={modules} expanded={expanded} />
         </nav>
 
@@ -247,7 +247,7 @@ function MobileDrawer({
             <X size={18} />
           </button>
         </div>
-        <nav className="flex-1 overflow-y-auto p-2">
+        <nav className="soft-scroll flex-1 p-2">
           <NavLinks modules={modules} onNavigate={onClose} expanded />
         </nav>
         <div className="border-t border-white/10 p-2">

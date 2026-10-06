@@ -76,6 +76,47 @@ textarea {
   --sidebar: #042f2e;
 }
 
+/* Thin soft scrollbars — match Portal / other duty modules */
+.soft-scroll {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 transparent;
+}
+
+.soft-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.soft-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.soft-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+.soft-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+html.dark .soft-scroll,
+.dark .soft-scroll {
+  scrollbar-color: #475569 transparent;
+}
+
+html.dark .soft-scroll::-webkit-scrollbar-thumb,
+.dark .soft-scroll::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+html.dark .soft-scroll::-webkit-scrollbar-thumb:hover,
+.dark .soft-scroll::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
 .react-flow__node-process {
   font-size: 12px;
 }

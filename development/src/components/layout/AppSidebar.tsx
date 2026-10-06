@@ -98,7 +98,7 @@ function NavItems({
 }) {
   const pathname = usePathname() || "/";
   return (
-    <nav className="flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden p-2">
+    <nav className="soft-scroll flex-1 space-y-0.5 overflow-x-hidden p-2">
       {NAV_GROUPS.map((group) => {
         return (
           <div key={group.label} className="pb-3 last:pb-0">
@@ -334,7 +334,7 @@ export function MobileChrome({
 
       <div
         ref={setScrollEl}
-        className="min-h-0 min-w-0 flex-1 overflow-auto pb-16 md:pb-0"
+        className="soft-scroll min-h-0 min-w-0 flex-1 pb-16 md:pb-0"
       >
         <div className="mx-auto max-w-[1400px] px-3 py-4 sm:px-5 sm:py-5">
           {children}

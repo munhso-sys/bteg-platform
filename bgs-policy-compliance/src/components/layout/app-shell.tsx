@@ -231,11 +231,11 @@ function DesktopRail({
             expanded ? "px-3" : "justify-center px-2",
           )}
         >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-orange-500 text-white">
-            <ShieldCheck size={18} />
-          </div>
           {expanded ? (
             <>
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-orange-500 text-white">
+                <ShieldCheck size={18} />
+              </div>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-semibold tracking-wide">
                   POLICY
@@ -257,7 +257,17 @@ function DesktopRail({
                 />
               </button>
             </>
-          ) : null}
+          ) : (
+            <button
+              type="button"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-orange-500 text-white hover:bg-orange-400"
+              title="Цэсийг бэхлэх"
+              aria-label="Цэсийг бэхлэх"
+              onClick={() => onPinnedChange(true)}
+            >
+              <PanelLeft size={18} />
+            </button>
+          )}
         </div>
         <SideNav expanded={expanded} items={items} />
         {!expanded ? (
@@ -266,10 +276,10 @@ function DesktopRail({
               type="button"
               className="rounded-md p-2 text-white/55 hover:bg-white/10 hover:text-white"
               title="Цэсийг бэхлэх"
-              aria-label="Цэсийг бэхлэх"
+              aria-label="Цэсийг дэлгэх"
               onClick={() => onPinnedChange(true)}
             >
-              <PanelLeft size={16} />
+              <Menu size={16} />
             </button>
           </div>
         ) : null}
@@ -441,7 +451,7 @@ export function AppShell({
         <header
           className={cn(
             "z-30 flex shrink-0 items-center gap-2 border-b border-[var(--border)] bg-[var(--card)] px-3 py-2 transition-transform duration-300 ease-out will-change-transform",
-            collapsed && "-translate-y-full",
+            collapsed && "-translate-y-full md:translate-y-0",
           )}
         >
           <button

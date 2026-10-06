@@ -12,9 +12,26 @@ export type DutyModuleApp = {
   entryPath: string;
 };
 
-function origin(envName: string, fallback: string) {
-  return (process.env[envName] || fallback).replace(/\/$/, "");
+function origin(envName: string, productionFallback: string, previewFallback?: string) {
+  const fromEnv = process.env[envName]?.trim();
+  if (fromEnv) return fromEnv.replace(/\/$/, "");
+  if (process.env.VERCEL_ENV === "preview" && previewFallback) {
+    return previewFallback.replace(/\/$/, "");
+  }
+  return productionFallback.replace(/\/$/, "");
 }
+
+/** Stable Preview aliases — refreshed by `node scripts/sync-preview-module-aliases.mjs`. */
+const PREVIEW_ORIGINS = {
+  inspection:
+    "https://platform-inspection-center-preview-munhso-9795s-projects.vercel.app",
+  policy:
+    "https://platform-policy-compliance-preview-munhso-9795s-projects.vercel.app",
+  development:
+    "https://platform-development-preview-munhso-9795s-projects.vercel.app",
+  process:
+    "https://platform-process-preview-munhso-9795s-projects.vercel.app",
+} as const;
 
 export function getDutyModuleApps(): Record<DutyModuleId, DutyModuleApp> {
   return {
@@ -25,6 +42,7 @@ export function getDutyModuleApps(): Record<DutyModuleId, DutyModuleApp> {
       origin: origin(
         "NEXT_PUBLIC_INSPECT_URL",
         "https://platform-inspection-center.vercel.app",
+        PREVIEW_ORIGINS.inspection,
       ),
       entryPath: "/dashboard",
     },
@@ -35,6 +53,7 @@ export function getDutyModuleApps(): Record<DutyModuleId, DutyModuleApp> {
       origin: origin(
         "NEXT_PUBLIC_POLICY_URL",
         "https://platform-policy-compliance.vercel.app",
+        PREVIEW_ORIGINS.policy,
       ),
       entryPath: "/dashboard",
     },
@@ -45,6 +64,7 @@ export function getDutyModuleApps(): Record<DutyModuleId, DutyModuleApp> {
       origin: origin(
         "NEXT_PUBLIC_DEVELOPMENT_URL",
         "https://platform-development-amber.vercel.app",
+        PREVIEW_ORIGINS.development,
       ),
       entryPath: "/dashboard",
     },
@@ -58,6 +78,7 @@ export function getDutyModuleApps(): Record<DutyModuleId, DutyModuleApp> {
         process.env.VERCEL
           ? "https://platform-process.vercel.app"
           : "http://localhost:3004",
+        PREVIEW_ORIGINS.process,
       ),
       entryPath: "/processes",
     },

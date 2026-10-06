@@ -1,7 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState, useTransition } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
+import { createPortal } from "react-dom";
 import { Camera, RotateCcw, Save, X } from "lucide-react";
 import type {
   InspectionAnswer,
@@ -50,6 +59,165 @@ const EMPTY_PERFORMER: InspectionPerformer = {
   name: "",
   position: "",
 };
+
+/** Compact table cell + larger hover/focus editor for тайлбар (portaled to avoid table overflow clip). */
+function CommentHoverField({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: string;
+  disabled?: boolean;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [coords, setCoords] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    placeBelow: boolean;
+  } | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const panelId = useId();
+  const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => {
+      if (leaveTimer.current) clearTimeout(leaveTimer.current);
+    };
+  }, []);
+
+  function updateCoords() {
+    const el = rootRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const panelW = Math.min(Math.max(r.width, 280), window.innerWidth - 16);
+    const estimatedH = 160;
+    const spaceAbove = r.top;
+    const placeBelow = spaceAbove < estimatedH + 12;
+    const left = Math.min(
+      Math.max(8, r.right - panelW),
+      window.innerWidth - panelW - 8,
+    );
+    setCoords({
+      top: placeBelow ? r.bottom + 6 : r.top - 6,
+      left,
+      width: panelW,
+      placeBelow,
+    });
+  }
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    updateCoords();
+    function onWin() {
+      updateCoords();
+    }
+    window.addEventListener("resize", onWin);
+    window.addEventListener("scroll", onWin, true);
+    return () => {
+      window.removeEventListener("resize", onWin);
+      window.removeEventListener("scroll", onWin, true);
+    };
+  }, [open, value]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(event: MouseEvent) {
+      const t = event.target as Node;
+      if (rootRef.current?.contains(t)) return;
+      if (panelRef.current?.contains(t)) return;
+      setOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  function show() {
+    if (leaveTimer.current) clearTimeout(leaveTimer.current);
+    updateCoords();
+    setOpen(true);
+  }
+
+  function hideSoon() {
+    if (leaveTimer.current) clearTimeout(leaveTimer.current);
+    leaveTimer.current = setTimeout(() => {
+      if (document.activeElement === inputRef.current) return;
+      if (panelRef.current?.contains(document.activeElement)) return;
+      setOpen(false);
+    }, 160);
+  }
+
+  const panel =
+    open && mounted && coords
+      ? createPortal(
+          <div
+            ref={panelRef}
+            id={panelId}
+            data-comment-panel
+            className="rounded-md border border-[var(--brand)] bg-[var(--card)] p-2 shadow-xl"
+            role="dialog"
+            aria-label="Тайлбар"
+            style={{
+              position: "fixed",
+              zIndex: 9999,
+              width: coords.width,
+              left: coords.left,
+              ...(coords.placeBelow
+                ? { top: coords.top }
+                : { bottom: window.innerHeight - coords.top }),
+            }}
+            onMouseEnter={show}
+            onMouseLeave={hideSoon}
+          >
+            <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">
+              Тайлбар
+            </div>
+            {disabled ? (
+              <p className="max-h-40 overflow-auto whitespace-pre-wrap text-sm text-[var(--fg)]">
+                {value.trim() || "—"}
+              </p>
+            ) : (
+              <textarea
+                className="textarea min-h-28 w-full text-sm"
+                value={value}
+                placeholder="Тайлбар бичих…"
+                onFocus={show}
+                onChange={(event) => onChange(event.target.value)}
+              />
+            )}
+          </div>,
+          document.body,
+        )
+      : null;
+
+  return (
+    <div
+      ref={rootRef}
+      className="relative"
+      onMouseEnter={show}
+      onMouseLeave={hideSoon}
+    >
+      <input
+        ref={inputRef}
+        className="input w-full min-w-[8rem] text-sm"
+        placeholder="Тайлбар"
+        value={value}
+        disabled={disabled}
+        aria-expanded={open}
+        aria-controls={panelId}
+        onFocus={show}
+        onBlur={hideSoon}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      {panel}
+    </div>
+  );
+}
 
 async function fileToCompressedDataUrl(file: File): Promise<{
   dataUrl: string;
@@ -763,13 +931,11 @@ export function JointRunScoringForm({
                     </div>
                   </td>
                   <td className="min-w-[10rem]">
-                    <input
-                      className="input w-full min-w-[8rem] text-sm"
-                      placeholder="Тайлбар"
+                    <CommentHoverField
                       value={draft?.comment ?? ""}
                       disabled={locked}
-                      onChange={(event) => {
-                        setDraft(answer.id, { comment: event.target.value });
+                      onChange={(next) => {
+                        setDraft(answer.id, { comment: next });
                       }}
                     />
                   </td>

@@ -110,23 +110,17 @@ function NavLinks({
 function DesktopRail({
   modules,
   profile,
+  pinned,
+  onPinnedChange,
 }: {
   modules: PlatformModule[];
   profile: HeaderProfile | null;
+  pinned: boolean;
+  onPinnedChange: (pinned: boolean) => void;
 }) {
   const [hovered, setHovered] = useState(false);
-  const [pinned, setPinned] = useState(false);
-  const [finePointer, setFinePointer] = useState(true);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const expanded = pinned || hovered;
-
-  useEffect(() => {
-    const mq = window.matchMedia("(hover: hover) and (pointer: fine)");
-    const sync = () => setFinePointer(mq.matches);
-    sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
-  }, []);
 
   useEffect(() => {
     return () => {
@@ -134,27 +128,37 @@ function DesktopRail({
     };
   }, []);
 
-  function onEnter() {
-    if (!finePointer) return;
+  function onPointerEnter(e: React.PointerEvent) {
+    if (e.pointerType === "touch") return;
     if (leaveTimer.current) clearTimeout(leaveTimer.current);
     setHovered(true);
   }
 
-  function onLeave() {
-    if (!finePointer) return;
+  function onPointerLeave(e: React.PointerEvent) {
+    if (e.pointerType === "touch") return;
     if (leaveTimer.current) clearTimeout(leaveTimer.current);
     leaveTimer.current = setTimeout(() => setHovered(false), 120);
   }
 
+  function togglePin() {
+    onPinnedChange(!pinned);
+    setHovered(false);
+  }
+
   return (
-    <aside className="relative z-40 hidden w-16 shrink-0 print:hidden lg:block" aria-label="Платформ цэс">
+    <>
+      <aside
+        className="relative z-40 hidden w-16 shrink-0 print:hidden lg:block"
+        aria-hidden
+      />
       <div
         className={cn(
-          "absolute inset-y-0 left-0 flex h-full min-h-[100dvh] flex-col bg-[var(--sidebar)] text-[var(--sidebar-fg)] transition-[width,box-shadow] duration-200 ease-out",
+          "fixed inset-y-0 left-0 z-50 hidden flex-col bg-[var(--sidebar)] text-[var(--sidebar-fg)] transition-[width,box-shadow] duration-200 ease-out print:hidden lg:flex",
           expanded ? "w-60 shadow-xl shadow-black/30" : "w-16",
         )}
-        onMouseEnter={onEnter}
-        onMouseLeave={onLeave}
+        aria-label="Платформ цэс"
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
       >
         <div
           className={cn(
@@ -162,33 +166,30 @@ function DesktopRail({
             expanded ? "px-3" : "justify-center px-2",
           )}
         >
-          <div className="min-w-0">
-            {expanded ? (
-              <>
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[var(--brand)] text-xs font-bold text-white">
+            IN
+          </div>
+          {expanded ? (
+            <>
+              <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold tracking-wide">
                   INSPECT-MN
                 </div>
                 <div className="text-[11px] text-white/50">Platform portal</div>
-              </>
-            ) : (
-              <div className="flex h-9 w-9 items-center justify-center rounded-md bg-[var(--brand)] text-xs font-bold text-white">
-                IN
               </div>
-            )}
-          </div>
-          {expanded ? (
-            <button
-              type="button"
-              className="ml-auto shrink-0 rounded-md p-1.5 text-white/60 hover:bg-white/10 hover:text-white"
-              title={pinned ? "Бэхэлгээг болиулах" : "Цэсийг бэхлэх"}
-              aria-pressed={pinned}
-              onClick={() => setPinned((v) => !v)}
-            >
-              <PanelLeft
-                size={16}
-                className={pinned ? "text-[var(--brand)]" : ""}
-              />
-            </button>
+              <button
+                type="button"
+                className="shrink-0 rounded-md p-1.5 text-white/60 hover:bg-white/10 hover:text-white"
+                title={pinned ? "Бэхэлгээг болиулах" : "Цэсийг бэхлэх"}
+                aria-pressed={pinned}
+                onClick={togglePin}
+              >
+                <PanelLeft
+                  size={16}
+                  className={pinned ? "text-[var(--brand)]" : ""}
+                />
+              </button>
+            </>
           ) : null}
         </div>
 
@@ -197,10 +198,21 @@ function DesktopRail({
         </nav>
 
         <div className="border-t border-white/10 p-2">
+          {!expanded ? (
+            <button
+              type="button"
+              className="mb-2 flex w-full items-center justify-center rounded-md p-2 text-white/55 hover:bg-white/10 hover:text-white"
+              title="Цэсийг бэхлэх"
+              aria-label="Цэсийг бэхлэх"
+              onClick={() => onPinnedChange(true)}
+            >
+              <PanelLeft size={16} />
+            </button>
+          ) : null}
           <SidebarUserMenu profile={profile} compact={!expanded} />
         </div>
       </div>
-    </aside>
+    </>
   );
 }
 
@@ -491,12 +503,29 @@ function PortalChrome({
   children: React.ReactNode;
 }) {
   const [scrollEl, setScrollEl] = useState<HTMLElement | null>(null);
+  const [pinned, setPinned] = useState(false);
   const collapsed = useShrinkCollapse(scrollEl);
+
+  function onMenuClick() {
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(min-width: 1024px)").matches
+    ) {
+      setPinned((v) => !v);
+      return;
+    }
+    setOpen(true);
+  }
 
   return (
     <div className="flex h-[100dvh] overflow-hidden bg-[var(--background)]">
       <IdleLogout />
-      <DesktopRail modules={modules} profile={profile} />
+      <DesktopRail
+        modules={modules}
+        profile={profile}
+        pinned={pinned}
+        onPinnedChange={setPinned}
+      />
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <header
@@ -507,8 +536,10 @@ function PortalChrome({
         >
           <button
             type="button"
-            className="btn btn-ghost px-2 lg:hidden"
-            onClick={() => setOpen(true)}
+            className="btn btn-ghost px-2"
+            onClick={onMenuClick}
+            aria-label={pinned ? "Цэс хураах" : "Цэс нээх"}
+            aria-expanded={pinned || open}
           >
             <Menu size={18} />
           </button>

@@ -1,7 +1,4 @@
-import {
-  AppSidebar,
-  MobileChrome,
-} from "@/components/layout/AppSidebar";
+import { SidebarShell } from "@/components/layout/SidebarShell";
 import { getInspectionScope } from "@/lib/access/scope";
 
 export async function ShellFrame({ children }: { children: React.ReactNode }) {
@@ -10,9 +7,8 @@ export async function ShellFrame({ children }: { children: React.ReactNode }) {
   const unitLabel = scope?.albaName || scope?.heltesName || null;
 
   return (
-    <div className="flex h-[100dvh] min-h-0 overflow-hidden">
-      <AppSidebar unitMode={unitMode} unitLabel={unitLabel} />
-      <MobileChrome unitMode={unitMode}>{children}</MobileChrome>
-    </div>
+    <SidebarShell unitMode={unitMode} unitLabel={unitLabel}>
+      {children}
+    </SidebarShell>
   );
 }

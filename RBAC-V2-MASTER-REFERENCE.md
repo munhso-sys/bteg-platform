@@ -246,7 +246,7 @@ Requires **explicit separate owner authorization**. This document does not autho
 | N5 exit prep | PASS |
 | **NAV-G1** | **READY** |
 | Preview/non-prod regression | PASS (local multi-app non-prod cluster + staging DB) |
-| Git push | See §13 / latest commit |
+| Git push | **PASS** — `4f3a7c1` (see §13) |
 | Production deploy | **NOT AUTHORIZED** |
 
 ---
@@ -258,7 +258,9 @@ Requires **explicit separate owner authorization**. This document does not autho
 | Branch | `canonical/assembly` |
 | Prior curated commit | `574cf04746aa8dbd7095c0a042c7cd5adc3942c2` |
 | Remote | `origin` → `https://github.com/munhso-sys/bteg-platform.git` |
-| Gate closure commit | _filled after this push_ |
+| Gate closure commit | `4f3a7c1fe6c15178a0cc25889110fd82adce9a47` — `feat(rbac): close remote E1 staging and NAV-G1 readiness` |
+| Push result | **PASS** — `588caca..4f3a7c1  HEAD -> canonical/assembly` (no force) |
+| Push timestamp | 2026-10-07 22:10 (UTC+8) |
 | Timestamp | 2026-10-07 |
 | Final localhost gate | **PASS** — Portal :3000 UP; LOCAL Supabase; prod ref absent; N1+N2 tests PASS; typechecks PASS; Process/Dev invalid nav FAIL-CLOSED |
 

@@ -3,6 +3,8 @@
  */
 
 import type { ModuleMenuSelection } from "@/lib/rbac/role-menu-visibility";
+import { NAV_MENU_CATALOG_VERSION } from "./module-menus";
+import { authorizeNavigation } from "./nav-authorize";
 
 export type ResolvedMenuPath = {
   menuId: string;
@@ -131,37 +133,62 @@ export function normalizeMenuSelection(
   return { menuIds, submenuIds };
 }
 
+/** Reports (Тайлан шинжилгээ) route → catalog menu + ReportsNav submenu id. */
+export function resolveReportMenuPath(
+  pathname: string,
+): ResolvedMenuPath | null {
+  const p = pathname.split("?")[0] || pathname;
+  if (p !== "/report-analysis" && !p.startsWith("/report-analysis/")) {
+    return null;
+  }
+  // Keep in sync with ReportsNav TABS + MODULE_MENU_CATALOG report-analysis children.
+  const tabs = [
+    "/report-analysis/kpis",
+    "/report-analysis/analysis",
+    "/report-analysis/tree",
+    "/report-analysis/operations",
+    "/report-analysis/report",
+    "/report-analysis/exports",
+  ];
+  for (const href of tabs) {
+    if (p === href || p.startsWith(`${href}/`)) {
+      return { menuId: "/report-analysis", submenuId: href };
+    }
+  }
+  return { menuId: "/report-analysis", submenuId: "/report-analysis" };
+}
+
+export type MenuSelectionCheckOptions = {
+  /** Telemetry/module tag; defaults to "portal". */
+  moduleId?: string;
+  /** Override NAV_G1_ENFORCE (tests). */
+  g1?: boolean;
+  emit?: boolean;
+  source?: string;
+};
+
 /**
- * Pre-NAV-G1: null selection → ALLOW (no explicit config).
+ * Pre-NAV-G1 (NAV_G1_ENFORCE off): null selection → ALLOW (no explicit config).
+ * NAV_G1_ENFORCE=1: null selection → DENY (fail closed).
  * With explicit config: unmapped protected path → DENY; known path must be allowlisted.
  */
 export function isPathAllowedByMenuSelection(
   pathname: string,
   selection: ModuleMenuSelection | null | undefined,
   resolve: (pathname: string) => ResolvedMenuPath | null,
+  opts: MenuSelectionCheckOptions = {},
 ): boolean {
-  // NO CONFIG → pre-NAV-G1 compatibility
-  if (selection == null) return true;
-
+  // Malformed object (bad fields) still counts as explicit config (empty allowlist);
+  // only a null/undefined selection means NO CONFIG.
   const normalized = normalizeMenuSelection(selection);
-  // Malformed empty object still counts as explicit config (empty allowlist).
-  if (!normalized) return true;
-
-  const menuIds = normalized.menuIds ?? [];
-  const submenuIds = normalized.submenuIds ?? {};
-
-  const hit = resolve(pathname);
-  // Config present + unmapped path → fail closed (N1-01)
-  if (!hit) return false;
-
-  if (!menuIds.includes(hit.menuId)) return false;
-
-  if (
-    hit.submenuId &&
-    Object.prototype.hasOwnProperty.call(submenuIds, hit.menuId)
-  ) {
-    const allowed = submenuIds[hit.menuId] ?? [];
-    if (!allowed.includes(hit.submenuId)) return false;
-  }
-  return true;
+  return authorizeNavigation({
+    moduleId: opts.moduleId ?? "portal",
+    pathname,
+    selection: normalized,
+    resolve,
+    g1: opts.g1,
+    emit: opts.emit,
+    source: opts.source ?? "portal-guard",
+    catalogVersion: NAV_MENU_CATALOG_VERSION,
+  }).allow;
 }

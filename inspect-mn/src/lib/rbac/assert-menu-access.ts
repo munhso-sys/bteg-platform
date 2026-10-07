@@ -8,6 +8,7 @@ import {
   isPathAllowedByMenuSelection,
   resolveGuidanceMenuPath,
   resolvePortalTopMenuPath,
+  resolveReportMenuPath,
   resolveRiskMenuPath,
   resolveSettingsMenuPath,
   resolveVoiceMenuPath,
@@ -19,6 +20,7 @@ type ModuleKey =
   | "risk-management"
   | "employee-voice"
   | "guidance"
+  | "report-analysis"
   | "settings";
 
 function resolverFor(
@@ -33,6 +35,8 @@ function resolverFor(
       return resolveVoiceMenuPath;
     case "guidance":
       return resolveGuidanceMenuPath;
+    case "report-analysis":
+      return resolveReportMenuPath;
     case "settings":
       return resolveSettingsMenuPath;
   }
@@ -45,7 +49,17 @@ async function currentPathname(fallback = "/"): Promise<string> {
 
 /**
  * Fail-closed redirect when the active role's menu allowlist forbids this path.
- * Admin / portal.admin bypass (so Role эрх UI remains reachable).
+ *
+ * Admin bypass (transitional, OD-10): `role_id === "admin"` OR the
+ * `portal.admin` permission skips ONLY the menu-visibility allowlist below, so
+ * the Role эрх UI stays reachable. It does NOT skip any other check:
+ *   - an authenticated Supabase user and an active `user_profiles` row are
+ *     still required (unauthenticated / inactive → login redirect first);
+ *   - page / API permission gates (requireAdmin, requireSettings, module
+ *     permissions, org scope, RLS) still run on their own and are unaffected.
+ *
+ * NAV_G1_ENFORCE=1: a role with NO menu config for this module is DENIED
+ * (instead of the pre-G1 compat allow). Admin bypass above still applies.
  */
 export async function assertPortalMenuAccess(
   moduleKey: ModuleKey,
@@ -71,9 +85,11 @@ export async function assertPortalMenuAccess(
     redirect("/login");
   }
 
+  // Admin bypass: menu allowlist only (see doc comment) — auth + active status
+  // were already enforced above.
   if (roleId === "admin") return;
 
-  // portal.admin permission bypass
+  // portal.admin permission bypass (menu allowlist only; transitional OD-10)
   if (roleId) {
     const { data: rp } = await db
       .from("role_permissions")
@@ -90,12 +106,16 @@ export async function assertPortalMenuAccess(
   }
 
   const selection = await loadRoleModuleMenuConfig(db, roleId, moduleKey);
-  if (!selection) return;
-
+  // null selection: pre-G1 → compat allow; NAV_G1_ENFORCE=1 → deny (fail closed).
   const resolve = resolverFor(moduleKey);
-  if (!isPathAllowedByMenuSelection(path, selection, resolve)) {
+  if (
+    !isPathAllowedByMenuSelection(path, selection, resolve, {
+      moduleId: moduleKey,
+      source: "assert-menu-access",
+    })
+  ) {
     // Fall back to first allowed menu path or home
-    const first = selection.menuIds[0];
+    const first = selection?.menuIds?.[0];
     if (moduleKey === "portal" && first) {
       const hrefMap: Record<string, string> = {
         inspection: "/inspection",
@@ -115,6 +135,8 @@ export async function assertPortalMenuAccess(
       };
       redirect(hrefMap[first] ?? "/");
     }
-    redirect(first || "/");
+    // Parent with an explicit submenu list → land on its first allowed child
+    // (redirecting to a denied parent root would loop).
+    redirect((first && selection?.submenuIds?.[first]?.[0]) || first || "/");
   }
 }

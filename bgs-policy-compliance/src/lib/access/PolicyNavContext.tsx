@@ -48,6 +48,8 @@ export function useCanAccessPolicyPath(pathname: string): boolean {
         pathname,
         { menuIds: menus, submenuIds: submenus },
         resolvePolicyMenuPath,
+        // UI filter only: never depend on server-only NAV_G1_ENFORCE (hydration).
+        { g1: false },
       ),
     [pathname, menus, submenus],
   );

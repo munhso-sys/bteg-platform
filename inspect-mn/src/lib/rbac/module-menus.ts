@@ -3,6 +3,13 @@
  * menu id = route href used by the module sidebar when applicable.
  */
 
+/**
+ * Version of the menu-id catalog below. Returned by the role-menus API and
+ * stamped (optionally) on signed nav grants. "v1" = route-href menu ids as
+ * used by module sidebars today; verifiers must keep accepting v1 hrefs.
+ */
+export const NAV_MENU_CATALOG_VERSION = "v1";
+
 export type ModuleSubmenu = {
   id: string;
   label: string;
@@ -192,7 +199,22 @@ export const MODULE_MENU_CATALOG: ModuleMenuCatalogEntry[] = [
   {
     moduleId: "report-analysis",
     label: "Тайлан шинжилгээ",
-    menus: [{ id: "/report-analysis", label: "Үндсэн" }],
+    menus: [
+      {
+        id: "/report-analysis",
+        label: "Үндсэн",
+        // Children mirror ReportsNav TABS (components/reports/ReportsNav.tsx).
+        children: [
+          { id: "/report-analysis", label: "Нэгдсэн самбар" },
+          { id: "/report-analysis/kpis", label: "KPI сан" },
+          { id: "/report-analysis/analysis", label: "Шинжилгээ" },
+          { id: "/report-analysis/tree", label: "Хавтас" },
+          { id: "/report-analysis/operations", label: "Түвшин" },
+          { id: "/report-analysis/report", label: "Албан тайлан" },
+          { id: "/report-analysis/exports", label: "Экспорт" },
+        ],
+      },
+    ],
   },
   {
     moduleId: "guidance",

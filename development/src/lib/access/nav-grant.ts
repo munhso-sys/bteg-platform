@@ -1,10 +1,23 @@
+import {
+  authorizeNavigation,
+  type NavDecision,
+  type NavTokenState,
+} from "./nav-authorize";
+
 export type ModuleNavGrant = {
   v: 1;
   moduleId: string;
   menuIds: string[];
   submenuIds: Record<string, string[]>;
   exp: number;
+  /** Optional menu-catalog version stamped by portal (absent = v1 route hrefs). */
+  catalogVersion?: string;
 };
+
+export type NavGrantInspection =
+  | { state: "valid"; grant: ModuleNavGrant }
+  | { state: "invalid" }
+  | { state: "expired" };
 
 function b64urlFromBytes(bytes: ArrayBuffer | Uint8Array) {
   const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
@@ -54,13 +67,14 @@ function verifySecrets() {
   ];
 }
 
-export async function verifyModuleNavGrant(
+/** Like verifyModuleNavGrant but distinguishes expired from invalid (telemetry). */
+export async function inspectModuleNavGrant(
   token: string | null | undefined,
   expectedModuleId: string,
-): Promise<ModuleNavGrant | null> {
-  if (!token) return null;
+): Promise<NavGrantInspection> {
+  if (!token) return { state: "invalid" };
   const [body, sig] = token.split(".");
-  if (!body || !sig) return null;
+  if (!body || !sig) return { state: "invalid" };
   let ok = false;
   for (const key of verifySecrets()) {
     const expected = await hmacSha256Base64Url(body, key);
@@ -69,13 +83,16 @@ export async function verifyModuleNavGrant(
       break;
     }
   }
-  if (!ok) return null;
+  if (!ok) return { state: "invalid" };
   try {
     const json = new TextDecoder().decode(bytesFromB64url(body));
     const parsed = JSON.parse(json) as ModuleNavGrant;
-    if (parsed?.v !== 1 || parsed.moduleId !== expectedModuleId) return null;
-    if (typeof parsed.exp !== "number" || parsed.exp < Date.now()) return null;
-    if (!Array.isArray(parsed.menuIds)) return null;
+    if (parsed?.v !== 1 || parsed.moduleId !== expectedModuleId) {
+      return { state: "invalid" };
+    }
+    if (typeof parsed.exp !== "number") return { state: "invalid" };
+    if (parsed.exp < Date.now()) return { state: "expired" };
+    if (!Array.isArray(parsed.menuIds)) return { state: "invalid" };
     const menuIds = parsed.menuIds.filter(
       (x): x is string => typeof x === "string",
     );
@@ -87,10 +104,25 @@ export async function verifyModuleNavGrant(
         submenuIds[k] = v.filter((x): x is string => typeof x === "string");
       }
     }
-    return { ...parsed, menuIds, submenuIds };
+    const catalogVersion =
+      typeof parsed.catalogVersion === "string"
+        ? parsed.catalogVersion
+        : undefined;
+    return {
+      state: "valid",
+      grant: { ...parsed, menuIds, submenuIds, catalogVersion },
+    };
   } catch {
-    return null;
+    return { state: "invalid" };
   }
+}
+
+export async function verifyModuleNavGrant(
+  token: string | null | undefined,
+  expectedModuleId: string,
+): Promise<ModuleNavGrant | null> {
+  const r = await inspectModuleNavGrant(token, expectedModuleId);
+  return r.state === "valid" ? r.grant : null;
 }
 
 export function resolveDevelopmentMenuPath(
@@ -112,14 +144,50 @@ export function resolveDevelopmentMenuPath(
   return null;
 }
 
+export type DevelopmentNavDecisionOptions = {
+  tokenState?: NavTokenState;
+  /** Session previously under signed-nav enforcement (enforce cookie). */
+  enforceMarker?: boolean;
+  /** Override NAV_G1_ENFORCE (tests). */
+  g1?: boolean;
+  emit?: boolean;
+  source?: string;
+};
+
+/**
+ * Shared N2 contract for Development. grant === null:
+ *  - NAV_G1_ENFORCE off + no enforce marker → compat ALLOW (pre-G1)
+ *  - NAV_G1_ENFORCE=1 or enforce marker     → DENY (re-embed)
+ */
+export function decideDevelopmentNavigation(
+  pathname: string,
+  grant: ModuleNavGrant | null,
+  opts: DevelopmentNavDecisionOptions = {},
+): NavDecision {
+  return authorizeNavigation({
+    moduleId: "development",
+    pathname,
+    selection: grant
+      ? { menuIds: grant.menuIds ?? [], submenuIds: grant.submenuIds ?? {} }
+      : null,
+    resolve: resolveDevelopmentMenuPath,
+    tokenState: opts.tokenState,
+    enforceMarker: opts.enforceMarker,
+    g1: opts.g1,
+    emit: opts.emit ?? false,
+    source: opts.source ?? "development-nav",
+    catalogVersion: grant?.catalogVersion,
+  });
+}
+
+/** Pure path check (no telemetry). Null grant follows NAV_G1_ENFORCE (default off → allow). */
 export function isDevelopmentPathAllowed(
   pathname: string,
   grant: ModuleNavGrant | null,
+  g1?: boolean,
 ): boolean {
-  if (!grant) return true;
-  const hit = resolveDevelopmentMenuPath(pathname);
-  if (!hit) return false;
-  return (grant.menuIds ?? []).includes(hit.menuId);
+  return decideDevelopmentNavigation(pathname, grant, { g1, emit: false })
+    .allow;
 }
 
 export function isNavEnforcementActive(

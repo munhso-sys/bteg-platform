@@ -5,6 +5,8 @@
  * session into unrestricted navigation.
  */
 
+import { isNavG1Enforce } from "./nav-authorize";
+
 export type SoftRemintNavDecision =
   | {
       action: "proceed";
@@ -13,7 +15,11 @@ export type SoftRemintNavDecision =
     }
   | {
       action: "fail_closed_reembed";
-      reason: "PRIOR_COOKIE_INVALID";
+      /**
+       * PRIOR_COOKIE_INVALID: prior cookie present but unverifiable.
+       * NAV_CONFIG_MISSING: NAV_G1_ENFORCE=1 and no signed nav claims to preserve.
+       */
+      reason: "PRIOR_COOKIE_INVALID" | "NAV_CONFIG_MISSING";
     };
 
 function normalizeMenus(raw: unknown): string[] | null {
@@ -38,6 +44,9 @@ function normalizeSubmenus(
 /**
  * @param cookiePresent - POLICY_SCOPE_COOKIE existed on the request
  * @param priorClaims - verified prior claims, or null if missing/invalid
+ * @param g1 - NAV_G1_ENFORCE override (default: env). When on, a soft re-mint
+ *   that would carry NO nav claims fails closed instead of minting an
+ *   unrestricted session.
  */
 export function decideSoftRemintNavigation(args: {
   cookiePresent: boolean;
@@ -45,8 +54,10 @@ export function decideSoftRemintNavigation(args: {
     menus?: unknown;
     submenus?: unknown;
   } | null;
+  g1?: boolean;
 }): SoftRemintNavDecision {
   const { cookiePresent, priorClaims } = args;
+  const g1 = args.g1 ?? isNavG1Enforce();
 
   // Enforced session cookie present but unverifiable → fail closed (N1-03 A)
   if (cookiePresent && !priorClaims) {
@@ -55,14 +66,19 @@ export function decideSoftRemintNavigation(args: {
 
   if (!priorClaims) {
     // Soft-first entry (no prior cookie): pre-NAV-G1 — no menus yet
+    if (g1) {
+      return { action: "fail_closed_reembed", reason: "NAV_CONFIG_MISSING" };
+    }
     return { action: "proceed", menus: null, submenus: null };
   }
 
-  return {
-    action: "proceed",
-    menus: normalizeMenus(priorClaims.menus),
-    submenus: normalizeSubmenus(priorClaims.submenus),
-  };
+  const menus = normalizeMenus(priorClaims.menus);
+  const submenus = normalizeSubmenus(priorClaims.submenus);
+  if (g1 && !hasExplicitNavClaims(menus, submenus)) {
+    return { action: "fail_closed_reembed", reason: "NAV_CONFIG_MISSING" };
+  }
+
+  return { action: "proceed", menus, submenus };
 }
 
 /** True when menu allowlist enforcement should run for these claims. */

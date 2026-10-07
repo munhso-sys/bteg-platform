@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireAdminContext } from "@/lib/rbac/require-admin";
-import { MODULE_MENU_CATALOG } from "@/lib/rbac/module-menus";
+import {
+  MODULE_MENU_CATALOG,
+  NAV_MENU_CATALOG_VERSION,
+} from "@/lib/rbac/module-menus";
 import {
   loadRoleMenuVisibilityStore,
   normalizeRoleMenuVisibilityStore,
@@ -16,6 +19,7 @@ export async function GET() {
   const store = await loadRoleMenuVisibilityStore(ctx.admin);
   return NextResponse.json({
     ok: true,
+    catalogVersion: NAV_MENU_CATALOG_VERSION,
     catalog: MODULE_MENU_CATALOG,
     store,
   });
@@ -80,6 +84,7 @@ export async function PUT(req: Request) {
 
   return NextResponse.json({
     ok: true,
+    catalogVersion: NAV_MENU_CATALOG_VERSION,
     role_id: roleId,
     module_id: moduleId,
     selection,

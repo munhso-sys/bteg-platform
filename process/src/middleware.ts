@@ -1,14 +1,20 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import {
+  decideProcessNavigation,
   firstAllowedProcessPath,
+  inspectModuleNavGrant,
   isNavEnforcementActive,
-  isProcessPathAllowed,
   PROCESS_NAV_COOKIE,
   PROCESS_NAV_ENFORCE_COOKIE,
-  verifyModuleNavGrant,
 } from "@/lib/access/nav-grant";
 
+/**
+ * Nav grant / enforce cookies are HttpOnly, Secure, SameSite=None so the
+ * portal iframe can carry them (third-party context). Do NOT weaken `secure`
+ * in production/hosted runtimes; relax only for a verified non-hosted local
+ * runtime if ever needed (browsers treat http://localhost as secure).
+ */
 function cookieOpts(maxAge = 12 * 60 * 60) {
   return {
     httpOnly: true,
@@ -36,6 +42,13 @@ function markEnforce(res: NextResponse) {
 }
 
 function denyReembed(request: NextRequest) {
+  // Already bounced once and still no valid grant → stop (avoid redirect loop).
+  if (request.nextUrl.searchParams.get("nav_reembed") === "1") {
+    return new NextResponse(
+      "Navigation grant required. Re-open this module from the portal.",
+      { status: 403 },
+    );
+  }
   const dest = new URL("/dashboard", request.url);
   dest.searchParams.set("nav_reembed", "1");
   const res = NextResponse.redirect(dest);
@@ -55,12 +68,22 @@ export async function middleware(request: NextRequest) {
   const enforce = request.cookies.get(PROCESS_NAV_ENFORCE_COOKIE)?.value;
 
   if (navParam) {
-    const grant = await verifyModuleNavGrant(navParam, "process");
-    if (!grant) {
+    const inspected = await inspectModuleNavGrant(navParam, "process");
+    if (inspected.state !== "valid") {
+      decideProcessNavigation(url.pathname, null, {
+        tokenState: inspected.state,
+        emit: true,
+        source: "middleware",
+      });
       return denyReembed(request);
     }
+    const grant = inspected.grant;
     const navToken = navParam;
-    if (!isProcessPathAllowed(url.pathname, grant)) {
+    const decision = decideProcessNavigation(url.pathname, grant, {
+      emit: true,
+      source: "middleware",
+    });
+    if (!decision.allow) {
       const dest = withNav(
         request,
         firstAllowedProcessPath(grant),
@@ -78,12 +101,22 @@ export async function middleware(request: NextRequest) {
   }
 
   if (cookieToken) {
-    const grant = await verifyModuleNavGrant(cookieToken, "process");
-    if (!grant) {
+    const inspected = await inspectModuleNavGrant(cookieToken, "process");
+    if (inspected.state !== "valid") {
       // N1-04: invalid/expired cookie must not become unrestricted
+      decideProcessNavigation(url.pathname, null, {
+        tokenState: inspected.state,
+        emit: true,
+        source: "middleware",
+      });
       return denyReembed(request);
     }
-    if (!isProcessPathAllowed(url.pathname, grant)) {
+    const grant = inspected.grant;
+    const decision = decideProcessNavigation(url.pathname, grant, {
+      emit: true,
+      source: "middleware",
+    });
+    if (!decision.allow) {
       const res = NextResponse.redirect(
         withNav(request, firstAllowedProcessPath(grant), cookieToken),
       );
@@ -95,8 +128,14 @@ export async function middleware(request: NextRequest) {
     return res;
   }
 
-  // No grant token — only unrestricted if never under nav enforcement
-  if (isNavEnforcementActive(enforce)) {
+  // No grant token: unrestricted only pre-G1 AND never under nav enforcement.
+  // NAV_G1_ENFORCE=1 → fail closed / re-embed.
+  const noGrant = decideProcessNavigation(url.pathname, null, {
+    enforceMarker: isNavEnforcementActive(enforce),
+    emit: true,
+    source: "middleware",
+  });
+  if (!noGrant.allow) {
     return denyReembed(request);
   }
 

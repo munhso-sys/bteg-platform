@@ -16,6 +16,7 @@
     "test:checklist": "tsx --test src/lib/checklist-sheet.test.ts",
     "test:access": "tsx --test src/lib/access/embed-resolve.test.ts src/lib/access/write-access.test.ts",
     "test:security": "npm run test:access",
+    "test:n2-nav": "tsx --test src/lib/access/nav-authorize.n2.test.ts",
     "test:supabase": "tsx --test src/lib/supabase/server.test.ts",
     "test:e2e:security": "tsx --test scripts/e2e-security.test.ts",
     "seed:remote": "tsx --tsconfig tsconfig.json scripts/seed-remote-store.ts"

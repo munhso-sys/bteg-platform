@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test:n1-nav": "tsx --test src/lib/access/soft-remint-nav.n1.test.ts",
+    "test:n2-nav": "tsx --test src/lib/access/nav-authorize.n2.test.ts",
     "typecheck": "tsc --noEmit",
     "import:bgs": "tsx scripts/import-bgs.ts",
     "reference:build": "tsx scripts/build-reference-catalog.ts",

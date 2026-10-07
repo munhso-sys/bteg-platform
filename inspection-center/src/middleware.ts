@@ -6,12 +6,33 @@ import {
   type InspectionEmbedClaims,
 } from "@/lib/access/embed";
 import { resolveInspectionEmbedFromParts } from "@/lib/access/embed-resolve";
+import { isNavG1Enforce } from "@/lib/access/nav-authorize";
+import { emitNavEvent } from "@/lib/access/nav-telemetry";
 import {
   firstAllowedInspectionPath,
   isPathAllowedByMenuSelection,
   type MenuRouteSelection,
 } from "@/lib/access/menu-route-guard";
 
+function navConfigMissing(pathname: string, reason: string) {
+  emitNavEvent("nav.config_missing", {
+    moduleId: "inspection",
+    path: pathname,
+    reason,
+    source: "middleware",
+    g1: true,
+  });
+  return new NextResponse(
+    "Navigation grant required. Re-open this module from the portal.",
+    { status: 403 },
+  );
+}
+
+/**
+ * Scope cookie is HttpOnly, Secure, SameSite=None so the portal iframe can
+ * carry it (third-party context). Do NOT weaken `secure` in production/hosted
+ * runtimes; relax only for a verified non-hosted local runtime if ever needed.
+ */
 function scopeCookieOptions(maxAge = 12 * 60 * 60) {
   return {
     httpOnly: true,
@@ -95,7 +116,14 @@ export async function middleware(request: NextRequest) {
         menuIds: Array.isArray(claims.menus) ? claims.menus : null,
         submenuIds: claims.submenus ?? null,
       };
-      if (!isPathAllowedByMenuSelection(url.pathname, selection)) {
+      if (
+        !isPathAllowedByMenuSelection(
+          url.pathname,
+          selection,
+          undefined,
+          { emit: true, source: "middleware" },
+        )
+      ) {
         const dest = firstAllowedInspectionPath(selection);
         const redirectUrl = new URL(dest, request.url);
         redirectUrl.searchParams.set("embed", token);
@@ -103,9 +131,18 @@ export async function middleware(request: NextRequest) {
         res.cookies.set(INSPECTION_SCOPE_COOKIE, token, scopeCookieOptions());
         return res;
       }
+    } else if (!isApi && isNavG1Enforce()) {
+      // NAV_G1_ENFORCE=1: signed embed without menu/submenu claims → fail closed.
+      return navConfigMissing(url.pathname, "no_signed_nav_claims");
     }
 
     return withEmbedHeader(request, token);
+  }
+
+  // NAV_G1_ENFORCE=1: no valid embed/cookie → fail closed for pages.
+  // (API routes keep their own scope/write checks: 401 via write-access.)
+  if (isNavG1Enforce() && !url.pathname.startsWith("/api/")) {
+    return navConfigMissing(url.pathname, "no_valid_embed");
   }
 
   return NextResponse.next();

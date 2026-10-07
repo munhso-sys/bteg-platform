@@ -3,6 +3,8 @@
  * UI hiding alone is not enough — deep links (org, workplace, etc.) must also fail closed.
  */
 
+import { authorizeNavigation } from "./nav-authorize";
+
 export type MenuRouteSelection = {
   /** null = no top-level restriction configured */
   menuIds: string[] | null;
@@ -99,44 +101,40 @@ export function resolvePolicyMenuPath(
   return null;
 }
 
+export type MenuSelectionCheckOptions = {
+  /** Override NAV_G1_ENFORCE (tests / UI filters). */
+  g1?: boolean;
+  /** Emit nav telemetry (middleware only; default off). */
+  emit?: boolean;
+  source?: string;
+};
+
+/**
+ * No config (menuIds null AND submenuIds null): pre-G1 → ALLOW (compat);
+ * NAV_G1_ENFORCE=1 → DENY (fail closed). With config: unmapped path → DENY,
+ * known path must be allowlisted (shared N2 `authorizeNavigation` contract).
+ */
 export function isPathAllowedByMenuSelection(
   pathname: string,
   selection: MenuRouteSelection,
   resolve: (pathname: string) => ResolvedMenuPath | null,
+  opts: MenuSelectionCheckOptions = {},
 ): boolean {
-  const hasMenuConfig = Array.isArray(selection.menuIds);
-  const hasSubmenuConfig =
-    selection.submenuIds != null &&
-    typeof selection.submenuIds === "object" &&
-    Object.keys(selection.submenuIds).length >= 0 &&
-    selection.submenuIds !== null;
-
-  // No role menu config at all → unrestricted (compat)
-  if (!hasMenuConfig && selection.submenuIds == null) return true;
-
-  const hit = resolve(pathname);
-  if (!hit) {
-    // Unknown path while config is active → fail closed
-    return !(hasMenuConfig || selection.submenuIds != null);
-  }
-
-  if (hasMenuConfig && !(selection.menuIds ?? []).includes(hit.menuId)) {
-    return false;
-  }
-
-  if (
-    hit.submenuId &&
-    selection.submenuIds &&
-    Object.prototype.hasOwnProperty.call(selection.submenuIds, hit.menuId)
-  ) {
-    const allowed = selection.submenuIds[hit.menuId] ?? [];
-    if (!allowed.includes(hit.submenuId)) return false;
-  }
-
-  return true;
+  return authorizeNavigation({
+    moduleId: "policy-compliance",
+    pathname,
+    selection,
+    resolve,
+    g1: opts.g1,
+    emit: opts.emit ?? false,
+    source: opts.source ?? "policy-guard",
+  }).allow;
 }
 
-/** Convenience for server/client UI gating (same rules as middleware). */
+/**
+ * Convenience for server/client UI gating. UI filter only — never reads
+ * NAV_G1_ENFORCE (server env) so SSR/hydration agree; middleware is the gate.
+ */
 export function canAccessPolicyPath(
   pathname: string,
   menus: string[] | null | undefined,
@@ -149,6 +147,7 @@ export function canAccessPolicyPath(
       submenuIds: submenus ?? null,
     },
     resolvePolicyMenuPath,
+    { g1: false },
   );
 }
 

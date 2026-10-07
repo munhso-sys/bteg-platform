@@ -10,6 +10,7 @@
     "lint": "eslint",
     "test:p0-03": "tsx --test src/lib/org-app-data-store.p0-03.test.ts",
     "test:n1-nav": "tsx --test src/lib/rbac/menu-route-guard.n1.test.ts",
+    "test:n2-nav": "tsx --test src/lib/rbac/nav-authorize.n2.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

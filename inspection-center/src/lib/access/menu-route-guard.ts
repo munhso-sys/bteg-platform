@@ -2,6 +2,8 @@
  * Enforce Role эрх inspection sidebar allowlists at the route level.
  */
 
+import { authorizeNavigation } from "./nav-authorize";
+
 export type MenuRouteSelection = {
   menuIds: string[] | null;
   submenuIds: Record<string, string[]> | null;
@@ -86,33 +88,35 @@ export function resolveInspectionMenuPath(
   return null;
 }
 
+export type MenuSelectionCheckOptions = {
+  /** Override NAV_G1_ENFORCE (tests / UI filters). */
+  g1?: boolean;
+  /** Emit nav telemetry (middleware only; default off). */
+  emit?: boolean;
+  source?: string;
+};
+
+/**
+ * No config (menuIds null AND submenuIds null): pre-G1 → ALLOW (compat);
+ * NAV_G1_ENFORCE=1 → DENY (fail closed). With config: unmapped path → DENY,
+ * known path must be allowlisted (shared N2 `authorizeNavigation` contract).
+ * Navigation only — write permission is decided separately in write-access.ts.
+ */
 export function isPathAllowedByMenuSelection(
   pathname: string,
   selection: MenuRouteSelection,
   resolve: (pathname: string) => ResolvedMenuPath | null = resolveInspectionMenuPath,
+  opts: MenuSelectionCheckOptions = {},
 ): boolean {
-  const hasMenuConfig = Array.isArray(selection.menuIds);
-  if (!hasMenuConfig && selection.submenuIds == null) return true;
-
-  const hit = resolve(pathname);
-  if (!hit) {
-    return !(hasMenuConfig || selection.submenuIds != null);
-  }
-
-  if (hasMenuConfig && !(selection.menuIds ?? []).includes(hit.menuId)) {
-    return false;
-  }
-
-  if (
-    hit.submenuId &&
-    selection.submenuIds &&
-    Object.prototype.hasOwnProperty.call(selection.submenuIds, hit.menuId)
-  ) {
-    const allowed = selection.submenuIds[hit.menuId] ?? [];
-    if (!allowed.includes(hit.submenuId)) return false;
-  }
-
-  return true;
+  return authorizeNavigation({
+    moduleId: "inspection",
+    pathname,
+    selection,
+    resolve,
+    g1: opts.g1,
+    emit: opts.emit ?? false,
+    source: opts.source ?? "inspection-guard",
+  }).allow;
 }
 
 export function firstAllowedInspectionPath(

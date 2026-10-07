@@ -16,6 +16,8 @@ import {
   decideSoftRemintNavigation,
   hasExplicitNavClaims,
 } from "@/lib/access/soft-remint-nav";
+import { isNavG1Enforce } from "@/lib/access/nav-authorize";
+import { emitNavEvent } from "@/lib/access/nav-telemetry";
 
 function allowedForPosition(pathname: string, positionId: string | null) {
   if (pathname === "/my") return true;
@@ -61,6 +63,11 @@ function allowedForUnit(
   return false;
 }
 
+/**
+ * Scope cookie is HttpOnly, Secure, SameSite=None so the portal iframe can
+ * carry it (third-party context). Do NOT weaken `secure` in production/hosted
+ * runtimes; relax only for a verified non-hosted local runtime if ever needed.
+ */
 function scopeCookieOptions(maxAge = 12 * 60 * 60) {
   return {
     httpOnly: true,
@@ -128,6 +135,18 @@ export async function middleware(request: NextRequest) {
         priorClaims: prior,
       });
       if (navDecision.action === "fail_closed_reembed") {
+        emitNavEvent(
+          navDecision.reason === "NAV_CONFIG_MISSING"
+            ? "nav.config_missing"
+            : "nav.token_invalid",
+          {
+            moduleId: "policy-compliance",
+            path: url.pathname,
+            reason: navDecision.reason,
+            source: "soft-remint",
+            g1: isNavG1Enforce(),
+          },
+        );
         clearSoftParams(url);
         const dest = new URL("/dashboard", request.url);
         dest.searchParams.set("nav_reembed", "1");
@@ -211,11 +230,34 @@ export async function middleware(request: NextRequest) {
         url.pathname,
         selection,
         resolvePolicyMenuPath,
+        { emit: true, source: "middleware" },
       )
     ) {
       const dest = firstAllowedPolicyPath(selection);
       return NextResponse.redirect(new URL(dest, request.url));
     }
+  } else if (isNavG1Enforce()) {
+    // NAV_G1_ENFORCE=1: no signed nav claims (no cookie, or claims without
+    // menus/submenus) → fail closed instead of compat allow.
+    emitNavEvent("nav.config_missing", {
+      moduleId: "policy-compliance",
+      path: url.pathname,
+      reason: "no_signed_nav_claims",
+      source: "middleware",
+      g1: true,
+    });
+    if (url.searchParams.get("nav_reembed") === "1") {
+      // Already bounced once → stop (avoid redirect loop).
+      return new NextResponse(
+        "Navigation grant required. Re-open this module from the portal.",
+        { status: 403 },
+      );
+    }
+    const dest = new URL("/dashboard", request.url);
+    dest.searchParams.set("nav_reembed", "1");
+    const res = NextResponse.redirect(dest);
+    res.cookies.delete(POLICY_SCOPE_COOKIE);
+    return res;
   }
 
   return NextResponse.next({

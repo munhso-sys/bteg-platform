@@ -247,7 +247,12 @@ Requires **explicit separate owner authorization**. This document does not autho
 | **NAV-G1** | **READY** |
 | Preview/non-prod regression | PASS (local multi-app non-prod cluster + staging DB) |
 | Git push | **PASS** — `4f3a7c1` (see §13) |
-| Production deploy | **NOT AUTHORIZED** |
+| Production E1 apply | **PASS** |
+| Production app deploy | **PASS** |
+| Production smoke (unauth) | **PASS** |
+| Production authenticated smoke / negatives | **BLOCKED** — needs operator credentials |
+| Production `NAV_G1_ENFORCE` | **OFF** (cutover deferred) |
+| Production deploy gate | **PROD-CONDITIONAL** (see §17) |
 
 ---
 
@@ -352,21 +357,110 @@ Staging left with E1 schema reapplied (empty v2 tables; legacy intact). No produ
 
 - `NAV_G1_ENFORCE=1` → missing config / missing grant DENY (`config_missing`) — proven in automated fixtures
 - Default committed behavior remains flag-off (compat) until environment enables the flag
-- Production enablement **NOT AUTHORIZED**
+- Production `NAV_G1_ENFORCE` cutover **deferred** pending authenticated production smoke (see §17)
 
 ### Final gate
 
-**`NAV-G1 = READY`**
+**`NAV-G1 = READY`** (architecture/evidence). Production enforce flag remains **OFF** until §17 authenticated gate closes.
 
 ---
 
-## 16. Release execution gate
+## 16. Release execution gate (pre-production)
 
 ## RELEASE-GATES-READY
 
 `REMOTE STAGING PASS + NAV-G1 READY — READY FOR OWNER PRODUCTION DEPLOY DECISION`
 
-Production deployment remains **NOT AUTHORIZED** by this document.
+Owner subsequently authorized production deployment (2026-10-07). See §17.
+
+---
+
+## 17. Production Deployment
+
+**Timestamp:** 2026-10-07 (UTC+8 evening)  
+**Production project:** `inspect-bteg` / ref `umswlpkjiwjohkolsyct` (confirmed)  
+**Release implementation commit:** `4f3a7c1fe6c15178a0cc25889110fd82adce9a47`  
+**Deployed tip (includes docs-only follow-up):** `2dc91eece072b4700cd7d3494df32917d45c0ac6`
+
+### Rollback evidence (pre-E1)
+
+| Item | Evidence |
+|------|----------|
+| DB restore marker | `public._e1_prod_rollback_marker` id `pre_e1_2026_10_07` + `_e1_prod_baseline` counts |
+| Approved E1 rollback SQL | `rbac_v2_e1_rollback_DRAFT.sql` (use only if DB proven causal) |
+| App rollback targets | Prior Ready: portal `platform-portal-8bnx7y9hm`, IC `…-lwcw8gycm`, policy `…-7cwtziv3n`, process `…-mob250pao`, development `…-n3r7delll` |
+| `NAV_G1_ENFORCE` pre-state | Absent / OFF on all five Vercel production projects |
+
+### E1 apply result
+
+| Step | Result |
+|------|--------|
+| Identity gate | PASS (`inspect-bteg` / `umswlpkjiwjohkolsyct`) |
+| Preflight Section A | PASS |
+| Forward apply | PASS (`rbac_v2_e1_forward_production`) |
+| B1–B8 | PASS |
+| C/D + residue | PASS |
+| Seed role mappings | **Not performed** (not authorized) |
+| Post-deploy health | 12/12 E1 tables present; permissions 22/22 `legacy`; `rbac_v2_ready=true` count 0; E1 tables empty |
+
+### Application deploy result
+
+| App | Production | Result |
+|-----|------------|--------|
+| Portal | `https://bteg.inspect.mn` | READY |
+| Inspection | `https://platform-inspection-center.vercel.app` | READY |
+| Policy | `https://platform-policy-compliance.vercel.app` | READY |
+| Process | `https://platform-process.vercel.app` | READY |
+| Development | `https://platform-development-amber.vercel.app` | READY |
+
+### Navigation secrets (presence only — no values)
+
+| Secret | Portal | Policy | Inspection | Process | Development |
+|--------|:------:|:------:|:----------:|:-------:|:-----------:|
+| `POLICY_EMBED_SECRET` | yes | yes | — | — | — |
+| `INSPECTION_EMBED_SECRET` | yes | — | yes | — | — |
+| `PROCESS_NAV_SECRET` | yes | — | — | yes | — |
+| `DEVELOPMENT_NAV_SECRET` | yes | — | — | — | yes |
+| `NAV_G1_ENFORCE` | **absent (OFF)** | OFF | OFF | OFF | OFF |
+
+Dedicated Process/Development nav secrets were provisioned to production during this deploy (values not recorded).
+
+### Smoke result (`NAV_G1_ENFORCE` OFF)
+
+| Check | Result |
+|-------|--------|
+| Portal `/api/supabase/health` + `/api/runtime-info` | PASS (`ok`, service role + embed flags true, production env) |
+| Five origins HTTP (no 5xx) | PASS |
+| Portal login page | PASS |
+| Process/Development invalid `nav` → `nav_reembed=1` | PASS |
+| Authenticated login / Role эрх / module matrix | **BLOCKED_NEED_CREDENTIALS** |
+| Controlled negative Policy/org/workplace tests | **NOT RUN** (credentials) |
+| Permission-deny-with-nav-allow | **NOT RUN** (credentials) |
+| Telemetry production event verification | **NOT RUN** (needs auth traffic + log access) |
+
+### `NAV_G1_ENFORCE` state
+
+**OFF** — production cutover **not performed**. Owner rule: enable only after full production smoke PASS. Authenticated smoke incomplete → STOP before cutover.
+
+### Rollback status
+
+**Not required.** No P0 regression observed on unauthenticated paths; apps left on new Ready deployments with G1 off (pre-G1 compat). E1 left applied (additive; validated).
+
+### Remaining operator actions before PROD-PASS
+
+1. Authenticated production smoke with controlled test role/account  
+2. Section 9 negatives (Policy management/review, deep links, invalid grants, permission independence)  
+3. Set `NAV_G1_ENFORCE=1` on all five production projects  
+4. Re-smoke + confirm no unexpected `nav.compat_allow` for supported modules  
+5. Update this section with final PROD-PASS
+
+### Final production gate
+
+## PROD-CONDITIONAL
+
+`PRODUCTION DEPLOYED — MINOR NON-BLOCKING ISSUES REMAIN`
+
+(E1 + apps live; `NAV_G1_ENFORCE` deferred pending authenticated validation.)
 
 ---
 

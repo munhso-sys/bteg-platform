@@ -3,9 +3,21 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import {
+  filterPolicySubnav,
+  usePolicyNavFilter,
+} from "@/lib/access/PolicyNavContext";
 
 const TABS = [
-  { href: "/policies", label: "Удирдлага", match: (p: string) => p === "/policies" || (p.startsWith("/policies/") && !p.startsWith("/policies/review") && !p.includes("/preview")) },
+  {
+    href: "/policies",
+    label: "Удирдлага",
+    match: (p: string) =>
+      p === "/policies" ||
+      (p.startsWith("/policies/") &&
+        !p.startsWith("/policies/review") &&
+        !p.includes("/preview")),
+  },
   {
     href: "/policies/review",
     label: "Шалгах",
@@ -18,9 +30,14 @@ const TABS = [
 
 export function PoliciesSubnav() {
   const pathname = usePathname() ?? "/";
+  const { submenus } = usePolicyNavFilter();
+  const items = filterPolicySubnav(TABS, "/policies", submenus);
+
+  if (items.length === 0) return null;
+
   return (
     <div className="mb-3 flex flex-wrap gap-1 border-b border-[var(--border)] pb-2">
-      {TABS.map((tab) => {
+      {items.map((tab) => {
         const active = tab.match(pathname);
         return (
           <Link

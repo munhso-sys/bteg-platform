@@ -56,6 +56,18 @@ describe("IC-D05 fail-closed write access", () => {
     }
   });
 
+  it("view mode (no inspection.edit) is denied", () => {
+    const d = decideInspectionWriteAccess(
+      claims({ mode: "view", role: "dxsh_specialist" }),
+      localDev,
+    );
+    assert.equal(d.allow, false);
+    if (!d.allow) {
+      assert.equal(d.reason, "view_readonly");
+      assert.equal(d.status, 403);
+    }
+  });
+
   it("full mode inspector is allowed", () => {
     assert.equal(
       decideInspectionWriteAccess(claims({ mode: "full", role: "inspector" }))

@@ -4,8 +4,19 @@ import { buildPolicyEmbedOptions } from "@/lib/policy-embed-server";
 import { buildInspectionEmbedOptions } from "@/lib/inspection-embed-server";
 import { buildDevelopmentEmbedOptions } from "@/lib/development-embed-server";
 import { buildProcessEmbedOptions } from "@/lib/process-embed-server";
+import { assertPortalMenuAccess } from "@/lib/rbac/assert-menu-access";
+
+const DUTY_PORTAL_PATH: Record<DutyModuleId, string> = {
+  inspection: "/inspection",
+  "policy-compliance": "/policy-compliance",
+  development: "/development",
+  process: "/process",
+};
 
 export async function DutyModulePage({ id }: { id: DutyModuleId }) {
+  // Portal top-level module allowlist (Role эрх → Портал цэс)
+  await assertPortalMenuAccess("portal", DUTY_PORTAL_PATH[id]);
+
   const app = getDutyModuleApps()[id];
 
   let entryPath: string | undefined;

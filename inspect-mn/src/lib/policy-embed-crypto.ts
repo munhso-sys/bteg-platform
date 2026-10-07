@@ -17,6 +17,10 @@ export type PolicyEmbedClaims = {
   heltesName?: string | null;
   albaName?: string | null;
   mode: PolicyEmbedMode;
+  /** Optional allowlist of policy sidebar menu hrefs for this role. */
+  menus?: string[] | null;
+  /** Optional allowlist of submenu hrefs keyed by parent menu href. */
+  submenus?: Record<string, string[]> | null;
   exp: number;
 };
 

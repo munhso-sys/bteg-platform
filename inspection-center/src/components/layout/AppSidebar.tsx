@@ -21,6 +21,10 @@ import {
 } from "lucide-react";
 import { useShrinkCollapse } from "@/lib/use-shrink-collapse";
 import { useEmbedHref } from "@/lib/access/use-embed-href";
+import {
+  filterMenusByAllowlist,
+  useInspectionNavFilter,
+} from "@/lib/access/InspectionNavContext";
 
 const NAV = [
   { href: "/dashboard", label: "Самбар", short: "Самбар", icon: LayoutDashboard },
@@ -67,9 +71,11 @@ function NavItems({
 }) {
   const pathname = usePathname();
   const { withEmbed } = useEmbedHref();
+  const { menus } = useInspectionNavFilter();
+  const visible = filterMenusByAllowlist(items, menus);
   return (
     <nav className="soft-scroll flex-1 space-y-0.5 overflow-x-hidden p-2">
-      {items.map((item) => {
+      {visible.map((item) => {
         const active = isActivePath(pathname, item.href);
         const Icon = item.icon;
         return (

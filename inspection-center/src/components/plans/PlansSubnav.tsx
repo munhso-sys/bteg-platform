@@ -3,9 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { isPlansNavActive, PLANS_NAV } from "@/app/plans/nav";
+import {
+  filterSubnavByAllowlist,
+  useInspectionNavFilter,
+} from "@/lib/access/InspectionNavContext";
 
 export function PlansSubnav() {
   const pathname = usePathname();
+  const { submenus } = useInspectionNavFilter();
+  const items = filterSubnavByAllowlist(PLANS_NAV, "/plans", submenus);
 
   return (
     <nav
@@ -13,7 +19,7 @@ export function PlansSubnav() {
       aria-label="Төлөвлөгөөний хэсгүүд"
     >
       <div className="flex flex-wrap gap-1">
-        {PLANS_NAV.map((item) => {
+        {items.map((item) => {
           const active = isPlansNavActive(pathname, item.href);
           return (
             <Link

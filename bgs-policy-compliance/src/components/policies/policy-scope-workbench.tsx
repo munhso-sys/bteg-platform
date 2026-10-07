@@ -32,6 +32,7 @@ import type { OrgAssignTree } from "@/lib/org-assign";
 import { SCOPE_EVAL_PREFIX } from "@/lib/org-assign";
 import type { ClauseTreeNode, ResponsibilityType } from "@/lib/types";
 import { cn, truncate } from "@/lib/utils";
+import { useCanAccessPolicyPath } from "@/lib/access/PolicyNavContext";
 import { AssignResponsibilityForm } from "@/app/(app)/policies/[id]/assign-responsibility-form";
 import {
   ClauseEvaluateForm,
@@ -295,6 +296,7 @@ function LinksPanel({
 }) {
   const [showAssign, setShowAssign] = useState(false);
   const [showEval, setShowEval] = useState(false);
+  const canOpenPositionManage = useCanAccessPolicyPath("/positions");
   const aggregated = useMemo(
     () => aggregateLinksByPosition(rows),
     [rows],
@@ -471,7 +473,7 @@ function LinksPanel({
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1 overflow-hidden">
                     <div className="flex min-w-0 items-center gap-1">
-                      {readOnly ? (
+                      {readOnly || !canOpenPositionManage ? (
                         <span className="block truncate font-medium">
                           {r.positionName}
                         </span>

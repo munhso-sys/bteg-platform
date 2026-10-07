@@ -6,6 +6,11 @@ import {
   type InspectionEmbedClaims,
 } from "@/lib/access/embed";
 import { resolveInspectionEmbedFromParts } from "@/lib/access/embed-resolve";
+import {
+  firstAllowedInspectionPath,
+  isPathAllowedByMenuSelection,
+  type MenuRouteSelection,
+} from "@/lib/access/menu-route-guard";
 
 function scopeCookieOptions(maxAge = 12 * 60 * 60) {
   return {
@@ -80,6 +85,26 @@ export async function middleware(request: NextRequest) {
       res.cookies.set(INSPECTION_SCOPE_COOKIE, token, scopeCookieOptions());
       return res;
     }
+
+    if (
+      !isApi &&
+      claims &&
+      (Array.isArray(claims.menus) || claims.submenus != null)
+    ) {
+      const selection: MenuRouteSelection = {
+        menuIds: Array.isArray(claims.menus) ? claims.menus : null,
+        submenuIds: claims.submenus ?? null,
+      };
+      if (!isPathAllowedByMenuSelection(url.pathname, selection)) {
+        const dest = firstAllowedInspectionPath(selection);
+        const redirectUrl = new URL(dest, request.url);
+        redirectUrl.searchParams.set("embed", token);
+        const res = NextResponse.redirect(redirectUrl);
+        res.cookies.set(INSPECTION_SCOPE_COOKIE, token, scopeCookieOptions());
+        return res;
+      }
+    }
+
     return withEmbedHeader(request, token);
   }
 

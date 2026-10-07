@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { Badge, ScoreChip } from "@/components/ui/primitives";
+import { useCanAccessPolicyPath } from "@/lib/access/PolicyNavContext";
 import { orgPath, type OrgExplorerHeltes } from "@/lib/org-assign";
 import { withBasePath } from "@/lib/paths";
 import { cn, formatDate, truncate } from "@/lib/utils";
@@ -212,6 +213,8 @@ function ContentDrawer({
   }
 
   const showingPolicy = Boolean(selectedPolicyId);
+  const canOpenPolicyManage = useCanAccessPolicyPath("/policies");
+  const canOpenPositionManage = useCanAccessPolicyPath("/positions");
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -298,7 +301,7 @@ function ContentDrawer({
               Буцах
             </button>
             {policyDetail ? <ScoreChip score={policyDetail.avgScore} /> : null}
-            {selectedPolicyId ? (
+            {selectedPolicyId && canOpenPolicyManage ? (
               <Link
                 href={`/policies/${selectedPolicyId}?from=org&heltesId=${encodeURIComponent(state.heltesId)}&albaId=${encodeURIComponent(state.albaId)}&tab=policies`}
                 className="ml-auto inline-flex items-center gap-1 rounded border border-slate-300 px-2 py-1.5 text-xs hover:bg-slate-50"
@@ -391,12 +394,22 @@ function ContentDrawer({
                   {policies.map((p) => (
                     <tr key={p.id} className="border-b border-slate-100 hover:bg-slate-50">
                       <td className="py-2 pr-2">
-                        <Link
-                          href={`/policies/${p.id}?from=org&heltesId=${encodeURIComponent(state.heltesId)}&albaId=${encodeURIComponent(state.albaId)}&tab=policies`}
-                          className="font-medium hover:underline"
-                        >
-                          {truncate(p.name, 60)}
-                        </Link>
+                        {canOpenPolicyManage ? (
+                          <Link
+                            href={`/policies/${p.id}?from=org&heltesId=${encodeURIComponent(state.heltesId)}&albaId=${encodeURIComponent(state.albaId)}&tab=policies`}
+                            className="font-medium hover:underline"
+                          >
+                            {truncate(p.name, 60)}
+                          </Link>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedPolicyId(p.id)}
+                            className="text-left font-medium hover:underline"
+                          >
+                            {truncate(p.name, 60)}
+                          </button>
+                        )}
                         <div className="text-xs text-slate-500">
                           {formatDate(p.approved_date)} · {p.scope_label}
                         </div>
@@ -437,16 +450,20 @@ function ContentDrawer({
                   {positions.map((p) => (
                     <tr key={p.id} className="border-b border-slate-100">
                       <td className="py-2 pr-2">
-                        <Link
-                          href={`${orgPath(
-                            state.heltesId,
-                            state.albaId,
-                            `positions/${p.id}`,
-                          )}?from=org`}
-                          className="font-medium hover:underline"
-                        >
-                          {p.name}
-                        </Link>
+                        {canOpenPositionManage ? (
+                          <Link
+                            href={`${orgPath(
+                              state.heltesId,
+                              state.albaId,
+                              `positions/${p.id}`,
+                            )}?from=org`}
+                            className="font-medium hover:underline"
+                          >
+                            {p.name}
+                          </Link>
+                        ) : (
+                          <span className="font-medium">{p.name}</span>
+                        )}
                       </td>
                       <td className="py-2 pr-2 font-mono text-xs">
                         {p.bteg_id || "—"}

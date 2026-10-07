@@ -33,6 +33,10 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# L1 local auth fixture / temp SQL (never commit)
+scripts/.l1-*
+scripts/*.fixture.json
+
 # vercel
 .vercel
 

@@ -123,6 +123,21 @@ async function buildPolicyEmbedOptionsInner(): Promise<{
   const positionId = resolved?.id ?? p?.position_id ?? null;
   const positionName = resolved?.name ?? p?.position_name ?? null;
 
+  let menus: string[] | null = null;
+  let submenus: Record<string, string[]> | null = null;
+  try {
+    const { loadRoleModuleMenuConfig } = await import(
+      "@/lib/rbac/role-menu-visibility"
+    );
+    const cfg = await loadRoleModuleMenuConfig(db, roleId, "policy-compliance");
+    if (cfg) {
+      menus = cfg.menuIds;
+      submenus = cfg.submenuIds;
+    }
+  } catch (err) {
+    console.warn("[policy-embed] menu visibility load skipped", err);
+  }
+
   const token = signPolicyEmbedToken({
     uid: user.id,
     role: roleId,
@@ -133,6 +148,8 @@ async function buildPolicyEmbedOptionsInner(): Promise<{
     heltesName: unit.heltesName,
     albaName: unit.albaName,
     mode,
+    menus,
+    submenus,
     exp: Date.now() + 12 * 60 * 60 * 1000,
   });
 

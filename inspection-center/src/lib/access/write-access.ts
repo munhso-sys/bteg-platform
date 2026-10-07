@@ -1,11 +1,13 @@
 import {
   isUnitScopedInspection,
+  isViewOnlyInspection,
   type InspectionEmbedClaims,
 } from "@/lib/access/embed";
 
 export type InspectionWriteDenyReason =
   | "missing_scope"
   | "unit_readonly"
+  | "view_readonly"
   | "not_admin";
 
 export type InspectionWriteDecision =
@@ -65,6 +67,16 @@ export function decideInspectionWriteAccess(
     };
   }
 
+  if (isViewOnlyInspection(scope)) {
+    return {
+      allow: false,
+      reason: "view_readonly",
+      status: 403,
+      message:
+        "Хяналт засах эрх байхгүй. Зөвхөн харах горимд ажиллана.",
+    };
+  }
+
   if (!scope) {
     if (allowUnscopedInspectionWrites(env)) {
       return { allow: true };
@@ -113,7 +125,9 @@ export function isInspectionAdminScope(
   scope: InspectionEmbedClaims | null | undefined,
   env: NodeJS.ProcessEnv = process.env,
 ): boolean {
-  if (isUnitScopedInspection(scope)) return false;
+  if (isUnitScopedInspection(scope) || isViewOnlyInspection(scope)) {
+    return false;
+  }
   if (!scope) return allowUnscopedInspectionWrites(env);
   return scope.role === "admin";
 }

@@ -6,6 +6,16 @@ import {
   verifyPolicyEmbedToken,
   type PolicyEmbedClaims,
 } from "@/lib/access/embed";
+import {
+  firstAllowedPolicyPath,
+  isPathAllowedByMenuSelection,
+  resolvePolicyMenuPath,
+  type MenuRouteSelection,
+} from "@/lib/access/menu-route-guard";
+import {
+  decideSoftRemintNavigation,
+  hasExplicitNavClaims,
+} from "@/lib/access/soft-remint-nav";
 
 function allowedForPosition(pathname: string, positionId: string | null) {
   if (pathname === "/my") return true;
@@ -107,6 +117,24 @@ export async function middleware(request: NextRequest) {
   if (!claims) {
     const soft = await claimsFromSoftParams(request);
     if (soft) {
+      // Preserve menu allowlists from an existing cookie when soft-scoping.
+      // N1-03 Choice A: cookie present but unverifiable → fail closed / re-embed.
+      const cookieVal = request.cookies.get(POLICY_SCOPE_COOKIE)?.value;
+      const prior = cookieVal
+        ? await verifyPolicyEmbedToken(cookieVal)
+        : null;
+      const navDecision = decideSoftRemintNavigation({
+        cookiePresent: Boolean(cookieVal),
+        priorClaims: prior,
+      });
+      if (navDecision.action === "fail_closed_reembed") {
+        clearSoftParams(url);
+        const dest = new URL("/dashboard", request.url);
+        dest.searchParams.set("nav_reembed", "1");
+        const res = NextResponse.redirect(dest);
+        res.cookies.delete(POLICY_SCOPE_COOKIE);
+        return res;
+      }
       const signed = await signPolicyEmbedToken({
         uid: soft.uid,
         role: soft.role,
@@ -117,10 +145,16 @@ export async function middleware(request: NextRequest) {
         heltesName: soft.heltesName,
         albaName: soft.albaName,
         mode: soft.mode,
+        menus: navDecision.menus,
+        submenus: navDecision.submenus,
         exp: soft.exp,
       });
       if (signed) {
-        claims = soft;
+        claims = {
+          ...soft,
+          menus: navDecision.menus,
+          submenus: navDecision.submenus,
+        };
         clearSoftParams(url);
         const res = NextResponse.redirect(url);
         res.cookies.set(POLICY_SCOPE_COOKIE, signed, scopeCookieOptions());
@@ -159,6 +193,27 @@ export async function middleware(request: NextRequest) {
           : claims.heltesId
             ? `/org/heltes/${claims.heltesId}`
             : "/org";
+      return NextResponse.redirect(new URL(dest, request.url));
+    }
+  }
+
+  // Role эрх sidebar allowlist — fail closed for deep links (org, workplace, etc.)
+  if (claims && hasExplicitNavClaims(claims.menus, claims.submenus)) {
+    const selection: MenuRouteSelection = {
+      menuIds: Array.isArray(claims.menus) ? claims.menus : null,
+      submenuIds:
+        claims.submenus && typeof claims.submenus === "object"
+          ? claims.submenus
+          : null,
+    };
+    if (
+      !isPathAllowedByMenuSelection(
+        url.pathname,
+        selection,
+        resolvePolicyMenuPath,
+      )
+    ) {
+      const dest = firstAllowedPolicyPath(selection);
       return NextResponse.redirect(new URL(dest, request.url));
     }
   }

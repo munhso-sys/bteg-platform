@@ -22,7 +22,12 @@ async function getUserWithTimeout(
 }
 
 export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", request.nextUrl.pathname);
+  const nextWithPath = () =>
+    NextResponse.next({ request: { headers: requestHeaders } });
+
+  let response = nextWithPath();
 
   const url = getSupabaseUrl();
   const key = getSupabasePublishableKey();
@@ -40,7 +45,7 @@ export async function updateSession(request: NextRequest) {
         cookiesToSet.forEach(({ name, value }) => {
           request.cookies.set(name, value);
         });
-        response = NextResponse.next({ request });
+        response = nextWithPath();
         cookiesToSet.forEach(({ name, value, options }) => {
           response.cookies.set(name, value, options);
         });

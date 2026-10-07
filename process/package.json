@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test:store": "npx tsx --test src/lib/store.test.ts",
+    "test:n1-nav": "npx tsx --test src/lib/access/nav-grant.n1.test.ts",
     "import:samples": "npx tsx scripts/import-samples.ts",
     "upload:samples": "npx tsx scripts/upload-samples-remote.ts"
   },

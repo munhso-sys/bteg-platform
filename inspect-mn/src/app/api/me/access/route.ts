@@ -130,9 +130,23 @@ export async function GET() {
     roleLabel = (roleRow?.label as string | undefined) ?? null;
   }
 
-  const modules = MODULES.filter((m) =>
+  let modules = MODULES.filter((m) =>
     canViewModule(m.id, permissions, roleId),
   ).map((m) => m.id);
+
+  // Optional Role эрх portal-menu allowlist (app_data_store).
+  try {
+    const { loadRoleModuleMenuConfig } = await import(
+      "@/lib/rbac/role-menu-visibility"
+    );
+    const portalMenus = await loadRoleModuleMenuConfig(db, roleId, "portal");
+    if (portalMenus && Array.isArray(portalMenus.menuIds)) {
+      const allow = new Set(portalMenus.menuIds);
+      modules = modules.filter((id) => allow.has(id));
+    }
+  } catch (err) {
+    console.warn("[me/access] portal menu filter skipped", err);
+  }
 
   return NextResponse.json({
     ok: true,

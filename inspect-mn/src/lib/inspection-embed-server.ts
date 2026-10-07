@@ -9,7 +9,8 @@ import {
   resolveInspectionEmbedVerifySecrets,
 } from "@/lib/embed-secret-config";
 
-export type InspectionEmbedMode = "full" | "unit";
+/** full = edit; unit = unit-scoped read-only; view = global read-only (no edit perm). */
+export type InspectionEmbedMode = "full" | "unit" | "view";
 
 export type InspectionEmbedClaims = {
   v: 1;
@@ -20,6 +21,10 @@ export type InspectionEmbedClaims = {
   heltesName: string | null;
   albaName: string | null;
   mode: InspectionEmbedMode;
+  /** Optional allowlist of inspection sidebar menu hrefs for this role. */
+  menus?: string[] | null;
+  /** Optional allowlist of submenu hrefs keyed by parent menu href. */
+  submenus?: Record<string, string[]> | null;
   exp: number;
 };
 
@@ -82,7 +87,13 @@ export function verifyInspectionEmbedToken(
     ) as InspectionEmbedClaims;
     if (parsed?.v !== 1 || typeof parsed.exp !== "number") return null;
     if (parsed.exp < Date.now()) return null;
-    if (parsed.mode !== "full" && parsed.mode !== "unit") return null;
+    if (
+      parsed.mode !== "full" &&
+      parsed.mode !== "unit" &&
+      parsed.mode !== "view"
+    ) {
+      return null;
+    }
     return parsed;
   } catch {
     return null;
@@ -158,8 +169,26 @@ async function buildInspectionEmbedOptionsInner(): Promise<{
     roleId === "admin";
 
   const unit = resolveUnitScope(p, roleId);
-  const mode: InspectionEmbedMode =
-    !canEdit && isUnitScopedRole(roleId) && unit.active ? "unit" : "full";
+  // Without edit permission: unit-scoped roles stay in unit mode; others get
+  // global view-only. Never fall through to "full" when canEdit is false.
+  let mode: InspectionEmbedMode = "view";
+  if (canEdit) mode = "full";
+  else if (isUnitScopedRole(roleId) && unit.active) mode = "unit";
+
+  let menus: string[] | null = null;
+  let submenus: Record<string, string[]> | null = null;
+  try {
+    const { loadRoleModuleMenuConfig } = await import(
+      "@/lib/rbac/role-menu-visibility"
+    );
+    const cfg = await loadRoleModuleMenuConfig(db, roleId, "inspection");
+    if (cfg) {
+      menus = cfg.menuIds;
+      submenus = cfg.submenuIds;
+    }
+  } catch (err) {
+    console.warn("[inspection-embed] menu visibility load skipped", err);
+  }
 
   const token = signInspectionEmbedToken({
     uid: user.id,
@@ -169,6 +198,8 @@ async function buildInspectionEmbedOptionsInner(): Promise<{
     heltesName: unit.heltesName,
     albaName: unit.albaName,
     mode,
+    menus,
+    submenus,
     exp: Date.now() + 12 * 60 * 60 * 1000,
   });
 
@@ -181,9 +212,10 @@ async function buildInspectionEmbedOptionsInner(): Promise<{
   };
 
   if (!token) {
-    return mode === "unit"
-      ? { entryPath: "/dashboard", query: softQuery }
-      : null;
+    // Soft fallback must not grant edit (full) when canEdit is false.
+    return mode === "full"
+      ? null
+      : { entryPath: "/dashboard", query: softQuery };
   }
 
   return {

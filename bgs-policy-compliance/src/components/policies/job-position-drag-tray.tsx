@@ -16,6 +16,7 @@ import {
   usePolicyJobDrag,
   type DragJobPosition,
 } from "@/components/policies/policy-job-drag-context";
+import { useCanAccessPolicyPath } from "@/lib/access/PolicyNavContext";
 
 function orgUnitLabels(row: AggregatedPositionRow): {
   heltes: string;
@@ -134,6 +135,7 @@ export function ConnectedPositionsPanel({
 }) {
   const rows = useMemo(() => aggregateLinksByPosition(linkRows), [linkRows]);
   const [orgTip, setOrgTip] = useState<OrgHoverTipState | null>(null);
+  const canOpenPositionManage = useCanAccessPolicyPath("/positions");
 
   return (
     <CollapsiblePanel
@@ -157,12 +159,18 @@ export function ConnectedPositionsPanel({
               onMouseEnter={(e) => showOrgHoverFromEvent(e, r, setOrgTip)}
               onMouseLeave={() => setOrgTip(null)}
             >
-              <Link
-                href={`/positions/${r.job_position_id}?from=policy&policyId=${encodeURIComponent(policyId)}`}
-                className="block truncate font-medium text-[var(--fg)] hover:underline"
-              >
-                {r.positionName}
-              </Link>
+              {canOpenPositionManage ? (
+                <Link
+                  href={`/positions/${r.job_position_id}?from=policy&policyId=${encodeURIComponent(policyId)}`}
+                  className="block truncate font-medium text-[var(--fg)] hover:underline"
+                >
+                  {r.positionName}
+                </Link>
+              ) : (
+                <span className="block truncate font-medium text-[var(--fg)]">
+                  {r.positionName}
+                </span>
+              )}
               <ConnectedPositionStats row={r} />
             </li>
           ))}
@@ -188,6 +196,7 @@ export function JobPositionDragTray({
   const rows = useMemo(() => aggregateLinksByPosition(linkRows), [linkRows]);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [orgTip, setOrgTip] = useState<OrgHoverTipState | null>(null);
+  const canOpenPositionManage = useCanAccessPolicyPath("/positions");
 
   const rowIds = useMemo(
     () => new Set(rows.map((r) => r.job_position_id)),
@@ -356,13 +365,19 @@ export function JobPositionDragTray({
                       className="mt-0.5 shrink-0 text-[var(--muted)]"
                     />
                     <div className="min-w-0 flex-1">
-                      <Link
-                        href={`/positions/${id}?from=policy&policyId=${encodeURIComponent(policyId)}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="block truncate text-xs font-medium text-[var(--fg)] hover:underline"
-                      >
-                        {r.positionName}
-                      </Link>
+                      {canOpenPositionManage ? (
+                        <Link
+                          href={`/positions/${id}?from=policy&policyId=${encodeURIComponent(policyId)}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="block truncate text-xs font-medium text-[var(--fg)] hover:underline"
+                        >
+                          {r.positionName}
+                        </Link>
+                      ) : (
+                        <span className="block truncate text-xs font-medium text-[var(--fg)]">
+                          {r.positionName}
+                        </span>
+                      )}
                       <ConnectedPositionStats row={r} />
                     </div>
                   </div>

@@ -256,5 +256,8 @@ export function isInspectionAdmin(
 export function isInspectionReadOnly(
   scope: InspectionEmbedClaims | null | undefined,
 ) {
-  return isUnitScopedInspection(scope);
+  return (
+    isUnitScopedInspection(scope) ||
+    scope?.mode === "view"
+  );
 }

@@ -4,6 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { isSettingsNavActive, SETTINGS_NAV } from "@/app/settings/nav";
 import { ThemeToggleButton } from "@/components/theme-toggle";
+import {
+  filterSubnavByAllowlist,
+  useInspectionNavFilter,
+} from "@/lib/access/InspectionNavContext";
 
 export function SettingsSubnav({
   showDataReset = false,
@@ -11,8 +15,13 @@ export function SettingsSubnav({
   showDataReset?: boolean;
 }) {
   const pathname = usePathname();
-  const items = SETTINGS_NAV.filter(
-    (item) => !("adminOnly" in item && item.adminOnly) || showDataReset,
+  const { submenus } = useInspectionNavFilter();
+  const items = filterSubnavByAllowlist(
+    SETTINGS_NAV.filter(
+      (item) => !("adminOnly" in item && item.adminOnly) || showDataReset,
+    ),
+    "/settings",
+    submenus,
   );
 
   return (

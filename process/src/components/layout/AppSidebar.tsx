@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FileStack,
   GitBranch,
@@ -14,6 +14,10 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import {
+  useNavMenuAllowlist,
+  withNavQuery,
+} from "@/lib/access/nav-grant-client";
 
 const NAV_GROUPS = [
   {
@@ -72,9 +76,21 @@ function NavItems({
   expanded: boolean;
 }) {
   const pathname = usePathname() || "/";
+  const searchParams = useSearchParams();
+  const nav = searchParams.get("nav");
+  const allow = useNavMenuAllowlist();
+  const groups = useMemo(() => {
+    if (!allow) return NAV_GROUPS;
+    const set = new Set(allow);
+    return NAV_GROUPS.map((group) => ({
+      ...group,
+      items: group.items.filter((item) => set.has(item.href)),
+    })).filter((group) => group.items.length > 0);
+  }, [allow]);
+
   return (
     <nav className="soft-scroll flex-1 space-y-0.5 overflow-x-hidden p-2">
-      {NAV_GROUPS.map((group) => (
+      {groups.map((group) => (
         <div key={group.label} className="pb-3 last:pb-0">
           {expanded ? (
             <div className="px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-teal-300">
@@ -90,7 +106,7 @@ function NavItems({
               return (
                 <Link
                   key={item.href}
-                  href={item.href}
+                  href={withNavQuery(item.href, nav)}
                   onClick={onNavigate}
                   title={item.label}
                   className={cn(

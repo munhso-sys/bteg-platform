@@ -3,9 +3,15 @@
 import { usePathname } from "next/navigation";
 import { ACTIONS_NAV, isActionsNavActive } from "@/app/actions/nav";
 import { EmbedLink } from "@/components/access/EmbedLink";
+import {
+  filterSubnavByAllowlist,
+  useInspectionNavFilter,
+} from "@/lib/access/InspectionNavContext";
 
 export function ActionsSubnav() {
   const pathname = usePathname();
+  const { submenus } = useInspectionNavFilter();
+  const items = filterSubnavByAllowlist(ACTIONS_NAV, "/actions", submenus);
 
   return (
     <nav
@@ -13,7 +19,7 @@ export function ActionsSubnav() {
       aria-label="Арга хэмжээний хэсгүүд"
     >
       <div className="flex flex-wrap gap-1">
-        {ACTIONS_NAV.map((item) => {
+        {items.map((item) => {
           const active = isActionsNavActive(pathname, item.href);
           return (
             <EmbedLink

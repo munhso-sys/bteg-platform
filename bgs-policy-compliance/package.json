@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test:n1-nav": "tsx --test src/lib/access/soft-remint-nav.n1.test.ts",
+    "typecheck": "tsc --noEmit",
     "import:bgs": "tsx scripts/import-bgs.ts",
     "reference:build": "tsx scripts/build-reference-catalog.ts",
     "data:refresh": "tsx scripts/import-bgs.ts && tsx scripts/build-reference-catalog.ts"

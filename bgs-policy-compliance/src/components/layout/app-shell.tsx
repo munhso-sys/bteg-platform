@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useShrinkCollapse } from "@/lib/use-shrink-collapse";
+import { filterPolicyMenus } from "@/lib/access/PolicyNavContext";
 
 type NavChild = {
   href: string;
@@ -346,6 +347,8 @@ export function AppShell({
   albaId = null,
   albaName = null,
   heltesName = null,
+  menus = null,
+  submenus = null,
 }: {
   children: React.ReactNode;
   mode?: "full" | "position" | "unit";
@@ -355,6 +358,8 @@ export function AppShell({
   albaId?: string | null;
   albaName?: string | null;
   heltesName?: string | null;
+  menus?: string[] | null;
+  submenus?: Record<string, string[]> | null;
 }) {
   const [open, setOpen] = useState(false);
   const [pinned, setPinned] = useState(false);
@@ -368,7 +373,7 @@ export function AppShell({
         : "/org";
   const home = positionId ? `/positions/${positionId}` : "/my";
   const unitLabel = albaName || heltesName || "Миний нэгж";
-  const items: NavItem[] = positionScoped
+  const baseItems: NavItem[] = positionScoped
     ? [
         { href: "/my", label: "Миний үүрэг", short: "Үүрэг", icon: UserRound },
         {
@@ -412,6 +417,7 @@ export function AppShell({
           },
         ]
       : NAV_FULL;
+  const items = filterPolicyMenus(baseItems, menus, submenus);
 
   const scopedLabel = positionScoped
     ? positionName

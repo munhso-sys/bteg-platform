@@ -1,4 +1,4 @@
-export type InspectionEmbedMode = "full" | "unit";
+export type InspectionEmbedMode = "full" | "unit" | "view";
 
 export type InspectionEmbedClaims = {
   v: 1;
@@ -9,6 +9,10 @@ export type InspectionEmbedClaims = {
   heltesName: string | null;
   albaName: string | null;
   mode: InspectionEmbedMode;
+  /** Optional allowlist of inspection sidebar menu hrefs. */
+  menus?: string[] | null;
+  /** Optional allowlist of submenu hrefs keyed by parent menu href. */
+  submenus?: Record<string, string[]> | null;
   exp: number;
 };
 
@@ -93,7 +97,13 @@ export async function verifyInspectionEmbedToken(
     const parsed = JSON.parse(json) as InspectionEmbedClaims;
     if (parsed?.v !== 1 || typeof parsed.exp !== "number") return null;
     if (parsed.exp < Date.now()) return null;
-    if (parsed.mode !== "full" && parsed.mode !== "unit") return null;
+    if (
+      parsed.mode !== "full" &&
+      parsed.mode !== "unit" &&
+      parsed.mode !== "view"
+    ) {
+      return null;
+    }
     return parsed;
   } catch {
     return null;
@@ -115,6 +125,13 @@ export function isUnitScopedInspection(
   claims: InspectionEmbedClaims | null | undefined,
 ) {
   return claims?.mode === "unit";
+}
+
+/** View-only embed (no module.inspection.edit) — not unit-scoped. */
+export function isViewOnlyInspection(
+  claims: InspectionEmbedClaims | null | undefined,
+) {
+  return claims?.mode === "view";
 }
 
 export function unitLabels(claims: InspectionEmbedClaims | null | undefined) {

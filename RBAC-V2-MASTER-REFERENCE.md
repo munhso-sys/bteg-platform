@@ -246,10 +246,10 @@ Requires **explicit separate owner authorization**. This document does not autho
 | Field | Value |
 |-------|-------|
 | Branch | `canonical/assembly` |
-| Commit | _pending_ (filled after commit) |
-| Remote | `origin` (`origin/canonical/assembly`) |
-| Push | _pending_ |
-| Timestamp | 2026-10-07 (local pre-push gate) |
+| Commit | `574cf04746aa8dbd7095c0a042c7cd5adc3942c2` |
+| Remote | `origin` → `https://github.com/munhso-sys/bteg-platform.git` (`origin/canonical/assembly`) |
+| Push | **PASS** (`b185b79..574cf04`) |
+| Timestamp | 2026-10-07 21:10 +08:00 |
 | Final localhost gate | **PASS** — Portal :3000 200; LOCAL Supabase only; prod ref absent; Policy management DENY; Policy review ALLOW; Process/Development invalid nav FAIL-CLOSED; N1 unit tests PASS; typechecks PASS |
 
 ---

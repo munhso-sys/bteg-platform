@@ -97,7 +97,7 @@ async function claimsFromSoftParams(
   request: NextRequest,
 ): Promise<PolicyEmbedClaims | null> {
   const scope = request.nextUrl.searchParams.get("scope");
-  if (scope !== "position" && scope !== "unit") return null;
+  if (scope !== "position" && scope !== "unit" && scope !== "view") return null;
   return {
     v: 1,
     uid: "soft",
@@ -216,8 +216,18 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // `/my` is not a Role эрх catalog id — exempt only for mode=position.
+  // mode=view uses Role эрх menus for reachability (no workplace /my gate).
+  const isPositionHome =
+    claims?.mode === "position" &&
+    (url.pathname === "/my" || url.pathname.startsWith("/my/"));
+
   // Role эрх sidebar allowlist — fail closed for deep links (org, workplace, etc.)
-  if (claims && hasExplicitNavClaims(claims.menus, claims.submenus)) {
+  if (
+    claims &&
+    !isPositionHome &&
+    hasExplicitNavClaims(claims.menus, claims.submenus)
+  ) {
     const selection: MenuRouteSelection = {
       menuIds: Array.isArray(claims.menus) ? claims.menus : null,
       submenuIds:
@@ -236,7 +246,7 @@ export async function middleware(request: NextRequest) {
       const dest = firstAllowedPolicyPath(selection);
       return NextResponse.redirect(new URL(dest, request.url));
     }
-  } else if (isNavG1Enforce()) {
+  } else if (isNavG1Enforce() && !isPositionHome) {
     // NAV_G1_ENFORCE=1: no signed nav claims (no cookie, or claims without
     // menus/submenus) → fail closed instead of compat allow.
     emitNavEvent("nav.config_missing", {

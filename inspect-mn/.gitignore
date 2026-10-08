@@ -45,3 +45,9 @@ scripts/*.fixture.json
 next-env.d.ts
 
 .vercel
+
+# Policy SSR local fixtures
+scripts/.policy-ssr-local.fixture.json
+scripts/.l1-local-auth.fixture.json
+scripts/.l1-seed-profile.tmp.sql
+

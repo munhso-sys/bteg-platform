@@ -1,4 +1,4 @@
-export type PolicyEmbedMode = "full" | "position" | "unit";
+export type PolicyEmbedMode = "full" | "view" | "position" | "unit";
 
 export type PolicyEmbedClaims = {
   v: 1;
@@ -93,6 +93,7 @@ export async function verifyPolicyEmbedToken(
     if (parsed.exp < Date.now()) return null;
     if (
       parsed.mode !== "full" &&
+      parsed.mode !== "view" &&
       parsed.mode !== "position" &&
       parsed.mode !== "unit"
     ) {
@@ -124,5 +125,9 @@ export function isUnitScoped(claims: PolicyEmbedClaims | null | undefined) {
 }
 
 export function isRestrictedScope(claims: PolicyEmbedClaims | null | undefined) {
-  return claims?.mode === "position" || claims?.mode === "unit";
+  return (
+    claims?.mode === "position" ||
+    claims?.mode === "unit" ||
+    claims?.mode === "view"
+  );
 }

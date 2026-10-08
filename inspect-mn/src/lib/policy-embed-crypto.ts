@@ -4,7 +4,8 @@ import {
   resolvePolicyEmbedVerifySecrets,
 } from "./embed-secret-config";
 
-export type PolicyEmbedMode = "full" | "position" | "unit";
+/** full=edit; view=read-only Role эрх; position=/my workplace; unit=org unit */
+export type PolicyEmbedMode = "full" | "view" | "position" | "unit";
 
 export type PolicyEmbedClaims = {
   v: 1;
@@ -71,6 +72,7 @@ export function verifyPolicyEmbedToken(
     if (parsed.exp < Date.now()) return null;
     if (
       parsed.mode !== "full" &&
+      parsed.mode !== "view" &&
       parsed.mode !== "position" &&
       parsed.mode !== "unit"
     ) {

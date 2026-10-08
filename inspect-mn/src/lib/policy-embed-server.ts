@@ -2,12 +2,21 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, hasServiceRole } from "@/lib/supabase/admin";
 import type { PermissionId, RoleId, UserProfile } from "@/lib/rbac/types";
 import {
+  isPositionScopedRole,
   isUnitScopedRole,
   signPolicyEmbedToken,
-  type PolicyEmbedMode,
 } from "@/lib/policy-embed";
-import { getDutyModuleApps } from "@/lib/module-apps";
 import { resolveUnitScope } from "@/lib/rbac/unit-scope";
+import { loadRoleModuleMenuConfig } from "@/lib/rbac/role-menu-visibility";
+import {
+  POLICY_EMBED_BUILD_TIMEOUT_MS,
+  choosePolicyEmbedMode,
+  choosePolicyEntryPath,
+  emptyTiming,
+  logPolicyEmbedTiming,
+  withTimeout,
+} from "@/lib/policy-embed-build-core";
+import { positionFromProfile } from "@/lib/policy-position-resolve";
 
 async function loadPermissions(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -39,50 +48,39 @@ async function loadPermissions(
   return perms;
 }
 
-async function resolvePositionId(
-  rawId: string | null | undefined,
-  name: string | null | undefined,
-): Promise<{ id: string; name: string } | null> {
-  if (!rawId && !name) return null;
-  try {
-    const origin = getDutyModuleApps()["policy-compliance"].origin;
-    const url = new URL(`${origin}/api/positions/resolve`);
-    if (rawId) url.searchParams.set("id", rawId);
-    if (name) url.searchParams.set("name", name);
-    const res = await fetch(url.toString(), {
-      method: "GET",
-      cache: "no-store",
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) return rawId ? { id: rawId, name: name || rawId } : null;
-    const data = (await res.json()) as {
-      ok?: boolean;
-      id?: string;
-      name?: string;
-    };
-    if (data?.ok && data.id) {
-      return { id: data.id, name: data.name || name || data.id };
-    }
-  } catch {
-    // ignore
-  }
-  if (rawId) return { id: rawId, name: name || rawId };
-  return null;
-}
-
-/** Embed params for Журмын биелэлт iframe. */
+/**
+ * Embed params for Журмын биелэлт iframe.
+ *
+ * Critical path must NOT call the Policy origin. Cross-origin
+ * `/api/positions/resolve` (up to 8s) caused production 504
+ * FUNCTION_INVOCATION_TIMEOUT on `/policy-compliance` for non-admins.
+ * Position ids come from the portal profile; Policy may normalize later.
+ *
+ * On failure: return null (controlled UI) — never `{ query: {} }` embed-less.
+ */
 export async function buildPolicyEmbedOptions(): Promise<{
   entryPath: string;
   query: Record<string, string>;
 } | null> {
+  const tAll = Date.now();
   try {
-    return await buildPolicyEmbedOptionsInner();
-  } catch (error) {
-    console.error(
-      "[policy-embed] build failed; embedding without token",
-      error,
+    const result = await withTimeout(
+      buildPolicyEmbedOptionsInner(),
+      POLICY_EMBED_BUILD_TIMEOUT_MS,
+      "policy embed",
     );
-    return { entryPath: "/dashboard", query: {} };
+    logPolicyEmbedTiming("ok", emptyTiming(), {
+      wallMs: Date.now() - tAll,
+      hasEmbed: Boolean(result?.query?.embed),
+    });
+    return result;
+  } catch (error) {
+    console.error("[policy-embed] build failed; refusing embed-less iframe", error);
+    logPolicyEmbedTiming("fail", emptyTiming(), {
+      wallMs: Date.now() - tAll,
+      error: error instanceof Error ? error.message : "unknown",
+    });
+    return null;
   }
 }
 
@@ -90,6 +88,9 @@ async function buildPolicyEmbedOptionsInner(): Promise<{
   entryPath: string;
   query: Record<string, string>;
 } | null> {
+  const timing = emptyTiming();
+  const t0 = Date.now();
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -97,17 +98,37 @@ async function buildPolicyEmbedOptionsInner(): Promise<{
   if (!user) return null;
 
   const db = hasServiceRole() ? createAdminClient() : supabase;
+  const tProfile = Date.now();
   const { data: profile } = await db
     .from("user_profiles")
-    .select("*")
+    .select(
+      "user_id, role_id, status, position_id, position_name, heltes_id, heltes_name, alba_id, alba_name",
+    )
     .eq("user_id", user.id)
     .maybeSingle();
+  timing.profileMs = Date.now() - tProfile;
   const p = profile as UserProfile | null;
   const roleId = (p?.role_id ?? null) as RoleId | null;
-  const permissions =
+
+  const tPerm = Date.now();
+  const tMenu = Date.now();
+  const [permissions, menuCfg] = await Promise.all([
     p && p.status === "active"
-      ? await loadPermissions(db, user.id, roleId)
-      : new Set<PermissionId>(["module.policy.view"]);
+      ? loadPermissions(db, user.id, roleId)
+      : Promise.resolve(new Set<PermissionId>(["module.policy.view"])),
+    roleId
+      ? loadRoleModuleMenuConfig(db, roleId, "policy-compliance").catch(
+          (err) => {
+            console.warn("[policy-embed] menu visibility load skipped", err);
+            return null;
+          },
+        )
+      : Promise.resolve(null),
+  ]);
+  timing.permissionsMs = Date.now() - tPerm;
+  timing.menuConfigMs = Date.now() - tMenu;
+  // Remote resolve intentionally not called (RC1).
+  timing.resolveMs = 0;
 
   const canEdit =
     permissions.has("module.policy.edit") ||
@@ -115,29 +136,21 @@ async function buildPolicyEmbedOptionsInner(): Promise<{
     roleId === "admin";
 
   const unit = resolveUnitScope(p, roleId);
-  let mode: PolicyEmbedMode = "position";
-  if (canEdit) mode = "full";
-  else if (isUnitScopedRole(roleId) && unit.active) mode = "unit";
+  const menus = menuCfg?.menuIds ?? null;
+  const submenus = menuCfg?.submenuIds ?? null;
+  const hasRoleMenus = Boolean(menus && menus.length > 0);
 
-  const resolved = await resolvePositionId(p?.position_id, p?.position_name);
-  const positionId = resolved?.id ?? p?.position_id ?? null;
-  const positionName = resolved?.name ?? p?.position_name ?? null;
+  const mode = choosePolicyEmbedMode({
+    canEdit,
+    isUnitScoped: isUnitScopedRole(roleId),
+    unitActive: unit.active,
+    isPositionScoped: isPositionScopedRole(roleId),
+    hasRoleMenus,
+  });
 
-  let menus: string[] | null = null;
-  let submenus: Record<string, string[]> | null = null;
-  try {
-    const { loadRoleModuleMenuConfig } = await import(
-      "@/lib/rbac/role-menu-visibility"
-    );
-    const cfg = await loadRoleModuleMenuConfig(db, roleId, "policy-compliance");
-    if (cfg) {
-      menus = cfg.menuIds;
-      submenus = cfg.submenuIds;
-    }
-  } catch (err) {
-    console.warn("[policy-embed] menu visibility load skipped", err);
-  }
+  const { id: positionId, name: positionName } = positionFromProfile(p ?? {});
 
+  const tSign = Date.now();
   const token = signPolicyEmbedToken({
     uid: user.id,
     role: roleId,
@@ -152,9 +165,24 @@ async function buildPolicyEmbedOptionsInner(): Promise<{
     submenus,
     exp: Date.now() + 12 * 60 * 60 * 1000,
   });
+  timing.signMs = Date.now() - tSign;
+  timing.totalMs = Date.now() - t0;
+
+  logPolicyEmbedTiming("inner", timing, {
+    roleId,
+    mode,
+    hasRoleMenus,
+    hasPosition: Boolean(positionId || positionName),
+    canEdit,
+  });
+
+  if (!token) {
+    // Fail closed: never mount Policy iframe without a signed embed.
+    return null;
+  }
 
   const softQuery: Record<string, string> = {
-    scope: mode,
+    ...(mode !== "full" ? { scope: mode } : {}),
     ...(positionId ? { position_id: positionId } : {}),
     ...(positionName ? { position_name: positionName } : {}),
     ...(unit.heltesId ? { heltes_id: unit.heltesId } : {}),
@@ -163,23 +191,13 @@ async function buildPolicyEmbedOptionsInner(): Promise<{
     ...(unit.albaName ? { alba_name: unit.albaName } : {}),
   };
 
-  let entryPath = "/dashboard";
-  if (mode === "position") {
-    entryPath = "/my";
-  } else if (mode === "unit") {
-    if (unit.heltesId && unit.albaId) {
-      entryPath = `/org/heltes/${unit.heltesId}/alba/${unit.albaId}`;
-    } else if (unit.heltesId) {
-      entryPath = `/org/heltes/${unit.heltesId}`;
-    } else {
-      entryPath = "/org";
-    }
-  }
-
-  if (!token) {
-    if (mode === "full") return null;
-    return { entryPath, query: softQuery };
-  }
+  const entryPath = choosePolicyEntryPath({
+    mode,
+    positionId,
+    unit: { heltesId: unit.heltesId, albaId: unit.albaId },
+    menus,
+    submenus,
+  });
 
   return {
     entryPath,

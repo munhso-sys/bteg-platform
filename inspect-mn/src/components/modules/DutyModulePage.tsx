@@ -13,6 +13,23 @@ const DUTY_PORTAL_PATH: Record<DutyModuleId, string> = {
   process: "/process",
 };
 
+function PolicyEmbedError({ message }: { message: string }) {
+  return (
+    <div className="flex h-full min-h-[70vh] flex-col items-center justify-center gap-3 px-6 text-center">
+      <p className="text-base font-medium text-[var(--fg)]">
+        Журмын биелэлт ачаалах боломжгүй
+      </p>
+      <p className="max-w-md text-sm text-[var(--muted)]">{message}</p>
+      <a
+        href="/policy-compliance"
+        className="rounded-md bg-[var(--fg)] px-4 py-2 text-sm text-[var(--bg)]"
+      >
+        Дахин оролдох
+      </a>
+    </div>
+  );
+}
+
 export async function DutyModulePage({ id }: { id: DutyModuleId }) {
   // Portal top-level module allowlist (Role эрх → Портал цэс)
   await assertPortalMenuAccess("portal", DUTY_PORTAL_PATH[id]);
@@ -25,8 +42,13 @@ export async function DutyModulePage({ id }: { id: DutyModuleId }) {
   try {
     if (id === "policy-compliance") {
       const policyEmbed = await buildPolicyEmbedOptions();
-      entryPath = policyEmbed?.entryPath;
-      query = policyEmbed?.query;
+      if (!policyEmbed?.query?.embed) {
+        return (
+          <PolicyEmbedError message="Portal embed токен үүсгэхэд алдаа гарлаа эсвэл хугацаа хэтэрсэн. Дахин оролдоно уу." />
+        );
+      }
+      entryPath = policyEmbed.entryPath;
+      query = policyEmbed.query;
     } else if (id === "inspection") {
       const inspectionEmbed = await buildInspectionEmbedOptions();
       entryPath = inspectionEmbed?.entryPath;
@@ -42,6 +64,11 @@ export async function DutyModulePage({ id }: { id: DutyModuleId }) {
     }
   } catch (error) {
     console.error(`[duty-module] embed options failed for ${id}`, error);
+    if (id === "policy-compliance") {
+      return (
+        <PolicyEmbedError message="Серверийн алдаа. Дахин оролдоно уу." />
+      );
+    }
   }
 
   return (

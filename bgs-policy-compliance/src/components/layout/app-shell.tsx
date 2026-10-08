@@ -351,7 +351,7 @@ export function AppShell({
   submenus = null,
 }: {
   children: React.ReactNode;
-  mode?: "full" | "position" | "unit";
+  mode?: "full" | "view" | "position" | "unit";
   positionId?: string | null;
   positionName?: string | null;
   heltesId?: string | null;

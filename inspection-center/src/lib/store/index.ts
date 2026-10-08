@@ -160,6 +160,19 @@ function normalizeStoreData(data: InspectionCenterData): InspectionCenterData {
   };
 }
 
+/**
+ * Hydrate-timeout / seed fallbacks often leave runs+answers+findings empty.
+ * Never push that sparse payload to remote — that wiped production on 2026-10-08.
+ */
+function isSparseInspectionStorePayload(payload: unknown): boolean {
+  if (!payload || typeof payload !== "object") return true;
+  const data = payload as Partial<InspectionCenterData>;
+  const runs = Array.isArray(data.runs) ? data.runs.length : 0;
+  const answers = Array.isArray(data.answers) ? data.answers.length : 0;
+  const findings = Array.isArray(data.findings) ? data.findings.length : 0;
+  return runs === 0 && answers === 0 && findings === 0;
+}
+
 function queueRemoteWrite(
   key: (typeof REMOTE_KEYS)[keyof typeof REMOTE_KEYS],
   payload: unknown,
@@ -168,6 +181,18 @@ function queueRemoteWrite(
   if (!isSupabaseConfigured()) return;
   // Local/dev: disk is authoritative — don't block saves on multi-MB remote upserts.
   if (preferLocalStore()) return;
+
+  // Block empty/seed store upserts unless explicitly forced (ops recovery only).
+  if (
+    key === REMOTE_KEYS.store &&
+    isSparseInspectionStorePayload(payload) &&
+    process.env.STORE_ALLOW_SPARSE_REMOTE_WRITE !== "1"
+  ) {
+    console.warn(
+      "[store] refused sparse remote store write (empty runs/answers/findings)",
+    );
+    return;
+  }
 
   const memory = storeMemory();
   const updatedAt = new Date().toISOString();
@@ -187,6 +212,16 @@ function queueRemoteWrite(
       memory.pendingRemotePayload?.delete(key);
       memory.remoteWriteScheduled?.delete(key);
       if (latest === undefined) return;
+      if (
+        key === REMOTE_KEYS.store &&
+        isSparseInspectionStorePayload(latest) &&
+        process.env.STORE_ALLOW_SPARSE_REMOTE_WRITE !== "1"
+      ) {
+        console.warn(
+          "[store] refused sparse remote store write at flush (empty runs/answers/findings)",
+        );
+        return;
+      }
       const organizationId = await resolveStoreOrganizationId();
       // Org id preferred; saveRemotePayload falls back to legacy app_data_store
       // when org_app_data_store is missing (Production) or write fails.
@@ -379,7 +414,8 @@ export async function ensureStoreHydrated() {
       (!remoteStore ||
         Boolean(localStoreStamp && localStoreStamp > remoteStore.updatedAt))
     ) {
-      await saveRemotePayload(REMOTE_KEYS.store, memory.store, organizationId);
+      // Never push during hydrate: timeout/seed memory was wiping remote.
+      // Explicit mutations (writeStore) still queueRemoteWrite.
     } else if (!memory.store || partitionChanged) {
       memory.store = diskStore
         ? normalizeStoreData(diskStore)
